@@ -132,6 +132,7 @@ class EncryptedRecordService {
     @Transactional(readOnly = true)
     @NonNull List<EncryptedRecordResponse> listSince(
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
+        requireNonNegativeSinceRevision(sinceRevision);
         accessGuard.requireOwnedVault(ownerId, vaultId);
         return records.listSince(ownerId, vaultId, sinceRevision).stream()
                 .map(EncryptedRecordResponse::from)
@@ -141,6 +142,7 @@ class EncryptedRecordService {
     @Transactional(readOnly = true)
     @NonNull EncryptedRecordPageResponse pageSince(
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
+        requireNonNegativeSinceRevision(sinceRevision);
         if (limit <= 0 || limit > MAX_PAGE_LIMIT) {
             throw new InvalidRecordRequestException("Record page limit is out of range");
         }
@@ -158,5 +160,11 @@ class EncryptedRecordService {
         Long nextSinceRevision = hasMore ? highestRevision : null;
         return new EncryptedRecordPageResponse(
                 vaultId, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
+    }
+
+    private void requireNonNegativeSinceRevision(long sinceRevision) {
+        if (sinceRevision < 0) {
+            throw new InvalidRecordRequestException("sinceRevision must not be negative");
+        }
     }
 }

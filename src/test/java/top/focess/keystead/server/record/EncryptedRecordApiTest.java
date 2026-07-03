@@ -227,6 +227,15 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
+    void listSyncRejectsNegativeSinceRevision() throws Exception {
+        createVault("alice", "vault-sync-negative");
+
+        mvc.perform(get("/api/v1/vaults/vault-sync-negative/records").param("sinceRevision", "-1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
     void recordsCanBePagedForDatabaseStyleSyncCursor() throws Exception {
         createVault("alice", "vault-sync-page");
         putRecord("vault-sync-page", "secret-a", 1, "envelope-a");
@@ -247,6 +256,17 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.highestRevision").value(2))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andExpect(jsonPath("$.nextSinceRevision").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void pageSyncRejectsNegativeSinceRevision() throws Exception {
+        createVault("alice", "vault-sync-page-negative");
+
+        mvc.perform(
+                        get("/api/v1/vaults/vault-sync-page-negative/records/page")
+                                .param("sinceRevision", "-1"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
