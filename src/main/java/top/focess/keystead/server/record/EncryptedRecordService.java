@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.vault.VaultAccessGuard;
 
 @Service
@@ -15,14 +16,17 @@ class EncryptedRecordService {
 
     private final EncryptedRecordRepository records;
     private final VaultAccessGuard accessGuard;
+    private final AuditService audit;
     private final Clock clock;
 
     EncryptedRecordService(
             @NonNull EncryptedRecordRepository records,
             @NonNull VaultAccessGuard accessGuard,
+            @NonNull AuditService audit,
             @NonNull Clock clock) {
         this.records = records;
         this.accessGuard = accessGuard;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -46,16 +50,26 @@ class EncryptedRecordService {
                         request.envelope(),
                         request.deleted(),
                         clock.instant());
+        StoreRecordResult result;
         if (existing.isEmpty()) {
             records.insert(next);
-            return StoreRecordResult.CREATED;
-        }
-        if (request.revision() <= existing.get().revision()) {
+            result = StoreRecordResult.CREATED;
+        } else if (request.revision() <= existing.get().revision()) {
             throw new RevisionConflictException(
                     "Record revision must increase", existing.get().revision(), request.revision());
+        } else {
+            records.update(next);
+            result = StoreRecordResult.UPDATED;
         }
-        records.update(next);
-        return StoreRecordResult.UPDATED;
+        audit.recordStored(
+                ownerId,
+                ownerId,
+                vaultId,
+                secretId,
+                request.revision(),
+                request.secretType(),
+                request.deleted());
+        return result;
     }
 
     @Transactional
@@ -84,6 +98,7 @@ class EncryptedRecordService {
                         "",
                         true,
                         clock.instant()));
+        audit.recordDeleted(ownerId, ownerId, vaultId, secretId, revision);
     }
 
     @Transactional(readOnly = true)

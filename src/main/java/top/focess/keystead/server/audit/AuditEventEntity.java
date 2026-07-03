@@ -1,0 +1,83 @@
+package top.focess.keystead.server.audit;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+@Entity
+@Table(name = "audit_events")
+public class AuditEventEntity {
+
+    @Id
+    @Column(name = "event_id", nullable = false)
+    @NonNull String eventId = "";
+
+    @Column(name = "owner_id", nullable = false)
+    @NonNull String ownerId = "";
+
+    @Column(name = "actor_id", nullable = false)
+    @NonNull String actorId = "";
+
+    @Column(name = "event_type", nullable = false)
+    @NonNull String eventType = "";
+
+    @Column(name = "target_type", nullable = false)
+    @NonNull String targetType = "";
+
+    @Column(name = "target_id", nullable = false)
+    @NonNull String targetId = "";
+
+    @Column(name = "vault_id")
+    @Nullable String vaultId;
+
+    @Column(name = "revision")
+    @Nullable Long revision;
+
+    @Column(name = "outcome", nullable = false)
+    @NonNull String outcome = "";
+
+    @Column(name = "details", nullable = false, columnDefinition = "text")
+    @NonNull String details = "";
+
+    @Column(name = "created_at", nullable = false)
+    @NonNull Instant createdAt = Instant.EPOCH;
+
+    protected AuditEventEntity() {}
+
+    private AuditEventEntity(@NonNull StoredAuditEvent event) {
+        this.eventId = event.eventId();
+        this.ownerId = event.ownerId();
+        this.actorId = event.actorId();
+        this.eventType = event.eventType();
+        this.targetType = event.targetType();
+        this.targetId = event.targetId();
+        this.vaultId = event.vaultId();
+        this.revision = event.revision();
+        this.outcome = event.outcome();
+        this.details = event.details();
+        this.createdAt = event.createdAt();
+    }
+
+    static @NonNull AuditEventEntity from(@NonNull StoredAuditEvent event) {
+        return new AuditEventEntity(event);
+    }
+
+    @NonNull StoredAuditEvent toStored() {
+        return new StoredAuditEvent(
+                eventId,
+                ownerId,
+                actorId,
+                eventType,
+                targetType,
+                targetId,
+                vaultId,
+                revision,
+                outcome,
+                details,
+                createdAt);
+    }
+}
