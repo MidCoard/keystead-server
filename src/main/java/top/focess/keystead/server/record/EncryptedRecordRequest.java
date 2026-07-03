@@ -12,10 +12,13 @@ public record EncryptedRecordRequest(
         @Size(max = EncryptedRecordLimits.ENCRYPTED_PROFILE_MAX_LENGTH) @Nullable String metadata,
         @Size(max = EncryptedRecordLimits.ENCRYPTED_PROFILE_MAX_LENGTH)
                 @Nullable String encryptedProfile,
-        @NotBlank @Size(max = EncryptedRecordLimits.ENVELOPE_MAX_LENGTH) @NonNull String envelope,
+        @Size(max = EncryptedRecordLimits.ENVELOPE_MAX_LENGTH) @Nullable String envelope,
         boolean deleted) {
 
     @NonNull String resolvedEncryptedProfile() {
+        if (deleted) {
+            return "";
+        }
         if (encryptedProfile != null && !encryptedProfile.isBlank()) {
             return encryptedProfile;
         }
@@ -23,5 +26,15 @@ public record EncryptedRecordRequest(
             return metadata;
         }
         throw new InvalidRecordRequestException("encryptedProfile is required");
+    }
+
+    @NonNull String resolvedEnvelope() {
+        if (deleted) {
+            return "";
+        }
+        if (envelope != null && !envelope.isBlank()) {
+            return envelope;
+        }
+        throw new InvalidRecordRequestException("envelope is required");
     }
 }

@@ -38,8 +38,8 @@ class EncryptedRecordService {
             @NonNull EncryptedRecordRequest request) {
         accessGuard.requireOwnedVault(ownerId, vaultId);
         Optional<StoredEncryptedRecord> existing = records.find(ownerId, vaultId, secretId);
-        String encryptedProfile = request.deleted() ? "" : request.resolvedEncryptedProfile();
-        String envelope = request.deleted() ? "" : request.envelope();
+        String encryptedProfile = request.resolvedEncryptedProfile();
+        String envelope = request.resolvedEnvelope();
         StoredEncryptedRecord next =
                 new StoredEncryptedRecord(
                         ownerId,

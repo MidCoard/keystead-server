@@ -174,6 +174,33 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
+    void tombstoneCanBeStoredWithoutEncryptedProfileOrPayload() throws Exception {
+        createVault("alice", "vault-tombstone-upload");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-tombstone-upload/records/secret-tombstone")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "SECURE_NOTE",
+                                          "deleted": true
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/v1/vaults/vault-tombstone-upload/records/secret-tombstone"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revision").value(1))
+                .andExpect(jsonPath("$.metadata").doesNotExist())
+                .andExpect(jsonPath("$.encryptedProfile").doesNotExist())
+                .andExpect(jsonPath("$.envelope").doesNotExist())
+                .andExpect(jsonPath("$.deleted").value(true));
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
     void oversizedEncryptedRecordPayloadIsRejected() throws Exception {
         createVault("alice", "vault-oversized");
         String oversized = "x".repeat(262_145);
