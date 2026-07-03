@@ -166,7 +166,9 @@ class EncryptedRecordApiTest {
         mvc.perform(get("/api/v1/vaults/vault-1/records/secret-3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.revision").value(2))
-                .andExpect(jsonPath("$.envelope").value("dmVyc2lvbi0y"))
+                .andExpect(jsonPath("$.metadata").doesNotExist())
+                .andExpect(jsonPath("$.encryptedProfile").doesNotExist())
+                .andExpect(jsonPath("$.envelope").doesNotExist())
                 .andExpect(jsonPath("$.deleted").value(true));
     }
 
@@ -292,12 +294,17 @@ class EncryptedRecordApiTest {
         mvc.perform(get("/api/v1/vaults/vault-delete/records/secret-delete"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.revision").value(2))
-                .andExpect(jsonPath("$.envelope").value(""))
+                .andExpect(jsonPath("$.metadata").doesNotExist())
+                .andExpect(jsonPath("$.encryptedProfile").doesNotExist())
+                .andExpect(jsonPath("$.envelope").doesNotExist())
                 .andExpect(jsonPath("$.deleted").value(true));
 
         mvc.perform(get("/api/v1/vaults/vault-delete/records").param("sinceRevision", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].secretId").value("secret-delete"))
+                .andExpect(jsonPath("$[0].metadata").doesNotExist())
+                .andExpect(jsonPath("$[0].encryptedProfile").doesNotExist())
+                .andExpect(jsonPath("$[0].envelope").doesNotExist())
                 .andExpect(jsonPath("$[0].deleted").value(true));
     }
 
