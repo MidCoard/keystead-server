@@ -55,15 +55,22 @@ class EncryptedRecordService {
             records.insert(next);
             result = StoreRecordResult.CREATED;
         } else if (request.revision() <= existing.get().revision()) {
+            StoredEncryptedRecord serverRecord = existing.get();
             audit.recordRevisionConflict(
                     ownerId,
                     ownerId,
                     vaultId,
                     secretId,
-                    existing.get().revision(),
+                    serverRecord.revision(),
                     request.revision());
             throw new RevisionConflictException(
-                    "Record revision must increase", existing.get().revision(), request.revision());
+                    "Record revision must increase",
+                    vaultId,
+                    secretId,
+                    serverRecord.revision(),
+                    request.revision(),
+                    serverRecord.deleted(),
+                    serverRecord.updatedAt());
         } else {
             records.update(next);
             result = StoreRecordResult.UPDATED;
@@ -93,7 +100,13 @@ class EncryptedRecordService {
             audit.recordRevisionConflict(
                     ownerId, ownerId, vaultId, secretId, existing.revision(), revision);
             throw new RevisionConflictException(
-                    "Record revision must increase", existing.revision(), revision);
+                    "Record revision must increase",
+                    vaultId,
+                    secretId,
+                    existing.revision(),
+                    revision,
+                    existing.deleted(),
+                    existing.updatedAt());
         }
         records.update(
                 new StoredEncryptedRecord(
