@@ -11,6 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuditService {
 
     private static final String OUTCOME_SUCCESS = "SUCCESS";
+    private static final String OUTCOME_FAILURE = "FAILURE";
+    private static final String TARGET_AUTH = "auth";
     private static final String TARGET_KEY_PACKAGE = "key_package";
     private static final String TARGET_RECORD = "record";
 
@@ -97,6 +99,23 @@ public class AuditService {
                         rejectedRevision,
                         OUTCOME_SUCCESS,
                         safeConflictDetails(latestRevision, rejectedRevision),
+                        clock.instant()));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void loginFailed(@NonNull String username) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        username,
+                        username,
+                        AuditEventType.LOGIN_FAILED.name(),
+                        TARGET_AUTH,
+                        username,
+                        null,
+                        null,
+                        OUTCOME_FAILURE,
+                        "{\"reason\":\"BAD_CREDENTIALS\"}",
                         clock.instant()));
     }
 

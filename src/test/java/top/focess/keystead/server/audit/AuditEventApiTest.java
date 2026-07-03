@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -219,6 +220,30 @@ class AuditEventApiTest {
         assertThat(event.revision()).isNull();
         assertThat(event.details()).contains("RSA_OAEP_SHA256");
         assertThat(event.details()).doesNotContain("wrapped-vault-key-audit-sentinel");
+    }
+
+    @Test
+    void loginFailureCreatesRedactedAuditEvent() throws Exception {
+        registerUser("audit-login-alice");
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(httpBasic("audit-login-alice", "wrong-password-sentinel")))
+                .andExpect(status().isUnauthorized());
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner("audit-login-alice");
+
+        assertThat(events).hasSize(1);
+        StoredAuditEvent event = events.getFirst();
+        assertThat(event.eventType()).isEqualTo(AuditEventType.LOGIN_FAILED.name());
+        assertThat(event.ownerId()).isEqualTo("audit-login-alice");
+        assertThat(event.actorId()).isEqualTo("audit-login-alice");
+        assertThat(event.vaultId()).isNull();
+        assertThat(event.targetType()).isEqualTo("auth");
+        assertThat(event.targetId()).isEqualTo("audit-login-alice");
+        assertThat(event.revision()).isNull();
+        assertThat(event.details()).contains("\"reason\":\"BAD_CREDENTIALS\"");
+        assertThat(event.details()).doesNotContain("wrong-password-sentinel");
     }
 
     private void putRecord(

@@ -11,12 +11,14 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
 
     @Bean
-    public @NonNull SecurityFilterChain securityFilterChain(@NonNull HttpSecurity http)
+    public @NonNull SecurityFilterChain securityFilterChain(
+            @NonNull HttpSecurity http, @NonNull LoginFailureAuditFilter loginFailureAuditFilter)
             throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
@@ -35,7 +37,8 @@ public class SecurityConfig {
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated())
-                .httpBasic(Customizer.withDefaults());
+                .httpBasic(Customizer.withDefaults())
+                .addFilterBefore(loginFailureAuditFilter, BasicAuthenticationFilter.class);
         return http.build();
     }
 
