@@ -26,6 +26,10 @@ public class SecurityConfig {
                                 requests.requestMatchers(EndpointRequest.to("health"))
                                         .permitAll()
                                         .requestMatchers(
+                                                org.springframework.http.HttpMethod.GET,
+                                                "/api/v1/crypto/algorithms")
+                                        .permitAll()
+                                        .requestMatchers(
                                                 org.springframework.http.HttpMethod.POST,
                                                 "/api/v1/users")
                                         .permitAll()

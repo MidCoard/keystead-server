@@ -3,7 +3,9 @@ package top.focess.keystead.server.vault;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.jspecify.annotations.NonNull;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,19 +13,30 @@ import org.springframework.transaction.annotation.Transactional;
 class VaultService {
 
     private final VaultRepository vaults;
+    private final VaultAccessGuard accessGuard;
     private final Clock clock;
 
-    VaultService(@NonNull VaultRepository vaults, @NonNull Clock clock) {
+    VaultService(
+            @NonNull VaultRepository vaults,
+            @NonNull VaultAccessGuard accessGuard,
+            @NonNull Clock clock) {
         this.vaults = vaults;
+        this.accessGuard = accessGuard;
         this.clock = clock;
     }
 
     @Transactional
     void put(@NonNull String ownerId, @NonNull String vaultId, @NonNull VaultRequest request) {
+        Optional<StoredVault> existing =
+                accessGuard.findOwnedVaultOrRejectTakenId(ownerId, vaultId);
         Instant now = clock.instant();
-        Instant createdAt = vaults.find(ownerId, vaultId).map(StoredVault::createdAt).orElse(now);
-        vaults.upsert(
-                new StoredVault(ownerId, vaultId, request.encryptedMetadata(), createdAt, now));
+        Instant createdAt = existing.map(StoredVault::createdAt).orElse(now);
+        try {
+            vaults.upsert(
+                    new StoredVault(ownerId, vaultId, request.encryptedMetadata(), createdAt, now));
+        } catch (DataIntegrityViolationException e) {
+            throw new VaultNotFoundException("Vault does not exist", e);
+        }
     }
 
     @Transactional(readOnly = true)

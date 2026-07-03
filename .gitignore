@@ -4,7 +4,7 @@ out/
 .idea/
 *.iml
 
-docs/superpowers/
+docs
 
 data/
 .env

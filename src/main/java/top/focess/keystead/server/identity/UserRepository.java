@@ -1,62 +1,20 @@
 package top.focess.keystead.server.identity;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository
-class UserRepository {
+interface UserRepository extends JpaRepository<UserEntity, String> {
 
-    private final JdbcTemplate jdbc;
-
-    UserRepository(@NonNull JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    default @NonNull Optional<StoredUser> find(@NonNull String username) {
+        return findById(username).map(UserEntity::toStored);
     }
 
-    @NonNull Optional<StoredUser> find(@NonNull String username) {
-        return jdbc
-                .query(
-                        """
-                        select username, password_hash, created_at, updated_at
-                          from app_users
-                         where username = ?
-                        """,
-                        this::map,
-                        username)
-                .stream()
-                .findFirst();
+    default boolean exists(@NonNull String username) {
+        return existsById(username);
     }
 
-    boolean exists(@NonNull String username) {
-        Integer count =
-                jdbc.queryForObject(
-                        "select count(*) from app_users where username = ?",
-                        Integer.class,
-                        username);
-        return count != null && count > 0;
-    }
-
-    void insert(@NonNull StoredUser user) {
-        jdbc.update(
-                """
-                insert into app_users (username, password_hash, created_at, updated_at)
-                values (?, ?, ?, ?)
-                """,
-                user.username(),
-                user.passwordHash(),
-                Timestamp.from(user.createdAt()),
-                Timestamp.from(user.updatedAt()));
-    }
-
-    private @NonNull StoredUser map(@NonNull ResultSet resultSet, int row) throws SQLException {
-        return new StoredUser(
-                resultSet.getString("username"),
-                resultSet.getString("password_hash"),
-                resultSet.getTimestamp("created_at").toInstant(),
-                resultSet.getTimestamp("updated_at").toInstant());
+    default void insert(@NonNull StoredUser user) {
+        save(UserEntity.from(user));
     }
 }

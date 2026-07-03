@@ -1,13 +1,23 @@
 package top.focess.keystead.server.record;
 
 import org.jspecify.annotations.NonNull;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.CONFLICT)
 final class RevisionConflictException extends RuntimeException {
 
-    RevisionConflictException(@NonNull String message) {
+    private final long latestRevision;
+    private final long rejectedRevision;
+
+    RevisionConflictException(@NonNull String message, long latestRevision, long rejectedRevision) {
         super(message);
+        this.latestRevision = latestRevision;
+        this.rejectedRevision = rejectedRevision;
+    }
+
+    long latestRevision() {
+        return latestRevision;
+    }
+
+    long rejectedRevision() {
+        return rejectedRevision;
     }
 }

@@ -1,67 +1,41 @@
 package top.focess.keystead.server.identity;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.jspecify.annotations.NonNull;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-@Repository
-class DeviceRepository {
+interface DeviceRepository extends JpaRepository<DeviceEntity, DeviceEntityId> {
 
-    private final JdbcTemplate jdbc;
+    @Query("select d from DeviceEntity d where d.id.ownerId = :ownerId order by d.id.deviceId")
+    @NonNull List<DeviceEntity> listEntities(@Param("ownerId") @NonNull String ownerId);
 
-    DeviceRepository(@NonNull JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
+    default @NonNull List<StoredDevice> list(@NonNull String ownerId) {
+        return listEntities(ownerId).stream().map(DeviceEntity::toStored).toList();
     }
 
-    @NonNull List<StoredDevice> list(@NonNull String ownerId) {
-        return jdbc.query(
-                """
-                select owner_id, device_id, key_algorithm, public_key, created_at
-                  from devices
-                 where owner_id = ?
-                 order by device_id
-                """,
-                this::map,
-                ownerId);
+    default @NonNull Optional<StoredDevice> find(
+            @NonNull String ownerId, @NonNull String deviceId) {
+        return findById(new DeviceEntityId(ownerId, deviceId)).map(DeviceEntity::toStored);
     }
 
-    void upsert(@NonNull StoredDevice device) {
-        int updated =
-                jdbc.update(
-                        """
-                        update devices
-                           set key_algorithm = ?, public_key = ?
-                         where owner_id = ? and device_id = ?
-                        """,
-                        device.keyAlgorithm(),
-                        device.publicKey(),
-                        device.ownerId(),
-                        device.deviceId());
-        if (updated > 0) {
-            return;
-        }
-        jdbc.update(
-                """
-                insert into devices (owner_id, device_id, key_algorithm, public_key, created_at)
-                values (?, ?, ?, ?, ?)
-                """,
-                device.ownerId(),
-                device.deviceId(),
-                device.keyAlgorithm(),
-                device.publicKey(),
-                Timestamp.from(device.createdAt()));
+    default void upsert(@NonNull StoredDevice device) {
+        save(DeviceEntity.from(device));
     }
 
-    private @NonNull StoredDevice map(@NonNull ResultSet resultSet, int row) throws SQLException {
-        return new StoredDevice(
-                resultSet.getString("owner_id"),
-                resultSet.getString("device_id"),
-                resultSet.getString("key_algorithm"),
-                resultSet.getString("public_key"),
-                resultSet.getTimestamp("created_at").toInstant());
-    }
+    @Modifying
+    @Query(
+            """
+            update DeviceEntity d
+               set d.verifiedAt = :when, d.lastSeenAt = :when
+             where d.id.ownerId = :ownerId and d.id.deviceId = :deviceId
+            """)
+    void markVerified(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("deviceId") @NonNull String deviceId,
+            @Param("when") @NonNull Instant when);
 }

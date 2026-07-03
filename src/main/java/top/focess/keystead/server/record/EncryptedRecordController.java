@@ -6,6 +6,8 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -36,6 +38,16 @@ class EncryptedRecordController {
                 .build();
     }
 
+    @DeleteMapping("/{secretId}")
+    @NonNull ResponseEntity<Void> delete(
+            @NonNull Principal principal,
+            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String secretId,
+            @RequestParam long revision) {
+        service.delete(principal.getName(), vaultId, secretId, revision);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{secretId}")
     @NonNull ResponseEntity<EncryptedRecordResponse> get(
             @NonNull Principal principal,
@@ -53,5 +65,12 @@ class EncryptedRecordController {
             @PathVariable @NonNull String vaultId,
             @RequestParam(defaultValue = "0") long sinceRevision) {
         return service.listSince(principal.getName(), vaultId, sinceRevision);
+    }
+
+    @ExceptionHandler(RevisionConflictException.class)
+    @NonNull ResponseEntity<RevisionConflictResponse> revisionConflict(
+            @NonNull RevisionConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(RevisionConflictResponse.from(exception));
     }
 }

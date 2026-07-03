@@ -6,21 +6,21 @@ import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import top.focess.keystead.server.vault.VaultRepository;
+import top.focess.keystead.server.vault.VaultAccessGuard;
 
 @Service
 class EncryptedRecordService {
 
     private final EncryptedRecordRepository records;
-    private final VaultRepository vaults;
+    private final VaultAccessGuard accessGuard;
     private final Clock clock;
 
     EncryptedRecordService(
             @NonNull EncryptedRecordRepository records,
-            @NonNull VaultRepository vaults,
+            @NonNull VaultAccessGuard accessGuard,
             @NonNull Clock clock) {
         this.records = records;
-        this.vaults = vaults;
+        this.accessGuard = accessGuard;
         this.clock = clock;
     }
 
@@ -30,7 +30,7 @@ class EncryptedRecordService {
             @NonNull String vaultId,
             @NonNull String secretId,
             @NonNull EncryptedRecordRequest request) {
-        requireVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, vaultId);
         Optional<StoredEncryptedRecord> existing = records.find(ownerId, vaultId, secretId);
         StoredEncryptedRecord next =
                 new StoredEncryptedRecord(
@@ -39,7 +39,8 @@ class EncryptedRecordService {
                         secretId,
                         request.revision(),
                         request.secretType(),
-                        request.metadata(),
+                        request.resolvedEncryptedProfile(),
+                        request.resolvedEncryptedProfile(),
                         request.envelope(),
                         request.deleted(),
                         clock.instant());
@@ -48,10 +49,39 @@ class EncryptedRecordService {
             return StoreRecordResult.CREATED;
         }
         if (request.revision() <= existing.get().revision()) {
-            throw new RevisionConflictException("Record revision must increase");
+            throw new RevisionConflictException(
+                    "Record revision must increase", existing.get().revision(), request.revision());
         }
         records.update(next);
         return StoreRecordResult.UPDATED;
+    }
+
+    @Transactional
+    void delete(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String secretId,
+            long revision) {
+        accessGuard.requireOwnedVault(ownerId, vaultId);
+        StoredEncryptedRecord existing =
+                records.find(ownerId, vaultId, secretId)
+                        .orElseThrow(() -> new RecordNotFoundException("Record does not exist"));
+        if (revision <= existing.revision()) {
+            throw new RevisionConflictException(
+                    "Record revision must increase", existing.revision(), revision);
+        }
+        records.update(
+                new StoredEncryptedRecord(
+                        ownerId,
+                        vaultId,
+                        secretId,
+                        revision,
+                        existing.secretType(),
+                        existing.metadata(),
+                        existing.encryptedProfile(),
+                        "",
+                        true,
+                        clock.instant()));
     }
 
     @Transactional(readOnly = true)
@@ -63,15 +93,9 @@ class EncryptedRecordService {
     @Transactional(readOnly = true)
     @NonNull List<EncryptedRecordResponse> listSince(
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
-        requireVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, vaultId);
         return records.listSince(ownerId, vaultId, sinceRevision).stream()
                 .map(EncryptedRecordResponse::from)
                 .toList();
-    }
-
-    private void requireVault(@NonNull String ownerId, @NonNull String vaultId) {
-        if (!vaults.exists(ownerId, vaultId)) {
-            throw new VaultNotFoundException("Vault does not exist");
-        }
     }
 }

@@ -9,6 +9,7 @@ public record EncryptedRecordResponse(
         long revision,
         @NonNull String secretType,
         @NonNull String metadata,
+        @NonNull String encryptedProfile,
         @NonNull String envelope,
         boolean deleted,
         @NonNull Instant updatedAt) {
@@ -19,7 +20,8 @@ public record EncryptedRecordResponse(
                 record.secretId(),
                 record.revision(),
                 record.secretType(),
-                record.metadata(),
+                record.encryptedProfile(),
+                record.encryptedProfile(),
                 record.envelope(),
                 record.deleted(),
                 record.updatedAt());

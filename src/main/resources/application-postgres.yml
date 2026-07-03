@@ -3,3 +3,7 @@ spring:
     url: ${KEYSTEAD_DB_URL:jdbc:postgresql://localhost:5432/keystead}
     username: ${KEYSTEAD_DB_USERNAME:keystead}
     password: ${KEYSTEAD_DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none

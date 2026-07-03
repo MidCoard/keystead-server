@@ -1,110 +1,47 @@
 package top.focess.keystead.server.record;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-@Repository
-class EncryptedRecordRepository {
+interface EncryptedRecordRepository
+        extends JpaRepository<EncryptedRecordEntity, EncryptedRecordEntityId> {
 
-    private final JdbcTemplate jdbc;
-
-    EncryptedRecordRepository(@NonNull JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
-
-    @NonNull Optional<StoredEncryptedRecord> find(
+    default @NonNull Optional<StoredEncryptedRecord> find(
             @NonNull String ownerId, @NonNull String vaultId, @NonNull String secretId) {
-        return jdbc
-                .query(
-                        """
-                        select owner_id, vault_id, secret_id, revision, secret_type, metadata,
-                               envelope, deleted, updated_at
-                          from encrypted_records
-                         where owner_id = ? and vault_id = ? and secret_id = ?
-                        """,
-                        this::map,
-                        ownerId,
-                        vaultId,
-                        secretId)
-                .stream()
-                .findFirst();
+        return findById(new EncryptedRecordEntityId(ownerId, vaultId, secretId))
+                .map(EncryptedRecordEntity::toStored);
     }
 
-    @NonNull List<StoredEncryptedRecord> listSince(
+    @Query(
+            """
+            select r
+              from EncryptedRecordEntity r
+             where r.id.ownerId = :ownerId
+               and r.id.vaultId = :vaultId
+               and r.revision > :sinceRevision
+             order by r.revision, r.id.secretId
+            """)
+    @NonNull List<EncryptedRecordEntity> listSinceEntities(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("sinceRevision") long sinceRevision);
+
+    default @NonNull List<StoredEncryptedRecord> listSince(
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
-        return jdbc.query(
-                """
-                select owner_id, vault_id, secret_id, revision, secret_type, metadata,
-                       envelope, deleted, updated_at
-                  from encrypted_records
-                 where owner_id = ? and vault_id = ? and revision > ?
-                 order by revision, secret_id
-                """,
-                this::map,
-                ownerId,
-                vaultId,
-                sinceRevision);
+        return listSinceEntities(ownerId, vaultId, sinceRevision).stream()
+                .map(EncryptedRecordEntity::toStored)
+                .toList();
     }
 
-    void insert(@NonNull StoredEncryptedRecord record) {
-        jdbc.update(
-                """
-                insert into encrypted_records
-                    (owner_id, vault_id, secret_id, revision, secret_type, metadata, envelope,
-                     deleted, updated_at)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                record.ownerId(),
-                record.vaultId(),
-                record.secretId(),
-                record.revision(),
-                record.secretType(),
-                record.metadata(),
-                record.envelope(),
-                record.deleted(),
-                Timestamp.from(record.updatedAt()));
+    default void insert(@NonNull StoredEncryptedRecord record) {
+        save(EncryptedRecordEntity.from(record));
     }
 
-    void update(@NonNull StoredEncryptedRecord record) {
-        jdbc.update(
-                """
-                update encrypted_records
-                   set revision = ?,
-                       secret_type = ?,
-                       metadata = ?,
-                       envelope = ?,
-                       deleted = ?,
-                       updated_at = ?
-                 where owner_id = ? and vault_id = ? and secret_id = ?
-                """,
-                record.revision(),
-                record.secretType(),
-                record.metadata(),
-                record.envelope(),
-                record.deleted(),
-                Timestamp.from(record.updatedAt()),
-                record.ownerId(),
-                record.vaultId(),
-                record.secretId());
-    }
-
-    private @NonNull StoredEncryptedRecord map(@NonNull ResultSet resultSet, int row)
-            throws SQLException {
-        return new StoredEncryptedRecord(
-                resultSet.getString("owner_id"),
-                resultSet.getString("vault_id"),
-                resultSet.getString("secret_id"),
-                resultSet.getLong("revision"),
-                resultSet.getString("secret_type"),
-                resultSet.getString("metadata"),
-                resultSet.getString("envelope"),
-                resultSet.getBoolean("deleted"),
-                resultSet.getTimestamp("updated_at").toInstant());
+    default void update(@NonNull StoredEncryptedRecord record) {
+        save(EncryptedRecordEntity.from(record));
     }
 }

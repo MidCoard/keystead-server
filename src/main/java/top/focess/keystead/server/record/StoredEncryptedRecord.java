@@ -10,6 +10,7 @@ record StoredEncryptedRecord(
         long revision,
         @NonNull String secretType,
         @NonNull String metadata,
+        @NonNull String encryptedProfile,
         @NonNull String envelope,
         boolean deleted,
         @NonNull Instant updatedAt) {}

@@ -1,6 +1,7 @@
 package top.focess.keystead.server.record;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -83,7 +84,42 @@ class EncryptedRecordApiTest {
                         put("/api/v1/vaults/vault-1/records/secret-2")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
-                .andExpect(status().isConflict());
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("REVISION_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Record revision must increase"))
+                .andExpect(jsonPath("$.latestRevision").value(2))
+                .andExpect(jsonPath("$.rejectedRevision").value(2))
+                .andExpect(jsonPath("$.envelope").doesNotExist())
+                .andExpect(jsonPath("$.metadata").doesNotExist())
+                .andExpect(jsonPath("$.encryptedProfile").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void encryptedProfileIsStoredForClientSideClassification() throws Exception {
+        createVault("alice", "vault-profile");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-profile/records/secret-profile")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "LOGIN_PASSWORD",
+                                          "encryptedProfile": "encrypted-profile-development-github",
+                                          "envelope": "encrypted-secret-payload",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/v1/vaults/vault-profile/records/secret-profile"))
+                .andExpect(status().isOk())
+                .andExpect(
+                        jsonPath("$.encryptedProfile")
+                                .value("encrypted-profile-development-github"))
+                .andExpect(jsonPath("$.metadata").value("encrypted-profile-development-github"));
     }
 
     @Test
@@ -130,6 +166,29 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
+    void oversizedEncryptedRecordPayloadIsRejected() throws Exception {
+        createVault("alice", "vault-oversized");
+        String oversized = "x".repeat(262_145);
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-oversized/records/secret-oversized")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "LOGIN_PASSWORD",
+                                          "encryptedProfile": "%s",
+                                          "envelope": "%s",
+                                          "deleted": false
+                                        }
+                                        """
+                                                .formatted(oversized, oversized)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
     void recordCannotBeStoredForMissingVault() throws Exception {
         mvc.perform(
                         put("/api/v1/vaults/missing-vault/records/secret-404")
@@ -161,6 +220,49 @@ class EncryptedRecordApiTest {
     }
 
     @Test
+    @WithMockUser(username = "alice")
+    void deleteMarksRecordAsTombstoneForSync() throws Exception {
+        createVault("alice", "vault-delete");
+        putRecord("vault-delete", "secret-delete", 1, "delete-envelope");
+
+        mvc.perform(
+                        delete("/api/v1/vaults/vault-delete/records/secret-delete")
+                                .param("revision", "2"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/v1/vaults/vault-delete/records/secret-delete"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revision").value(2))
+                .andExpect(jsonPath("$.envelope").value(""))
+                .andExpect(jsonPath("$.deleted").value(true));
+
+        mvc.perform(get("/api/v1/vaults/vault-delete/records").param("sinceRevision", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].secretId").value("secret-delete"))
+                .andExpect(jsonPath("$[0].deleted").value(true));
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void staleDeleteRevisionIsConflictWithRevisionDetails() throws Exception {
+        createVault("alice", "vault-delete-conflict");
+        putRecord("vault-delete-conflict", "secret-delete-conflict", 3, "delete-envelope");
+
+        mvc.perform(
+                        delete(
+                                        "/api/v1/vaults/vault-delete-conflict/records/secret-delete-conflict")
+                                .param("revision", "2"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("REVISION_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("Record revision must increase"))
+                .andExpect(jsonPath("$.latestRevision").value(3))
+                .andExpect(jsonPath("$.rejectedRevision").value(2))
+                .andExpect(jsonPath("$.envelope").doesNotExist())
+                .andExpect(jsonPath("$.metadata").doesNotExist())
+                .andExpect(jsonPath("$.encryptedProfile").doesNotExist());
+    }
+
+    @Test
     void unauthenticatedRequestsAreRejected() throws Exception {
         mvc.perform(get("/api/v1/vaults/vault-1/records/secret-1"))
                 .andExpect(status().isUnauthorized());
@@ -188,6 +290,61 @@ class EncryptedRecordApiTest {
 
         mvc.perform(get("/api/v1/vaults/vault-1/records/secret-4").with(user("bob")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void userCannotWriteListOrDeleteAnotherUsersRecords() throws Exception {
+        createVault("record-private-alice", "vault-record-private");
+        mvc.perform(
+                        put("/api/v1/vaults/vault-record-private/records/secret-private")
+                                .with(user("record-private-alice"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "LOGIN_PASSWORD",
+                                          "metadata": "bWV0YQ",
+                                          "envelope": "ZW52ZWxvcGU",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-record-private/records/secret-private")
+                                .with(user("record-private-bob"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 2,
+                                          "secretType": "LOGIN_PASSWORD",
+                                          "metadata": "Ym9iLW1ldGE",
+                                          "envelope": "Ym9iLWVudmVsb3Bl",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(
+                        get("/api/v1/vaults/vault-record-private/records")
+                                .with(user("record-private-bob")))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(
+                        delete("/api/v1/vaults/vault-record-private/records/secret-private")
+                                .with(user("record-private-bob"))
+                                .param("revision", "3"))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(
+                        get("/api/v1/vaults/vault-record-private/records/secret-private")
+                                .with(user("record-private-alice")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revision").value(1))
+                .andExpect(jsonPath("$.envelope").value("ZW52ZWxvcGU"))
+                .andExpect(jsonPath("$.deleted").value(false));
     }
 
     private void createVault(String username, String vaultId) throws Exception {
