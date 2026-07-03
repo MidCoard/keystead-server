@@ -11,6 +11,8 @@ import top.focess.keystead.server.vault.VaultAccessGuard;
 @Service
 class EncryptedRecordService {
 
+    private static final int MAX_PAGE_LIMIT = 500;
+
     private final EncryptedRecordRepository records;
     private final VaultAccessGuard accessGuard;
     private final Clock clock;
@@ -97,5 +99,27 @@ class EncryptedRecordService {
         return records.listSince(ownerId, vaultId, sinceRevision).stream()
                 .map(EncryptedRecordResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @NonNull EncryptedRecordPageResponse pageSince(
+            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
+        if (limit <= 0 || limit > MAX_PAGE_LIMIT) {
+            throw new InvalidRecordRequestException("Record page limit is out of range");
+        }
+        accessGuard.requireOwnedVault(ownerId, vaultId);
+        List<StoredEncryptedRecord> fetched =
+                records.pageSince(ownerId, vaultId, sinceRevision, limit + 1);
+        boolean hasMore = fetched.size() > limit;
+        List<EncryptedRecordResponse> page =
+                fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();
+        long highestRevision =
+                page.stream()
+                        .mapToLong(EncryptedRecordResponse::revision)
+                        .max()
+                        .orElse(sinceRevision);
+        Long nextSinceRevision = hasMore ? highestRevision : null;
+        return new EncryptedRecordPageResponse(
+                vaultId, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
     }
 }

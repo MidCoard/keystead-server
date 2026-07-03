@@ -48,6 +48,15 @@ class EncryptedRecordController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/page")
+    @NonNull EncryptedRecordPageResponse page(
+            @NonNull Principal principal,
+            @PathVariable @NonNull String vaultId,
+            @RequestParam(defaultValue = "0") long sinceRevision,
+            @RequestParam(defaultValue = "100") int limit) {
+        return service.pageSince(principal.getName(), vaultId, sinceRevision, limit);
+    }
+
     @GetMapping("/{secretId}")
     @NonNull ResponseEntity<EncryptedRecordResponse> get(
             @NonNull Principal principal,

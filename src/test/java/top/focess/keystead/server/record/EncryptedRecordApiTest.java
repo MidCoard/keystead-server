@@ -221,6 +221,39 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
+    void recordsCanBePagedForDatabaseStyleSyncCursor() throws Exception {
+        createVault("alice", "vault-sync-page");
+        putRecord("vault-sync-page", "secret-a", 1, "envelope-a");
+        putRecord("vault-sync-page", "secret-b", 2, "envelope-b");
+        putRecord("vault-sync-page", "secret-c", 3, "envelope-c");
+
+        mvc.perform(
+                        get("/api/v1/vaults/vault-sync-page/records/page")
+                                .param("sinceRevision", "0")
+                                .param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vaultId").value("vault-sync-page"))
+                .andExpect(jsonPath("$.sinceRevision").value(0))
+                .andExpect(jsonPath("$.records[0].secretId").value("secret-a"))
+                .andExpect(jsonPath("$.records[0].revision").value(1))
+                .andExpect(jsonPath("$.records[1].secretId").value("secret-b"))
+                .andExpect(jsonPath("$.records[1].revision").value(2))
+                .andExpect(jsonPath("$.highestRevision").value(2))
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andExpect(jsonPath("$.nextSinceRevision").value(2));
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void recordPageLimitIsBounded() throws Exception {
+        createVault("alice", "vault-sync-page-limit");
+
+        mvc.perform(get("/api/v1/vaults/vault-sync-page-limit/records/page").param("limit", "501"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
     void deleteMarksRecordAsTombstoneForSync() throws Exception {
         createVault("alice", "vault-delete");
         putRecord("vault-delete", "secret-delete", 1, "delete-envelope");

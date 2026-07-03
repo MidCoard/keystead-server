@@ -2,6 +2,7 @@
 build/
 out/
 .idea/
+.codegraph/
 *.iml
 
 docs
