@@ -6,6 +6,7 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 import top.focess.keystead.server.crypto.UnsupportedCryptoAlgorithmException;
 
@@ -13,14 +14,17 @@ import top.focess.keystead.server.crypto.UnsupportedCryptoAlgorithmException;
 class VaultKeyPackageService {
 
     private final VaultAccessGuard accessGuard;
+    private final AuditService audit;
     private final VaultKeyPackageRepository keyPackages;
     private final Clock clock;
 
     VaultKeyPackageService(
             @NonNull VaultAccessGuard accessGuard,
+            @NonNull AuditService audit,
             @NonNull VaultKeyPackageRepository keyPackages,
             @NonNull Clock clock) {
         this.accessGuard = accessGuard;
+        this.audit = audit;
         this.keyPackages = keyPackages;
         this.clock = clock;
     }
@@ -52,6 +56,7 @@ class VaultKeyPackageService {
                         request.encryptedVaultKey(),
                         createdAt,
                         now));
+        audit.keyPackageStored(ownerId, ownerId, vaultId, deviceId, request.keyAlgorithm());
     }
 
     @Transactional(readOnly = true)

@@ -1,11 +1,20 @@
 package top.focess.keystead.server.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,6 +103,43 @@ class AuditEventApiTest {
         assertThat(event.details()).doesNotContain("encrypted-envelope-delete-sentinel");
     }
 
+    @Test
+    void keyPackageWriteCreatesRedactedAuditEvent() throws Exception {
+        registerUser("audit-package-alice");
+        registerVerifiedDevice("audit-package-alice", "audit-laptop-1");
+        createVaultWithPasswordUser("audit-package-alice", "vault-package-audit");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-package-audit/key-packages/audit-laptop-1")
+                                .with(
+                                        httpBasic(
+                                                "audit-package-alice",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "keyAlgorithm": "RSA_OAEP_SHA256",
+                                          "encryptedVaultKey": "wrapped-vault-key-audit-sentinel"
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner("audit-package-alice");
+
+        assertThat(events).hasSize(1);
+        StoredAuditEvent event = events.getFirst();
+        assertThat(event.eventType()).isEqualTo(AuditEventType.KEY_PACKAGE_STORED.name());
+        assertThat(event.ownerId()).isEqualTo("audit-package-alice");
+        assertThat(event.actorId()).isEqualTo("audit-package-alice");
+        assertThat(event.vaultId()).isEqualTo("vault-package-audit");
+        assertThat(event.targetType()).isEqualTo("key_package");
+        assertThat(event.targetId()).isEqualTo("audit-laptop-1");
+        assertThat(event.revision()).isNull();
+        assertThat(event.details()).contains("RSA_OAEP_SHA256");
+        assertThat(event.details()).doesNotContain("wrapped-vault-key-audit-sentinel");
+    }
+
     private void putRecord(
             String username,
             String vaultId,
@@ -125,6 +171,71 @@ class AuditEventApiTest {
                 .andExpect(status().isCreated());
     }
 
+    private void registerUser(String username) throws Exception {
+        mvc.perform(
+                        post("/api/v1/users")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "username": "%s",
+                                          "password": "correct horse battery staple"
+                                        }
+                                        """
+                                                .formatted(username)))
+                .andExpect(status().isCreated());
+    }
+
+    private void registerVerifiedDevice(String username, String deviceId) throws Exception {
+        KeyPair keyPair = rsaKeyPair();
+        registerDevice(
+                username,
+                deviceId,
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        String challengeJson =
+                mvc.perform(
+                                post("/api/v1/devices/{deviceId}/challenges", deviceId)
+                                        .with(httpBasic(username, "correct horse battery staple")))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        String challengeId = JsonPath.read(challengeJson, "$.challengeId");
+        String nonce = JsonPath.read(challengeJson, "$.nonce");
+        String signature = signature(keyPair.getPrivate(), challengeId, nonce);
+        mvc.perform(
+                        post("/api/v1/devices/{deviceId}/proof", deviceId)
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "challengeId": "%s",
+                                          "signature": "%s"
+                                        }
+                                        """
+                                                .formatted(challengeId, signature)))
+                .andExpect(status().isNoContent());
+    }
+
+    private void registerDevice(String username, String deviceId, String publicKey)
+            throws Exception {
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "%s",
+                                          "keyAlgorithm": "RSA_OAEP_SHA256",
+                                          "publicKey": "%s"
+                                        }
+                                        """
+                                                .formatted(deviceId, publicKey)))
+                .andExpect(status().isCreated());
+    }
+
     private void createVault(String username, String vaultId) throws Exception {
         mvc.perform(
                         put("/api/v1/vaults/{vaultId}", vaultId)
@@ -137,5 +248,37 @@ class AuditEventApiTest {
                                         }
                                         """))
                 .andExpect(status().isCreated());
+    }
+
+    private void createVaultWithPasswordUser(String username, String vaultId) throws Exception {
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}", vaultId)
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "encryptedMetadata": "encrypted-vault-metadata"
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+    }
+
+    private static KeyPair rsaKeyPair() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        return generator.generateKeyPair();
+    }
+
+    private static String signature(PrivateKey privateKey, String challengeId, String nonce)
+            throws Exception {
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(privateKey);
+        signature.update(proofPayload(challengeId, nonce).getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(signature.sign());
+    }
+
+    private static String proofPayload(String challengeId, String nonce) {
+        return "keystead-device-proof:v1:" + challengeId + ":" + nonce;
     }
 }

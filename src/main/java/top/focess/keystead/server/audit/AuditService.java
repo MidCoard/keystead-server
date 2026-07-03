@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 public class AuditService {
 
     private static final String OUTCOME_SUCCESS = "SUCCESS";
+    private static final String TARGET_KEY_PACKAGE = "key_package";
     private static final String TARGET_RECORD = "record";
 
     private final AuditEventRepository auditEvents;
@@ -53,6 +54,27 @@ public class AuditService {
                 "{\"deleted\":true}");
     }
 
+    public void keyPackageStored(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String deviceId,
+            @NonNull String keyAlgorithm) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.KEY_PACKAGE_STORED.name(),
+                        TARGET_KEY_PACKAGE,
+                        deviceId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        safeKeyPackageDetails(keyAlgorithm),
+                        clock.instant()));
+    }
+
     private void append(
             @NonNull String ownerId,
             @NonNull String actorId,
@@ -78,6 +100,10 @@ public class AuditService {
 
     private static @NonNull String safeRecordDetails(@NonNull String secretType, boolean deleted) {
         return "{\"secretType\":\"" + escapeJson(secretType) + "\",\"deleted\":" + deleted + "}";
+    }
+
+    private static @NonNull String safeKeyPackageDetails(@NonNull String keyAlgorithm) {
+        return "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}";
     }
 
     private static @NonNull String escapeJson(@NonNull String value) {
