@@ -104,6 +104,87 @@ class AuditEventApiTest {
     }
 
     @Test
+    void recordRevisionConflictCreatesRedactedAuditEvent() throws Exception {
+        createVault("audit-conflict-alice", "vault-conflict-audit");
+        putRecord(
+                "audit-conflict-alice",
+                "vault-conflict-audit",
+                "secret-conflict-audit",
+                4,
+                "API_TOKEN",
+                "encrypted-profile-existing-sentinel",
+                "encrypted-envelope-existing-sentinel");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-conflict-audit/records/secret-conflict-audit")
+                                .with(user("audit-conflict-alice"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 3,
+                                          "secretType": "API_TOKEN",
+                                          "encryptedProfile": "encrypted-profile-rejected-sentinel",
+                                          "envelope": "encrypted-envelope-rejected-sentinel",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isConflict());
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner("audit-conflict-alice");
+
+        assertThat(events).hasSize(2);
+        StoredAuditEvent event = events.get(1);
+        assertThat(event.eventType()).isEqualTo(AuditEventType.RECORD_REVISION_CONFLICT.name());
+        assertThat(event.ownerId()).isEqualTo("audit-conflict-alice");
+        assertThat(event.actorId()).isEqualTo("audit-conflict-alice");
+        assertThat(event.vaultId()).isEqualTo("vault-conflict-audit");
+        assertThat(event.targetType()).isEqualTo("record");
+        assertThat(event.targetId()).isEqualTo("secret-conflict-audit");
+        assertThat(event.revision()).isEqualTo(3);
+        assertThat(event.details()).contains("\"latestRevision\":4");
+        assertThat(event.details()).contains("\"rejectedRevision\":3");
+        assertThat(event.details()).doesNotContain("encrypted-profile-rejected-sentinel");
+        assertThat(event.details()).doesNotContain("encrypted-envelope-rejected-sentinel");
+    }
+
+    @Test
+    void staleRecordDeleteCreatesRedactedConflictAuditEvent() throws Exception {
+        createVault("audit-delete-conflict-alice", "vault-delete-conflict-audit");
+        putRecord(
+                "audit-delete-conflict-alice",
+                "vault-delete-conflict-audit",
+                "secret-delete-conflict-audit",
+                5,
+                "LOGIN_PASSWORD",
+                "encrypted-profile-delete-conflict-sentinel",
+                "encrypted-envelope-delete-conflict-sentinel");
+
+        mvc.perform(
+                        delete(
+                                        "/api/v1/vaults/vault-delete-conflict-audit/records/secret-delete-conflict-audit")
+                                .with(user("audit-delete-conflict-alice"))
+                                .param("revision", "4"))
+                .andExpect(status().isConflict());
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner("audit-delete-conflict-alice");
+
+        assertThat(events).hasSize(2);
+        StoredAuditEvent event = events.get(1);
+        assertThat(event.eventType()).isEqualTo(AuditEventType.RECORD_REVISION_CONFLICT.name());
+        assertThat(event.ownerId()).isEqualTo("audit-delete-conflict-alice");
+        assertThat(event.actorId()).isEqualTo("audit-delete-conflict-alice");
+        assertThat(event.vaultId()).isEqualTo("vault-delete-conflict-audit");
+        assertThat(event.targetType()).isEqualTo("record");
+        assertThat(event.targetId()).isEqualTo("secret-delete-conflict-audit");
+        assertThat(event.revision()).isEqualTo(4);
+        assertThat(event.details()).contains("\"latestRevision\":5");
+        assertThat(event.details()).contains("\"rejectedRevision\":4");
+        assertThat(event.details()).doesNotContain("encrypted-profile-delete-conflict-sentinel");
+        assertThat(event.details()).doesNotContain("encrypted-envelope-delete-conflict-sentinel");
+    }
+
+    @Test
     void keyPackageWriteCreatesRedactedAuditEvent() throws Exception {
         registerUser("audit-package-alice");
         registerVerifiedDevice("audit-package-alice", "audit-laptop-1");

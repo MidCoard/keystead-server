@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuditService {
@@ -75,6 +77,29 @@ public class AuditService {
                         clock.instant()));
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordRevisionConflict(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String secretId,
+            long latestRevision,
+            long rejectedRevision) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.RECORD_REVISION_CONFLICT.name(),
+                        TARGET_RECORD,
+                        secretId,
+                        vaultId,
+                        rejectedRevision,
+                        OUTCOME_SUCCESS,
+                        safeConflictDetails(latestRevision, rejectedRevision),
+                        clock.instant()));
+    }
+
     private void append(
             @NonNull String ownerId,
             @NonNull String actorId,
@@ -104,6 +129,14 @@ public class AuditService {
 
     private static @NonNull String safeKeyPackageDetails(@NonNull String keyAlgorithm) {
         return "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}";
+    }
+
+    private static @NonNull String safeConflictDetails(long latestRevision, long rejectedRevision) {
+        return "{\"latestRevision\":"
+                + latestRevision
+                + ",\"rejectedRevision\":"
+                + rejectedRevision
+                + "}";
     }
 
     private static @NonNull String escapeJson(@NonNull String value) {

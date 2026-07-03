@@ -55,6 +55,13 @@ class EncryptedRecordService {
             records.insert(next);
             result = StoreRecordResult.CREATED;
         } else if (request.revision() <= existing.get().revision()) {
+            audit.recordRevisionConflict(
+                    ownerId,
+                    ownerId,
+                    vaultId,
+                    secretId,
+                    existing.get().revision(),
+                    request.revision());
             throw new RevisionConflictException(
                     "Record revision must increase", existing.get().revision(), request.revision());
         } else {
@@ -83,6 +90,8 @@ class EncryptedRecordService {
                 records.find(ownerId, vaultId, secretId)
                         .orElseThrow(() -> new RecordNotFoundException("Record does not exist"));
         if (revision <= existing.revision()) {
+            audit.recordRevisionConflict(
+                    ownerId, ownerId, vaultId, secretId, existing.revision(), revision);
             throw new RevisionConflictException(
                     "Record revision must increase", existing.revision(), revision);
         }
