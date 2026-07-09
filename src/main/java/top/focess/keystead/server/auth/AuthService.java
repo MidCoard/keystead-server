@@ -14,6 +14,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.identity.DeviceSessionEligibilityService;
 import top.focess.keystead.server.identity.UserTokenVersionService;
 import top.focess.keystead.server.security.AccessTokenService;
 import top.focess.keystead.server.security.AccessTokenService.IssuedAccessToken;
@@ -29,6 +30,7 @@ class AuthService {
     private final RefreshTokenRepository refreshTokens;
     private final AccessTokenService accessTokens;
     private final UserTokenVersionService tokenVersions;
+    private final DeviceSessionEligibilityService deviceSessions;
     private final Clock clock;
     private final SecureRandom secureRandom;
 
@@ -38,12 +40,14 @@ class AuthService {
             @NonNull RefreshTokenRepository refreshTokens,
             @NonNull AccessTokenService accessTokens,
             @NonNull UserTokenVersionService tokenVersions,
+            @NonNull DeviceSessionEligibilityService deviceSessions,
             @NonNull Clock clock) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
         this.tokenVersions = tokenVersions;
+        this.deviceSessions = deviceSessions;
         this.clock = clock;
         this.secureRandom = new SecureRandom();
     }
@@ -52,6 +56,10 @@ class AuthService {
     @NonNull AuthTokenResponse login(@NonNull LoginRequest request) {
         UserDetails user = loadUser(request.username());
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
+            throw new AuthFailedException("Authentication failed");
+        }
+        if (request.deviceId() != null
+                && !deviceSessions.canStartSession(user.getUsername(), request.deviceId())) {
             throw new AuthFailedException("Authentication failed");
         }
         String refreshToken = newRefreshToken();

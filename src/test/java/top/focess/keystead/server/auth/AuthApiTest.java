@@ -156,6 +156,25 @@ class AuthApiTest {
                 .andExpect(jsonPath("$.message").value("Authentication failed"));
     }
 
+    @Test
+    void loginWithUnknownDeviceIdFailsGenerically() throws Exception {
+        register("device-login-alice");
+
+        mvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "username": "device-login-alice",
+                                          "password": "correct horse battery staple",
+                                          "deviceId": "missing-device"
+                                        }
+                                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Authentication failed"));
+    }
+
     private void register(String username) throws Exception {
         mvc.perform(
                         post("/api/v1/users")
