@@ -40,6 +40,88 @@ class StoredAuditEventTest {
     }
 
     @Test
+    void rejectsRecordEventsWithoutVaultAndRevision() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.RECORD_STORED,
+                                "record",
+                                "secret-a",
+                                null,
+                                1L,
+                                "SUCCESS"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.RECORD_STORED,
+                                "record",
+                                "secret-a",
+                                "vault-a",
+                                null,
+                                "SUCCESS"));
+    }
+
+    @Test
+    void rejectsEventTypeTargetMismatches() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event(AuditEventType.LOGIN_FAILED, "record", "alice", null, null, "FAILURE"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.DEVICE_REVOKED,
+                                "key_package",
+                                "device-a",
+                                null,
+                                null,
+                                "SUCCESS"));
+    }
+
+    @Test
+    void rejectsEventTypeOutcomeMismatches() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.RECORD_REVISION_CONFLICT,
+                                "record",
+                                "secret-a",
+                                "vault-a",
+                                1L,
+                                "SUCCESS"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event(AuditEventType.LOGIN_FAILED, "auth", "alice", null, null, "SUCCESS"));
+    }
+
+    @Test
+    void rejectsNonRecordEventsWithVaultOrRevision() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.LOGIN_FAILED,
+                                "auth",
+                                "alice",
+                                "vault-a",
+                                null,
+                                "FAILURE"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.DEVICE_REVOKED,
+                                "device",
+                                "device-a",
+                                null,
+                                1L,
+                                "SUCCESS"));
+    }
+
+    @Test
     void rejectsDetailsThatAreNotJsonObjects() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -59,6 +141,27 @@ class StoredAuditEventTest {
                 1L,
                 outcome,
                 details,
+                CREATED_AT);
+    }
+
+    private static StoredAuditEvent event(
+            AuditEventType eventType,
+            String targetType,
+            String targetId,
+            String vaultId,
+            Long revision,
+            String outcome) {
+        return new StoredAuditEvent(
+                "event-a",
+                "alice",
+                "actor-a",
+                eventType.name(),
+                targetType,
+                targetId,
+                vaultId,
+                revision,
+                outcome,
+                "{}",
                 CREATED_AT);
     }
 

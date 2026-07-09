@@ -32,8 +32,9 @@ public record StoredAuditEvent(
         requireNotBlank(ownerId, "ownerId");
         requireNotBlank(actorId, "actorId");
         requireNotBlank(eventType, "eventType");
+        AuditEventType type;
         try {
-            AuditEventType.valueOf(eventType);
+            type = AuditEventType.valueOf(eventType);
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Audit event type is unsupported", e);
         }
@@ -52,6 +53,7 @@ public record StoredAuditEvent(
         if (!ALLOWED_OUTCOMES.contains(outcome)) {
             throw new IllegalArgumentException("Audit outcome is unsupported");
         }
+        requireEventShape(type, targetType, vaultId, revision, outcome);
         requireNotBlank(details, "details");
         requireJsonObjectDetails(details);
         Objects.requireNonNull(createdAt, "createdAt");
@@ -72,6 +74,72 @@ public record StoredAuditEvent(
             }
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Audit details must be a JSON object", e);
+        }
+    }
+
+    private static void requireEventShape(
+            @NonNull AuditEventType eventType,
+            @NonNull String targetType,
+            @Nullable String vaultId,
+            @Nullable Long revision,
+            @NonNull String outcome) {
+        switch (eventType) {
+            case RECORD_STORED, RECORD_DELETED -> {
+                requireShape(targetType, "record", outcome, "SUCCESS");
+                requireVaultAndRevision(vaultId, revision);
+            }
+            case RECORD_REVISION_CONFLICT -> {
+                requireShape(targetType, "record", outcome, "CONFLICT");
+                requireVaultAndRevision(vaultId, revision);
+            }
+            case KEY_PACKAGE_STORED -> {
+                requireShape(targetType, "key_package", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
+            }
+            case DEVICE_REVOKED -> {
+                requireShape(targetType, "device", outcome, "SUCCESS");
+                requireNoVaultOrRevision(vaultId, revision);
+            }
+            case LOGIN_FAILED -> {
+                requireShape(targetType, "auth", outcome, "FAILURE");
+                requireNoVaultOrRevision(vaultId, revision);
+            }
+        }
+    }
+
+    private static void requireShape(
+            @NonNull String actualTargetType,
+            @NonNull String expectedTargetType,
+            @NonNull String actualOutcome,
+            @NonNull String expectedOutcome) {
+        if (!actualTargetType.equals(expectedTargetType)) {
+            throw new IllegalArgumentException("Audit target type does not match event type");
+        }
+        if (!actualOutcome.equals(expectedOutcome)) {
+            throw new IllegalArgumentException("Audit outcome does not match event type");
+        }
+    }
+
+    private static void requireVaultAndRevision(@Nullable String vaultId, @Nullable Long revision) {
+        if (vaultId == null || revision == null) {
+            throw new IllegalArgumentException("Audit event requires vault and revision");
+        }
+    }
+
+    private static void requireVaultWithoutRevision(
+            @Nullable String vaultId, @Nullable Long revision) {
+        if (vaultId == null) {
+            throw new IllegalArgumentException("Audit event requires vault");
+        }
+        if (revision != null) {
+            throw new IllegalArgumentException("Audit event must not carry revision");
+        }
+    }
+
+    private static void requireNoVaultOrRevision(
+            @Nullable String vaultId, @Nullable Long revision) {
+        if (vaultId != null || revision != null) {
+            throw new IllegalArgumentException("Audit event must not carry vault or revision");
         }
     }
 }
