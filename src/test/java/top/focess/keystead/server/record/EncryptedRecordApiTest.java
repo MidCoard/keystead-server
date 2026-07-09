@@ -59,7 +59,8 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.secretId").value("secret-1"))
                 .andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.secretType").value("LOGIN_PASSWORD"))
-                .andExpect(jsonPath("$.metadata").value("eyJ0aXRsZSI6IkdpdEh1YiJ9"))
+                .andExpect(jsonPath("$.encryptedProfile").value("eyJ0aXRsZSI6IkdpdEh1YiJ9"))
+                .andExpect(jsonPath("$.metadata").doesNotExist())
                 .andExpect(jsonPath("$.envelope").value("eyJjaXBoZXJ0ZXh0IjoiYmxvYiJ9"))
                 .andExpect(jsonPath("$.deleted").value(false));
     }
@@ -165,7 +166,7 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
-    void encryptedProfileIsStoredForClientSideClassification() throws Exception {
+    void encryptedProfileResponseOmitsLegacyMetadataAlias() throws Exception {
         createVault("alice", "vault-profile");
 
         mvc.perform(
@@ -188,7 +189,7 @@ class EncryptedRecordApiTest {
                 .andExpect(
                         jsonPath("$.encryptedProfile")
                                 .value("encrypted-profile-development-github"))
-                .andExpect(jsonPath("$.metadata").value("encrypted-profile-development-github"));
+                .andExpect(jsonPath("$.metadata").doesNotExist());
     }
 
     @Test

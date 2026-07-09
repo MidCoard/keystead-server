@@ -24,7 +24,7 @@ public record EncryptedRecordResponse(
                 record.secretId(),
                 record.revision(),
                 record.secretType(),
-                deleted ? null : record.encryptedProfile(),
+                null,
                 deleted ? null : record.encryptedProfile(),
                 deleted ? null : record.envelope(),
                 deleted,
