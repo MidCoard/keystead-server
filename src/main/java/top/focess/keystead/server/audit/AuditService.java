@@ -13,6 +13,7 @@ public class AuditService {
     private static final String OUTCOME_SUCCESS = "SUCCESS";
     private static final String OUTCOME_FAILURE = "FAILURE";
     private static final String TARGET_AUTH = "auth";
+    private static final String TARGET_DEVICE = "device";
     private static final String TARGET_KEY_PACKAGE = "key_package";
     private static final String TARGET_RECORD = "record";
 
@@ -76,6 +77,23 @@ public class AuditService {
                         null,
                         OUTCOME_SUCCESS,
                         safeKeyPackageDetails(keyAlgorithm),
+                        clock.instant()));
+    }
+
+    public void deviceRevoked(
+            @NonNull String ownerId, @NonNull String actorId, @NonNull String deviceId) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.DEVICE_REVOKED.name(),
+                        TARGET_DEVICE,
+                        deviceId,
+                        null,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"revoked\":true}",
                         clock.instant()));
     }
 

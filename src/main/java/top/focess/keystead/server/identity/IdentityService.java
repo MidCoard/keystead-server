@@ -17,6 +17,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 import top.focess.keystead.server.crypto.UnsupportedCryptoAlgorithmException;
 
@@ -29,6 +30,7 @@ class IdentityService {
     private final UserRepository users;
     private final DeviceRepository devices;
     private final DeviceChallengeRepository challenges;
+    private final AuditService audit;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
     private final SecureRandom secureRandom;
@@ -37,11 +39,13 @@ class IdentityService {
             @NonNull UserRepository users,
             @NonNull DeviceRepository devices,
             @NonNull DeviceChallengeRepository challenges,
+            @NonNull AuditService audit,
             @NonNull PasswordEncoder passwordEncoder,
             @NonNull Clock clock) {
         this.users = users;
         this.devices = devices;
         this.challenges = challenges;
+        this.audit = audit;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
         this.secureRandom = new SecureRandom();
@@ -156,6 +160,7 @@ class IdentityService {
                         device.verifiedAt(),
                         device.lastSeenAt(),
                         now));
+        audit.deviceRevoked(ownerId, ownerId, deviceId);
     }
 
     private boolean verifySignature(

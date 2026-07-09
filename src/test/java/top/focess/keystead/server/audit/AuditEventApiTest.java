@@ -223,6 +223,35 @@ class AuditEventApiTest {
     }
 
     @Test
+    void deviceRevocationCreatesRedactedAuditEvent() throws Exception {
+        registerUser("audit-revoke-alice");
+        registerVerifiedDevice("audit-revoke-alice", "audit-revoke-laptop");
+
+        mvc.perform(
+                        delete("/api/v1/devices/audit-revoke-laptop")
+                                .with(
+                                        httpBasic(
+                                                "audit-revoke-alice",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner("audit-revoke-alice");
+
+        assertThat(events).hasSize(1);
+        StoredAuditEvent event = events.getFirst();
+        assertThat(event.eventType()).isEqualTo(AuditEventType.DEVICE_REVOKED.name());
+        assertThat(event.ownerId()).isEqualTo("audit-revoke-alice");
+        assertThat(event.actorId()).isEqualTo("audit-revoke-alice");
+        assertThat(event.vaultId()).isNull();
+        assertThat(event.targetType()).isEqualTo("device");
+        assertThat(event.targetId()).isEqualTo("audit-revoke-laptop");
+        assertThat(event.revision()).isNull();
+        assertThat(event.details()).contains("\"revoked\":true");
+        assertThat(event.details()).doesNotContain("public-key");
+        assertThat(event.details()).doesNotContain("PRIVATE KEY");
+    }
+
+    @Test
     void loginFailureCreatesRedactedAuditEvent() throws Exception {
         registerUser("audit-login-alice");
 
