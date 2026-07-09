@@ -36,7 +36,12 @@ interface VaultKeyPackageRepository
             """
             select k
               from VaultKeyPackageEntity k
+              join DeviceEntity d
+                on d.id.ownerId = k.id.ownerId
+               and d.id.deviceId = k.id.deviceId
              where k.id.ownerId = :ownerId and k.id.vaultId = :vaultId
+               and d.verifiedAt is not null
+               and d.revokedAt is null
              order by k.id.deviceId
             """)
     @NonNull List<VaultKeyPackageEntity> listEntities(

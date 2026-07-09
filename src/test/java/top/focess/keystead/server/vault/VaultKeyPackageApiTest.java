@@ -214,6 +214,40 @@ class VaultKeyPackageApiTest {
     }
 
     @Test
+    void listOmitsExistingPackageForRevokedDevice() throws Exception {
+        registerUser("package-list-revoked");
+        registerVerifiedDevice("package-list-revoked", "revoked-laptop");
+        createVault("package-list-revoked", "package-vault-list-revoked");
+
+        mvc.perform(
+                        put("/api/v1/vaults/package-vault-list-revoked/key-packages/revoked-laptop")
+                                .with(
+                                        httpBasic(
+                                                "package-list-revoked",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(packageBody()))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        delete("/api/v1/devices/revoked-laptop")
+                                .with(
+                                        httpBasic(
+                                                "package-list-revoked",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        get("/api/v1/vaults/package-vault-list-revoked/key-packages")
+                                .with(
+                                        httpBasic(
+                                                "package-list-revoked",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
     void userCannotReadAnotherUsersVaultKeyPackages() throws Exception {
         registerUser("package-alice-private");
         registerUser("package-bob-private");
