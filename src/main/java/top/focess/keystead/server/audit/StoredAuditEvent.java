@@ -1,6 +1,7 @@
 package top.focess.keystead.server.audit;
 
 import java.time.Instant;
+import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -15,4 +16,30 @@ public record StoredAuditEvent(
         @Nullable Long revision,
         @NonNull String outcome,
         @NonNull String details,
-        @NonNull Instant createdAt) {}
+        @NonNull Instant createdAt) {
+
+    public StoredAuditEvent {
+        requireNotBlank(eventId, "eventId");
+        requireNotBlank(ownerId, "ownerId");
+        requireNotBlank(actorId, "actorId");
+        requireNotBlank(eventType, "eventType");
+        requireNotBlank(targetType, "targetType");
+        requireNotBlank(targetId, "targetId");
+        if (vaultId != null && vaultId.isBlank()) {
+            throw new IllegalArgumentException("vaultId must not be blank");
+        }
+        if (revision != null && revision <= 0) {
+            throw new IllegalArgumentException("Audit revision must be positive");
+        }
+        requireNotBlank(outcome, "outcome");
+        requireNotBlank(details, "details");
+        Objects.requireNonNull(createdAt, "createdAt");
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
+    }
+}
