@@ -29,9 +29,9 @@ record StoredEncryptedRecord(
                     "GENERIC_SECRET");
 
     StoredEncryptedRecord {
-        Objects.requireNonNull(ownerId, "ownerId");
-        Objects.requireNonNull(vaultId, "vaultId");
-        Objects.requireNonNull(secretId, "secretId");
+        requireNotBlank(ownerId, "ownerId");
+        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(secretId, "secretId");
         Objects.requireNonNull(secretType, "secretType");
         Objects.requireNonNull(metadata, "metadata");
         Objects.requireNonNull(encryptedProfile, "encryptedProfile");
@@ -49,6 +49,13 @@ record StoredEncryptedRecord(
             }
         } else if (encryptedProfile.isBlank() || envelope.isBlank()) {
             throw new IllegalArgumentException("Active rows must carry encrypted data");
+        }
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
         }
     }
 }

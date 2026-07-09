@@ -37,6 +37,13 @@ class StoredEncryptedRecordTest {
                 () -> activeRecord("profile", "envelope", 1L, "PLAINTEXT_PASSWORD"));
     }
 
+    @Test
+    void rejectsBlankRecordIdentifiers() {
+        assertThrows(IllegalArgumentException.class, () -> record(" ", "vault-a", "secret-a"));
+        assertThrows(IllegalArgumentException.class, () -> record("alice", " ", "secret-a"));
+        assertThrows(IllegalArgumentException.class, () -> record("alice", "vault-a", " "));
+    }
+
     private static StoredEncryptedRecord activeRecord(
             String encryptedProfile, String envelope, long revision) {
         return activeRecord(encryptedProfile, envelope, revision, "API_TOKEN");
@@ -53,6 +60,20 @@ class StoredEncryptedRecordTest {
                 encryptedProfile,
                 encryptedProfile,
                 envelope,
+                false,
+                UPDATED_AT);
+    }
+
+    private static StoredEncryptedRecord record(String ownerId, String vaultId, String secretId) {
+        return new StoredEncryptedRecord(
+                ownerId,
+                vaultId,
+                secretId,
+                1L,
+                "API_TOKEN",
+                "profile",
+                "profile",
+                "envelope",
                 false,
                 UPDATED_AT);
     }
