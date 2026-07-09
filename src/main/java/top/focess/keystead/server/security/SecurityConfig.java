@@ -18,7 +18,9 @@ public class SecurityConfig {
 
     @Bean
     public @NonNull SecurityFilterChain securityFilterChain(
-            @NonNull HttpSecurity http, @NonNull LoginFailureAuditFilter loginFailureAuditFilter)
+            @NonNull HttpSecurity http,
+            @NonNull LoginFailureAuditFilter loginFailureAuditFilter,
+            @NonNull BearerAccessTokenFilter bearerAccessTokenFilter)
             throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
@@ -35,9 +37,12 @@ public class SecurityConfig {
                                                 org.springframework.http.HttpMethod.POST,
                                                 "/api/v1/users")
                                         .permitAll()
+                                        .requestMatchers("/api/v1/auth/**")
+                                        .permitAll()
                                         .anyRequest()
                                         .authenticated())
                 .httpBasic(Customizer.withDefaults())
+                .addFilterBefore(bearerAccessTokenFilter, BasicAuthenticationFilter.class)
                 .addFilterBefore(loginFailureAuditFilter, BasicAuthenticationFilter.class);
         return http.build();
     }
