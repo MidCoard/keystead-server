@@ -60,4 +60,20 @@ class NoDirectJdbcAccessTest {
                 true, writes.contains("entityManager.merge(EncryptedRecordEntity.from(record))"));
         assertEquals(true, writes.contains("entityManager.flush()"));
     }
+
+    @Test
+    void auditEventAppendFlushesJpaConstraintsInsideServiceBoundary() throws IOException {
+        String repository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/audit/AuditEventRepository.java"));
+        String writes =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/audit/AuditEventRepositoryWritesImpl.java"));
+
+        assertEquals(false, repository.contains("save(AuditEventEntity.from(event))"));
+        assertEquals(true, writes.contains("entityManager.persist(AuditEventEntity.from(event))"));
+        assertEquals(true, writes.contains("entityManager.flush()"));
+    }
 }

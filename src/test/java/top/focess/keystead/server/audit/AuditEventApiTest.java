@@ -1,6 +1,7 @@
 package top.focess.keystead.server.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +35,15 @@ class AuditEventApiTest {
     @Autowired private MockMvc mvc;
 
     @Autowired private AuditEventRepository auditEvents;
+
+    @Test
+    void databaseAppendRejectsDuplicateAuditEventId() {
+        auditEvents.append(auditEvent("duplicate-audit-event"));
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> auditEvents.append(auditEvent("duplicate-audit-event")));
+    }
 
     @Test
     void recordWriteCreatesRedactedAuditEvent() throws Exception {
@@ -417,5 +428,20 @@ class AuditEventApiTest {
 
     private static String proofPayload(String challengeId, String nonce) {
         return "keystead-device-proof:v1:" + challengeId + ":" + nonce;
+    }
+
+    private static StoredAuditEvent auditEvent(String eventId) {
+        return new StoredAuditEvent(
+                eventId,
+                "audit-db-owner",
+                "audit-db-actor",
+                AuditEventType.RECORD_STORED.name(),
+                "record",
+                "secret-a",
+                "vault-a",
+                1L,
+                "SUCCESS",
+                "{}",
+                java.time.Instant.parse("2026-07-09T00:00:00Z"));
     }
 }

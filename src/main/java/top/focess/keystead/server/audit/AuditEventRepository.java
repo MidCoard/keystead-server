@@ -6,7 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface AuditEventRepository extends JpaRepository<AuditEventEntity, String> {
+interface AuditEventRepository
+        extends JpaRepository<AuditEventEntity, String>, AuditEventRepositoryWrites {
 
     @Query(
             """
@@ -19,9 +20,5 @@ interface AuditEventRepository extends JpaRepository<AuditEventEntity, String> {
 
     default @NonNull List<StoredAuditEvent> listForOwner(@NonNull String ownerId) {
         return listEntitiesForOwner(ownerId).stream().map(AuditEventEntity::toStored).toList();
-    }
-
-    default void append(@NonNull StoredAuditEvent event) {
-        save(AuditEventEntity.from(event));
     }
 }
