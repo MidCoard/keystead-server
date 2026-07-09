@@ -8,14 +8,11 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface RefreshTokenRepository extends JpaRepository<RefreshTokenEntity, String> {
+interface RefreshTokenRepository
+        extends JpaRepository<RefreshTokenEntity, String>, RefreshTokenRepositoryWrites {
 
     default @NonNull Optional<StoredRefreshToken> find(@NonNull String tokenHash) {
         return findById(tokenHash).map(RefreshTokenEntity::toStored);
-    }
-
-    default void upsert(@NonNull StoredRefreshToken token) {
-        saveAndFlush(RefreshTokenEntity.from(token));
     }
 
     @Modifying

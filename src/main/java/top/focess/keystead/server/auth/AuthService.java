@@ -65,7 +65,7 @@ class AuthService {
         String refreshToken = newRefreshToken();
         Instant now = clock.instant();
         Instant refreshExpiresAt = now.plus(REFRESH_TOKEN_TTL);
-        refreshTokens.upsert(
+        refreshTokens.insert(
                 new StoredRefreshToken(
                         hash(refreshToken),
                         user.getUsername(),
@@ -97,7 +97,7 @@ class AuthService {
                 && !deviceSessions.canStartSession(token.username(), token.deviceId())) {
             throw new AuthFailedException("Authentication failed");
         }
-        refreshTokens.upsert(token.withLastUsedAt(now));
+        refreshTokens.update(token.withLastUsedAt(now));
         IssuedAccessToken accessToken =
                 accessTokens.issue(
                         token.username(),
@@ -111,7 +111,7 @@ class AuthService {
         String tokenHash = hash(request.refreshToken());
         refreshTokens
                 .find(tokenHash)
-                .ifPresent(token -> refreshTokens.upsert(token.revoked(clock.instant())));
+                .ifPresent(token -> refreshTokens.update(token.revoked(clock.instant())));
     }
 
     @Transactional

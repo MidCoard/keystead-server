@@ -76,4 +76,22 @@ class NoDirectJdbcAccessTest {
         assertEquals(true, writes.contains("entityManager.persist(AuditEventEntity.from(event))"));
         assertEquals(true, writes.contains("entityManager.flush()"));
     }
+
+    @Test
+    void refreshTokenWritesFlushJpaConstraintsInsideServiceBoundary() throws IOException {
+        String repository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/auth/RefreshTokenRepository.java"));
+        String writes =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/auth/RefreshTokenRepositoryWritesImpl.java"));
+
+        assertEquals(false, repository.contains("saveAndFlush(RefreshTokenEntity.from(token))"));
+        assertEquals(
+                true, writes.contains("entityManager.persist(RefreshTokenEntity.from(token))"));
+        assertEquals(true, writes.contains("entityManager.merge(RefreshTokenEntity.from(token))"));
+        assertEquals(true, writes.contains("entityManager.flush()"));
+    }
 }
