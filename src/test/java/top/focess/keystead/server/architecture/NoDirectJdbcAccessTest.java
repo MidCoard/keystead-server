@@ -39,4 +39,15 @@ class NoDirectJdbcAccessTest {
         assertEquals(false, build.contains("spring-boot-starter-data-jdbc"));
         assertEquals(true, build.contains("spring-boot-starter-data-jpa"));
     }
+
+    @Test
+    void encryptedRecordWritesFlushJpaConstraintsInsideServiceBoundary() throws IOException {
+        String repository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/record/EncryptedRecordRepository.java"));
+
+        assertEquals(true, repository.contains("saveAndFlush(EncryptedRecordEntity.from(record))"));
+        assertEquals(false, repository.contains("save(EncryptedRecordEntity.from(record))"));
+    }
 }

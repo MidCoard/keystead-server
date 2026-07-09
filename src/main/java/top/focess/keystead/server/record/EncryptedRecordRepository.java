@@ -83,10 +83,10 @@ interface EncryptedRecordRepository
     }
 
     default void insert(@NonNull StoredEncryptedRecord record) {
-        save(EncryptedRecordEntity.from(record));
+        saveAndFlush(EncryptedRecordEntity.from(record));
     }
 
     default void update(@NonNull StoredEncryptedRecord record) {
-        save(EncryptedRecordEntity.from(record));
+        saveAndFlush(EncryptedRecordEntity.from(record));
     }
 }
