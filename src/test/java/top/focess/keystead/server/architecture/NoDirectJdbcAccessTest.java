@@ -138,4 +138,41 @@ class NoDirectJdbcAccessTest {
                         "entityManager.persist(DeviceChallengeEntity.from(challenge))"));
         assertEquals(true, challengeWrites.contains("entityManager.flush()"));
     }
+
+    @Test
+    void vaultWritesFlushJpaConstraintsInsideServiceBoundary() throws IOException {
+        String vaultRepository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/vault/VaultRepository.java"));
+        String keyPackageRepository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/vault/VaultKeyPackageRepository.java"));
+        String vaultWrites =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/vault/VaultRepositoryWritesImpl.java"));
+        String keyPackageWrites =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/vault/VaultKeyPackageRepositoryWritesImpl.java"));
+
+        assertEquals(false, vaultRepository.contains("saveAndFlush(VaultEntity.from(vault))"));
+        assertEquals(
+                false,
+                keyPackageRepository.contains("save(VaultKeyPackageEntity.from(keyPackage))"));
+        assertEquals(true, vaultWrites.contains("entityManager.persist(VaultEntity.from(vault))"));
+        assertEquals(true, vaultWrites.contains("entityManager.merge(VaultEntity.from(vault))"));
+        assertEquals(true, vaultWrites.contains("entityManager.flush()"));
+        assertEquals(
+                true,
+                keyPackageWrites.contains(
+                        "entityManager.persist(VaultKeyPackageEntity.from(keyPackage))"));
+        assertEquals(
+                true,
+                keyPackageWrites.contains(
+                        "entityManager.merge(VaultKeyPackageEntity.from(keyPackage))"));
+        assertEquals(true, keyPackageWrites.contains("entityManager.flush()"));
+    }
 }

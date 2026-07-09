@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface VaultRepository extends JpaRepository<VaultEntity, VaultEntityId> {
+interface VaultRepository extends JpaRepository<VaultEntity, VaultEntityId>, VaultRepositoryWrites {
 
     default @NonNull Optional<StoredVault> find(@NonNull String ownerId, @NonNull String vaultId) {
         return findById(new VaultEntityId(ownerId, vaultId)).map(VaultEntity::toStored);
@@ -29,9 +29,5 @@ interface VaultRepository extends JpaRepository<VaultEntity, VaultEntityId> {
 
     default @NonNull List<StoredVault> list(@NonNull String ownerId) {
         return listEntities(ownerId).stream().map(VaultEntity::toStored).toList();
-    }
-
-    default void upsert(@NonNull StoredVault vault) {
-        saveAndFlush(VaultEntity.from(vault));
     }
 }

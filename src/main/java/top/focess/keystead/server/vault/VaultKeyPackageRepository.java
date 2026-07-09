@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface VaultKeyPackageRepository
-        extends JpaRepository<VaultKeyPackageEntity, VaultKeyPackageEntityId> {
+        extends JpaRepository<VaultKeyPackageEntity, VaultKeyPackageEntityId>,
+                VaultKeyPackageRepositoryWrites {
 
     default @NonNull Optional<StoredVaultKeyPackage> find(
             @NonNull String ownerId, @NonNull String vaultId, @NonNull String deviceId) {
@@ -52,9 +53,5 @@ interface VaultKeyPackageRepository
         return listEntities(ownerId, vaultId).stream()
                 .map(VaultKeyPackageEntity::toStored)
                 .toList();
-    }
-
-    default void upsert(@NonNull StoredVaultKeyPackage keyPackage) {
-        save(VaultKeyPackageEntity.from(keyPackage));
     }
 }

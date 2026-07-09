@@ -31,9 +31,14 @@ class VaultService {
                 accessGuard.findOwnedVaultOrRejectTakenId(ownerId, vaultId);
         Instant now = clock.instant();
         Instant createdAt = existing.map(StoredVault::createdAt).orElse(now);
+        StoredVault next =
+                new StoredVault(ownerId, vaultId, request.encryptedMetadata(), createdAt, now);
         try {
-            vaults.upsert(
-                    new StoredVault(ownerId, vaultId, request.encryptedMetadata(), createdAt, now));
+            if (existing.isEmpty()) {
+                vaults.insert(next);
+            } else {
+                vaults.update(next);
+            }
         } catch (DataIntegrityViolationException e) {
             throw new VaultNotFoundException("Vault does not exist", e);
         }

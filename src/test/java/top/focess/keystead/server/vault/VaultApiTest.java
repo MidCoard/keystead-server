@@ -130,6 +130,6 @@ class VaultApiTest {
 
     private void insertVault(String vaultId, String ownerId) {
         Instant now = Instant.parse("2026-07-03T00:00:00Z");
-        vaults.upsert(new StoredVault(ownerId, vaultId, "opaque-vault-metadata", now, now));
+        vaults.insert(new StoredVault(ownerId, vaultId, "opaque-vault-metadata", now, now));
     }
 }

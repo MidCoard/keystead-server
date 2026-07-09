@@ -42,12 +42,9 @@ class VaultKeyPackageService {
         }
         requireVaultAndDevice(ownerId, vaultId, deviceId);
         Instant now = clock.instant();
-        Instant createdAt =
-                keyPackages
-                        .find(ownerId, vaultId, deviceId)
-                        .map(StoredVaultKeyPackage::createdAt)
-                        .orElse(now);
-        keyPackages.upsert(
+        StoredVaultKeyPackage existing = keyPackages.find(ownerId, vaultId, deviceId).orElse(null);
+        Instant createdAt = existing == null ? now : existing.createdAt();
+        StoredVaultKeyPackage next =
                 new StoredVaultKeyPackage(
                         ownerId,
                         vaultId,
@@ -55,7 +52,12 @@ class VaultKeyPackageService {
                         request.keyAlgorithm(),
                         request.encryptedVaultKey(),
                         createdAt,
-                        now));
+                        now);
+        if (existing == null) {
+            keyPackages.insert(next);
+        } else {
+            keyPackages.update(next);
+        }
         audit.keyPackageStored(ownerId, ownerId, vaultId, deviceId, request.keyAlgorithm());
     }
 
