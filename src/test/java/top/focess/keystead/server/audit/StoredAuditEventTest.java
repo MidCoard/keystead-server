@@ -23,6 +23,12 @@ class StoredAuditEventTest {
         assertThrows(IllegalArgumentException.class, () -> eventWithRevision(0L));
     }
 
+    @Test
+    void rejectsUnsupportedOutcome() {
+        assertThrows(
+                IllegalArgumentException.class, () -> event("event-a", "alice", "LEAKED", "{}"));
+    }
+
     private static StoredAuditEvent event(
             String eventId, String ownerId, String outcome, String details) {
         return new StoredAuditEvent(

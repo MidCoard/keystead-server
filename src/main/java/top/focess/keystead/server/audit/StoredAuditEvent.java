@@ -2,6 +2,7 @@ package top.focess.keystead.server.audit;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Set;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -18,6 +19,8 @@ public record StoredAuditEvent(
         @NonNull String details,
         @NonNull Instant createdAt) {
 
+    private static final Set<String> ALLOWED_OUTCOMES = Set.of("SUCCESS", "FAILURE", "CONFLICT");
+
     public StoredAuditEvent {
         requireNotBlank(eventId, "eventId");
         requireNotBlank(ownerId, "ownerId");
@@ -32,6 +35,9 @@ public record StoredAuditEvent(
             throw new IllegalArgumentException("Audit revision must be positive");
         }
         requireNotBlank(outcome, "outcome");
+        if (!ALLOWED_OUTCOMES.contains(outcome)) {
+            throw new IllegalArgumentException("Audit outcome is unsupported");
+        }
         requireNotBlank(details, "details");
         Objects.requireNonNull(createdAt, "createdAt");
     }
