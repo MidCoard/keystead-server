@@ -67,6 +67,12 @@ class IdentityService {
         if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(request.keyAlgorithm())) {
             throw new UnsupportedCryptoAlgorithmException("Unsupported device key algorithm");
         }
+        devices.find(ownerId, request.deviceId())
+                .filter(device -> device.revokedAt() != null)
+                .ifPresent(
+                        device -> {
+                            throw new DeviceAlreadyExistsException("Device already exists");
+                        });
         devices.upsert(
                 new StoredDevice(
                         ownerId,
@@ -129,6 +135,27 @@ class IdentityService {
         }
         challenges.markUsed(ownerId, deviceId, challenge.challengeId(), now);
         devices.markVerified(ownerId, deviceId, now);
+    }
+
+    @Transactional
+    void revokeDevice(@NonNull String ownerId, @NonNull String deviceId) {
+        StoredDevice device =
+                devices.find(ownerId, deviceId)
+                        .orElseThrow(() -> new DeviceNotFoundException("Device does not exist"));
+        if (device.revokedAt() != null) {
+            return;
+        }
+        Instant now = clock.instant();
+        devices.upsert(
+                new StoredDevice(
+                        device.ownerId(),
+                        device.deviceId(),
+                        device.keyAlgorithm(),
+                        device.publicKey(),
+                        device.createdAt(),
+                        device.verifiedAt(),
+                        device.lastSeenAt(),
+                        now));
     }
 
     private boolean verifySignature(

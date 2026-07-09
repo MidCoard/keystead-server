@@ -1,6 +1,7 @@
 package top.focess.keystead.server.vault;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -183,6 +184,31 @@ class VaultKeyPackageApiTest {
                                         httpBasic(
                                                 "package-unverified",
                                                 "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void keyPackageRequiresNonRevokedDevice() throws Exception {
+        registerUser("package-revoked");
+        registerVerifiedDevice("package-revoked", "revoked-laptop");
+        createVault("package-revoked", "package-vault-revoked");
+
+        mvc.perform(
+                        delete("/api/v1/devices/revoked-laptop")
+                                .with(httpBasic("package-revoked", "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        put("/api/v1/vaults/package-vault-revoked/key-packages/revoked-laptop")
+                                .with(httpBasic("package-revoked", "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(packageBody()))
+                .andExpect(status().isNotFound());
+
+        mvc.perform(
+                        get("/api/v1/vaults/package-vault-revoked/key-packages")
+                                .with(httpBasic("package-revoked", "correct horse battery staple")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }

@@ -6,6 +6,7 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,6 +50,13 @@ class DeviceController {
             @PathVariable @NonNull String deviceId,
             @Valid @RequestBody @NonNull DeviceProofRequest request) {
         service.proveDevice(principal.getName(), deviceId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{deviceId}")
+    @NonNull ResponseEntity<Void> revoke(
+            @NonNull Principal principal, @PathVariable @NonNull String deviceId) {
+        service.revokeDevice(principal.getName(), deviceId);
         return ResponseEntity.noContent().build();
     }
 }

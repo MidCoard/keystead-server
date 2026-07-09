@@ -2,6 +2,7 @@ package top.focess.keystead.server.identity;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -202,6 +203,96 @@ class UserDeviceApiTest {
                                         """
                                                 .formatted(challengeId, signature)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void revokedDeviceIsListedAsRevokedAndCannotStartNewChallenge() throws Exception {
+        registerUser("device-revoke-user");
+        proveDeviceWithAlgorithm(
+                "device-revoke-user",
+                "phone-revoke",
+                "RSA_OAEP_SHA256",
+                rsaKeyPair(),
+                "SHA256withRSA");
+
+        mvc.perform(
+                        delete("/api/v1/devices/phone-revoke")
+                                .with(
+                                        httpBasic(
+                                                "device-revoke-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-revoke-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("phone-revoke"))
+                .andExpect(jsonPath("$[0].revokedAt").isNotEmpty());
+
+        mvc.perform(
+                        post("/api/v1/devices/phone-revoke/challenges")
+                                .with(
+                                        httpBasic(
+                                                "device-revoke-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void revokedDeviceCannotBeReRegisteredToClearRevocation() throws Exception {
+        registerUser("device-reregister-user");
+        proveDeviceWithAlgorithm(
+                "device-reregister-user",
+                "phone-reregister",
+                "RSA_OAEP_SHA256",
+                rsaKeyPair(),
+                "SHA256withRSA");
+
+        mvc.perform(
+                        delete("/api/v1/devices/phone-reregister")
+                                .with(
+                                        httpBasic(
+                                                "device-reregister-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        KeyPair replacementKeyPair = rsaKeyPair();
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-reregister-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-reregister",
+                                          "keyAlgorithm": "RSA_OAEP_SHA256",
+                                          "publicKey": "%s"
+                                        }
+                                        """
+                                                .formatted(
+                                                        Base64.getEncoder()
+                                                                .encodeToString(
+                                                                        replacementKeyPair
+                                                                                .getPublic()
+                                                                                .getEncoded()))))
+                .andExpect(status().isConflict());
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-reregister-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("phone-reregister"))
+                .andExpect(jsonPath("$[0].revokedAt").isNotEmpty());
     }
 
     @Test
