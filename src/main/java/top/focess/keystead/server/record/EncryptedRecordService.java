@@ -38,6 +38,12 @@ class EncryptedRecordService {
             @NonNull EncryptedRecordRequest request) {
         accessGuard.requireOwnedVault(ownerId, vaultId);
         Optional<StoredEncryptedRecord> existing = records.find(ownerId, vaultId, secretId);
+        records.latestRevision(ownerId, vaultId)
+                .filter(record -> request.revision() <= record.revision())
+                .ifPresent(
+                        record ->
+                                throwRevisionConflict(
+                                        ownerId, vaultId, secretId, record, request.revision()));
         String encryptedProfile = request.resolvedEncryptedProfile();
         String envelope = request.resolvedEnvelope();
         StoredEncryptedRecord next =
@@ -56,23 +62,6 @@ class EncryptedRecordService {
         if (existing.isEmpty()) {
             records.insert(next);
             result = StoreRecordResult.CREATED;
-        } else if (request.revision() <= existing.get().revision()) {
-            StoredEncryptedRecord serverRecord = existing.get();
-            audit.recordRevisionConflict(
-                    ownerId,
-                    ownerId,
-                    vaultId,
-                    secretId,
-                    serverRecord.revision(),
-                    request.revision());
-            throw new RevisionConflictException(
-                    "Record revision must increase",
-                    vaultId,
-                    secretId,
-                    serverRecord.revision(),
-                    request.revision(),
-                    serverRecord.deleted(),
-                    serverRecord.updatedAt());
         } else {
             records.update(next);
             result = StoreRecordResult.UPDATED;
@@ -98,18 +87,12 @@ class EncryptedRecordService {
         StoredEncryptedRecord existing =
                 records.find(ownerId, vaultId, secretId)
                         .orElseThrow(() -> new RecordNotFoundException("Record does not exist"));
-        if (revision <= existing.revision()) {
-            audit.recordRevisionConflict(
-                    ownerId, ownerId, vaultId, secretId, existing.revision(), revision);
-            throw new RevisionConflictException(
-                    "Record revision must increase",
-                    vaultId,
-                    secretId,
-                    existing.revision(),
-                    revision,
-                    existing.deleted(),
-                    existing.updatedAt());
-        }
+        records.latestRevision(ownerId, vaultId)
+                .filter(record -> revision <= record.revision())
+                .ifPresent(
+                        record ->
+                                throwRevisionConflict(
+                                        ownerId, vaultId, secretId, record, revision));
         records.update(
                 new StoredEncryptedRecord(
                         ownerId,
@@ -168,5 +151,23 @@ class EncryptedRecordService {
         if (sinceRevision < 0) {
             throw new InvalidRecordRequestException("sinceRevision must not be negative");
         }
+    }
+
+    private void throwRevisionConflict(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String secretId,
+            @NonNull StoredEncryptedRecord serverRecord,
+            long rejectedRevision) {
+        audit.recordRevisionConflict(
+                ownerId, ownerId, vaultId, secretId, serverRecord.revision(), rejectedRevision);
+        throw new RevisionConflictException(
+                "Record revision must increase",
+                vaultId,
+                secretId,
+                serverRecord.revision(),
+                rejectedRevision,
+                serverRecord.deleted(),
+                serverRecord.updatedAt());
     }
 }

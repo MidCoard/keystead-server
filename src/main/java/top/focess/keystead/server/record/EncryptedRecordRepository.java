@@ -23,6 +23,26 @@ interface EncryptedRecordRepository
               from EncryptedRecordEntity r
              where r.id.ownerId = :ownerId
                and r.id.vaultId = :vaultId
+             order by r.revision desc, r.id.secretId desc
+            """)
+    @NonNull List<EncryptedRecordEntity> latestRevisionEntities(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @NonNull Pageable pageable);
+
+    default @NonNull Optional<StoredEncryptedRecord> latestRevision(
+            @NonNull String ownerId, @NonNull String vaultId) {
+        return latestRevisionEntities(ownerId, vaultId, Pageable.ofSize(1)).stream()
+                .findFirst()
+                .map(EncryptedRecordEntity::toStored);
+    }
+
+    @Query(
+            """
+            select r
+              from EncryptedRecordEntity r
+             where r.id.ownerId = :ownerId
+               and r.id.vaultId = :vaultId
                and r.revision > :sinceRevision
              order by r.revision, r.id.secretId
             """)

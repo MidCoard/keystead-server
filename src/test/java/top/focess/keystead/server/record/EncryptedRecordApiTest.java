@@ -31,10 +31,10 @@ class EncryptedRecordApiTest {
     @Test
     @WithMockUser(username = "alice")
     void authenticatedUserCanCreateAndFetchEncryptedRecord() throws Exception {
-        createVault("alice", "vault-1");
+        createVault("alice", "vault-create-fetch");
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-1/records/secret-1")
+                        put("/api/v1/vaults/vault-create-fetch/records/secret-1")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -48,9 +48,9 @@ class EncryptedRecordApiTest {
                                         """))
                 .andExpect(status().isCreated());
 
-        mvc.perform(get("/api/v1/vaults/vault-1/records/secret-1"))
+        mvc.perform(get("/api/v1/vaults/vault-create-fetch/records/secret-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.vaultId").value("vault-1"))
+                .andExpect(jsonPath("$.vaultId").value("vault-create-fetch"))
                 .andExpect(jsonPath("$.secretId").value("secret-1"))
                 .andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.secretType").value("LOGIN_PASSWORD"))
@@ -62,7 +62,7 @@ class EncryptedRecordApiTest {
     @Test
     @WithMockUser(username = "alice")
     void duplicateOrOlderRevisionIsConflict() throws Exception {
-        createVault("alice", "vault-1");
+        createVault("alice", "vault-duplicate-revision");
         String body =
                 """
                 {
@@ -75,13 +75,13 @@ class EncryptedRecordApiTest {
                 """;
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-1/records/secret-2")
+                        put("/api/v1/vaults/vault-duplicate-revision/records/secret-2")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isCreated());
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-1/records/secret-2")
+                        put("/api/v1/vaults/vault-duplicate-revision/records/secret-2")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isConflict())
@@ -89,7 +89,7 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.message").value("Record revision must increase"))
                 .andExpect(jsonPath("$.latestRevision").value(2))
                 .andExpect(jsonPath("$.rejectedRevision").value(2))
-                .andExpect(jsonPath("$.vaultId").value("vault-1"))
+                .andExpect(jsonPath("$.vaultId").value("vault-duplicate-revision"))
                 .andExpect(jsonPath("$.secretId").value("secret-2"))
                 .andExpect(jsonPath("$.serverRevision").value(2))
                 .andExpect(jsonPath("$.clientRevision").value(2))
@@ -98,6 +98,47 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.envelope").doesNotExist())
                 .andExpect(jsonPath("$.metadata").doesNotExist())
                 .andExpect(jsonPath("$.encryptedProfile").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void duplicateVaultRevisionAcrossDifferentRecordsIsConflict() throws Exception {
+        createVault("alice", "vault-wide-revision");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-wide-revision/records/secret-a")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "SECURE_NOTE",
+                                          "metadata": "bWV0YQ",
+                                          "envelope": "ZW52ZWxvcGU",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-wide-revision/records/secret-b")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "SECURE_NOTE",
+                                          "metadata": "bWV0YQ",
+                                          "envelope": "ZW52ZWxvcGU",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("REVISION_CONFLICT"))
+                .andExpect(jsonPath("$.latestRevision").value(1))
+                .andExpect(jsonPath("$.rejectedRevision").value(1))
+                .andExpect(jsonPath("$.vaultId").value("vault-wide-revision"))
+                .andExpect(jsonPath("$.secretId").value("secret-b"));
     }
 
     @Test
@@ -131,10 +172,10 @@ class EncryptedRecordApiTest {
     @Test
     @WithMockUser(username = "alice")
     void newerRevisionReplacesStoredEncryptedRecord() throws Exception {
-        createVault("alice", "vault-1");
+        createVault("alice", "vault-replace-record");
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-1/records/secret-3")
+                        put("/api/v1/vaults/vault-replace-record/records/secret-3")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -149,7 +190,7 @@ class EncryptedRecordApiTest {
                 .andExpect(status().isCreated());
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-1/records/secret-3")
+                        put("/api/v1/vaults/vault-replace-record/records/secret-3")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -163,7 +204,7 @@ class EncryptedRecordApiTest {
                                         """))
                 .andExpect(status().isOk());
 
-        mvc.perform(get("/api/v1/vaults/vault-1/records/secret-3"))
+        mvc.perform(get("/api/v1/vaults/vault-replace-record/records/secret-3"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.revision").value(2))
                 .andExpect(jsonPath("$.metadata").doesNotExist())
@@ -369,10 +410,10 @@ class EncryptedRecordApiTest {
 
     @Test
     void userCannotReadAnotherUsersRecord() throws Exception {
-        createVault("alice", "vault-1");
+        createVault("alice", "vault-read-private");
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-1/records/secret-4")
+                        put("/api/v1/vaults/vault-read-private/records/secret-4")
                                 .with(user("alice"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -387,7 +428,7 @@ class EncryptedRecordApiTest {
                                         """))
                 .andExpect(status().isCreated());
 
-        mvc.perform(get("/api/v1/vaults/vault-1/records/secret-4").with(user("bob")))
+        mvc.perform(get("/api/v1/vaults/vault-read-private/records/secret-4").with(user("bob")))
                 .andExpect(status().isNotFound());
     }
 
