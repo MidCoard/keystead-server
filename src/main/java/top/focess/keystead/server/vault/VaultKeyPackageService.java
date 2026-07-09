@@ -10,8 +10,6 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
-import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
-import top.focess.keystead.server.crypto.UnsupportedCryptoAlgorithmException;
 
 @Service
 class VaultKeyPackageService {
@@ -43,11 +41,7 @@ class VaultKeyPackageService {
             @NonNull VaultKeyPackageRequest request) {
         requireVaultAndDevice(ownerId, vaultId, deviceId);
         validate(request);
-        if (!ServerCryptoAlgorithmRegistry.isApprovedVaultKeyPackageAlgorithm(
-                request.keyAlgorithm())) {
-            throw new UnsupportedCryptoAlgorithmException(
-                    "Unsupported vault key package algorithm");
-        }
+        request.validateShape();
         Instant now = clock.instant();
         StoredVaultKeyPackage existing = keyPackages.find(ownerId, vaultId, deviceId).orElse(null);
         Instant createdAt = existing == null ? now : existing.createdAt();
