@@ -1,5 +1,7 @@
 package top.focess.keystead.server.identity;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -15,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -38,6 +41,7 @@ class IdentityService {
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
     private final SecureRandom secureRandom;
+    private final Validator validator;
 
     IdentityService(
             @NonNull UserRepository users,
@@ -45,7 +49,8 @@ class IdentityService {
             @NonNull DeviceChallengeRepository challenges,
             @NonNull AuditService audit,
             @NonNull PasswordEncoder passwordEncoder,
-            @NonNull Clock clock) {
+            @NonNull Clock clock,
+            @NonNull Validator validator) {
         this.users = users;
         this.devices = devices;
         this.challenges = challenges;
@@ -53,6 +58,7 @@ class IdentityService {
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
         this.secureRandom = new SecureRandom();
+        this.validator = validator;
     }
 
     @Transactional
@@ -130,6 +136,7 @@ class IdentityService {
         StoredDevice device =
                 devices.find(ownerId, deviceId)
                         .orElseThrow(() -> new DeviceNotFoundException("Device does not exist"));
+        validate(request);
         StoredDeviceChallenge challenge =
                 challenges
                         .find(ownerId, deviceId, request.challengeId())
@@ -178,6 +185,14 @@ class IdentityService {
             return signature.verify(Base64.getDecoder().decode(encodedSignature));
         } catch (IllegalArgumentException | GeneralSecurityException e) {
             return false;
+        }
+    }
+
+    private void validate(@NonNull DeviceProofRequest request) {
+        Set<ConstraintViolation<DeviceProofRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new InvalidDeviceProofRequestException(
+                    violations.iterator().next().getPropertyPath() + " is invalid");
         }
     }
 

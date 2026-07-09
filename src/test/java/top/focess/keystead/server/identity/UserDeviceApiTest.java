@@ -245,6 +245,36 @@ class UserDeviceApiTest {
     }
 
     @Test
+    void unauthorizedDeviceProofDoesNotValidateRequestBodyBeforeOwnership() throws Exception {
+        registerUser("device-proof-shape-alice");
+        registerUser("device-proof-shape-bob");
+        registerDevice(
+                "device-proof-shape-alice",
+                "phone-proof-shape-private",
+                "RSA_OAEP_SHA256",
+                "alice-public-key-material");
+
+        mvc.perform(
+                        post("/api/v1/devices/phone-proof-shape-private/proof")
+                                .with(
+                                        httpBasic(
+                                                "device-proof-shape-bob",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "challengeId": "",
+                                          "signature": "%s"
+                                        }
+                                        """
+                                                .formatted("x".repeat(8193))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.challengeId").doesNotExist())
+                .andExpect(jsonPath("$.signature").doesNotExist());
+    }
+
+    @Test
     void revokedDeviceIsListedAsRevokedAndCannotStartNewChallenge() throws Exception {
         registerUser("device-revoke-user");
         proveDeviceWithAlgorithm(

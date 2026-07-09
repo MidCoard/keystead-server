@@ -48,7 +48,7 @@ class DeviceController {
     @NonNull ResponseEntity<Void> prove(
             @NonNull Principal principal,
             @PathVariable @NonNull String deviceId,
-            @Valid @RequestBody @NonNull DeviceProofRequest request) {
+            @RequestBody @NonNull DeviceProofRequest request) {
         service.proveDevice(principal.getName(), deviceId, request);
         return ResponseEntity.noContent().build();
     }
