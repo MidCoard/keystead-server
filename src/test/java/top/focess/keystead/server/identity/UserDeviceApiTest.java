@@ -72,6 +72,24 @@ class UserDeviceApiTest {
     }
 
     @Test
+    void duplicateUserRegistrationDoesNotValidateReplacementPassword() throws Exception {
+        registerUser("duplicate-shape-user");
+
+        mvc.perform(
+                        post("/api/v1/users")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "username": "duplicate-shape-user",
+                                          "password": ""
+                                        }
+                                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.password").doesNotExist());
+    }
+
+    @Test
     void authenticatedUserCanRegisterAndListDevicePublicKeys() throws Exception {
         registerUser("device-user");
 

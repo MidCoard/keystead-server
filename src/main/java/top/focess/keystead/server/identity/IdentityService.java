@@ -66,6 +66,7 @@ class IdentityService {
         if (users.exists(request.username())) {
             throw new UserAlreadyExistsException("User already exists");
         }
+        validate(request);
         Instant now = clock.instant();
         users.insert(
                 new StoredUser(
@@ -202,6 +203,14 @@ class IdentityService {
                 validator.validate(request);
         if (!violations.isEmpty()) {
             throw new InvalidDeviceRegistrationRequestException(
+                    violations.iterator().next().getPropertyPath() + " is invalid");
+        }
+    }
+
+    private void validate(@NonNull UserRegistrationRequest request) {
+        Set<ConstraintViolation<UserRegistrationRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new InvalidUserRegistrationRequestException(
                     violations.iterator().next().getPropertyPath() + " is invalid");
         }
     }

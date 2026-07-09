@@ -1,6 +1,5 @@
 package top.focess.keystead.server.identity;
 
-import jakarta.validation.Valid;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +19,7 @@ class UserController {
     }
 
     @PostMapping
-    @NonNull ResponseEntity<Void> register(
-            @Valid @RequestBody @NonNull UserRegistrationRequest request) {
+    @NonNull ResponseEntity<Void> register(@RequestBody @NonNull UserRegistrationRequest request) {
         service.register(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
