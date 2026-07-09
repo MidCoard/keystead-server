@@ -143,6 +143,7 @@ class AuditEventApiTest {
         assertThat(event.targetType()).isEqualTo("record");
         assertThat(event.targetId()).isEqualTo("secret-conflict-audit");
         assertThat(event.revision()).isEqualTo(3);
+        assertThat(event.outcome()).isEqualTo("CONFLICT");
         assertThat(event.details()).contains("\"latestRevision\":4");
         assertThat(event.details()).contains("\"rejectedRevision\":3");
         assertThat(event.details()).doesNotContain("encrypted-profile-rejected-sentinel");
@@ -179,6 +180,7 @@ class AuditEventApiTest {
         assertThat(event.targetType()).isEqualTo("record");
         assertThat(event.targetId()).isEqualTo("secret-delete-conflict-audit");
         assertThat(event.revision()).isEqualTo(4);
+        assertThat(event.outcome()).isEqualTo("CONFLICT");
         assertThat(event.details()).contains("\"latestRevision\":5");
         assertThat(event.details()).contains("\"rejectedRevision\":4");
         assertThat(event.details()).doesNotContain("encrypted-profile-delete-conflict-sentinel");

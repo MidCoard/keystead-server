@@ -12,6 +12,7 @@ public class AuditService {
 
     private static final String OUTCOME_SUCCESS = "SUCCESS";
     private static final String OUTCOME_FAILURE = "FAILURE";
+    private static final String OUTCOME_CONFLICT = "CONFLICT";
     private static final String TARGET_AUTH = "auth";
     private static final String TARGET_DEVICE = "device";
     private static final String TARGET_KEY_PACKAGE = "key_package";
@@ -115,7 +116,7 @@ public class AuditService {
                         secretId,
                         vaultId,
                         rejectedRevision,
-                        OUTCOME_SUCCESS,
+                        OUTCOME_CONFLICT,
                         safeConflictDetails(latestRevision, rejectedRevision),
                         clock.instant()));
     }
