@@ -45,6 +45,7 @@ class EncryptedRecordService {
             @NonNull EncryptedRecordRequest request) {
         accessGuard.requireOwnedVault(ownerId, vaultId);
         validate(request);
+        request.validateShape();
         Optional<StoredEncryptedRecord> existing = records.find(ownerId, vaultId, secretId);
         records.latestRevision(ownerId, vaultId)
                 .filter(record -> request.revision() <= record.revision())

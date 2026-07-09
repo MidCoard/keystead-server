@@ -2,7 +2,6 @@ package top.focess.keystead.server.record;
 
 import java.time.Instant;
 import java.util.Objects;
-import java.util.Set;
 import org.jspecify.annotations.NonNull;
 
 record StoredEncryptedRecord(
@@ -17,17 +16,6 @@ record StoredEncryptedRecord(
         boolean deleted,
         @NonNull Instant updatedAt) {
 
-    private static final Set<String> ALLOWED_SECRET_TYPES =
-            Set.of(
-                    "LOGIN_PASSWORD",
-                    "SECURE_NOTE",
-                    "SSH_KEY",
-                    "API_TOKEN",
-                    "GPG_KEY",
-                    "MFA_SECRET",
-                    "CERTIFICATE",
-                    "GENERIC_SECRET");
-
     StoredEncryptedRecord {
         requireNotBlank(ownerId, "ownerId");
         requireNotBlank(vaultId, "vaultId");
@@ -40,7 +28,7 @@ record StoredEncryptedRecord(
         if (revision <= 0) {
             throw new IllegalArgumentException("Record revision must be positive");
         }
-        if (!ALLOWED_SECRET_TYPES.contains(secretType)) {
+        if (!RecordSecretTypes.isSupported(secretType)) {
             throw new IllegalArgumentException("Record secret type is unsupported");
         }
         if (deleted) {

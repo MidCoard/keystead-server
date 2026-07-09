@@ -15,6 +15,28 @@ public record EncryptedRecordRequest(
         @Size(max = EncryptedRecordLimits.ENVELOPE_MAX_LENGTH) @Nullable String envelope,
         boolean deleted) {
 
+    void validateShape() {
+        if (!RecordSecretTypes.isSupported(secretType)) {
+            throw new InvalidRecordRequestException("secretType is unsupported");
+        }
+        if (deleted) {
+            if (hasText(metadata) || hasText(encryptedProfile)) {
+                throw new InvalidRecordRequestException(
+                        "tombstone must not include encryptedProfile");
+            }
+            if (hasText(envelope)) {
+                throw new InvalidRecordRequestException("tombstone must not include envelope");
+            }
+        } else {
+            if (!hasText(metadata) && !hasText(encryptedProfile)) {
+                throw new InvalidRecordRequestException("encryptedProfile is required");
+            }
+            if (!hasText(envelope)) {
+                throw new InvalidRecordRequestException("envelope is required");
+            }
+        }
+    }
+
     @NonNull String resolvedEncryptedProfile() {
         if (deleted) {
             if (hasText(metadata) || hasText(encryptedProfile)) {
