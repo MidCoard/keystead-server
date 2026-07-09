@@ -32,7 +32,7 @@ record StoredEncryptedRecord(
             if (!metadata.isBlank() || !encryptedProfile.isBlank() || !envelope.isBlank()) {
                 throw new IllegalArgumentException("Tombstone rows must not carry encrypted data");
             }
-        } else if (metadata.isBlank() || encryptedProfile.isBlank() || envelope.isBlank()) {
+        } else if (encryptedProfile.isBlank() || envelope.isBlank()) {
             throw new IllegalArgumentException("Active rows must carry encrypted data");
         }
     }

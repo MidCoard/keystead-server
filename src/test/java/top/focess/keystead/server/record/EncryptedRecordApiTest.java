@@ -1,5 +1,6 @@
 package top.focess.keystead.server.record;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -190,6 +191,34 @@ class EncryptedRecordApiTest {
                         jsonPath("$.encryptedProfile")
                                 .value("encrypted-profile-development-github"))
                 .andExpect(jsonPath("$.metadata").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void newEncryptedProfileRecordDoesNotDuplicateLegacyMetadataColumn() throws Exception {
+        createVault("alice", "vault-profile-storage");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-profile-storage/records/secret-profile-storage")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "LOGIN_PASSWORD",
+                                          "encryptedProfile": "encrypted-profile-canonical-only",
+                                          "envelope": "encrypted-secret-payload",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        StoredEncryptedRecord record =
+                records.find("alice", "vault-profile-storage", "secret-profile-storage")
+                        .orElseThrow();
+
+        assertEquals("", record.metadata());
+        assertEquals("encrypted-profile-canonical-only", record.encryptedProfile());
     }
 
     @Test

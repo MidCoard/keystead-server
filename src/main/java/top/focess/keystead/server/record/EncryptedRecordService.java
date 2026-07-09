@@ -54,7 +54,7 @@ class EncryptedRecordService {
                         secretId,
                         request.revision(),
                         request.secretType(),
-                        encryptedProfile,
+                        "",
                         encryptedProfile,
                         envelope,
                         request.deleted(),
