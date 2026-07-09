@@ -51,7 +51,7 @@ class VaultApiTest {
         String oversized = "x".repeat(65_537);
 
         mvc.perform(
-                        put("/api/v1/vaults/vault-oversized")
+                        put("/api/v1/vaults/vault-api-oversized")
                                 .with(user("vault-sized-alice"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -117,6 +117,35 @@ class VaultApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].vaultId").value("vault-global-private"))
                 .andExpect(jsonPath("$[0].encryptedMetadata").value("alice-vault-metadata"));
+    }
+
+    @Test
+    void takenVaultIdDoesNotValidateRequestBodyBeforeOwnershipDenial() throws Exception {
+        mvc.perform(
+                        put("/api/v1/vaults/vault-api-shape-private")
+                                .with(user("vault-shape-alice"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "encryptedMetadata": "alice-vault-metadata"
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-api-shape-private")
+                                .with(user("vault-shape-bob"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "encryptedMetadata": "%s"
+                                        }
+                                        """
+                                                .formatted("x".repeat(65_537))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.encryptedMetadata").doesNotExist());
     }
 
     @Test

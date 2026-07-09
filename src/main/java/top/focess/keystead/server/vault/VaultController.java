@@ -1,6 +1,5 @@
 package top.focess.keystead.server.vault;
 
-import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import org.jspecify.annotations.NonNull;
@@ -27,7 +26,7 @@ class VaultController {
     @NonNull ResponseEntity<Void> put(
             @NonNull Principal principal,
             @PathVariable @NonNull String vaultId,
-            @Valid @RequestBody @NonNull VaultRequest request) {
+            @RequestBody @NonNull VaultRequest request) {
         service.put(principal.getName(), vaultId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
