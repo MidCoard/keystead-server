@@ -98,6 +98,43 @@ class UserDeviceApiTest {
     }
 
     @Test
+    void duplicateDeviceRegistrationIsConflictAndKeepsOriginalPublicKey() throws Exception {
+        registerUser("device-duplicate-user");
+        registerDevice(
+                "device-duplicate-user",
+                "phone-duplicate",
+                "RSA_OAEP_SHA256",
+                "original-public-key");
+
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-duplicate-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-duplicate",
+                                          "keyAlgorithm": "RSA_OAEP_SHA256",
+                                          "publicKey": "replacement-public-key"
+                                        }
+                                        """))
+                .andExpect(status().isConflict());
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-duplicate-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("phone-duplicate"))
+                .andExpect(jsonPath("$[0].publicKey").value("original-public-key"));
+    }
+
+    @Test
     void deviceChallengeProofMarksDeviceVerified() throws Exception {
         registerUser("device-proof-user");
         KeyPair keyPair = rsaKeyPair();

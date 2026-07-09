@@ -72,7 +72,6 @@ class IdentityService {
             throw new UnsupportedCryptoAlgorithmException("Unsupported device key algorithm");
         }
         devices.find(ownerId, request.deviceId())
-                .filter(device -> device.revokedAt() != null)
                 .ifPresent(
                         device -> {
                             throw new DeviceAlreadyExistsException("Device already exists");
