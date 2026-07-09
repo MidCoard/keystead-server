@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
@@ -59,12 +60,17 @@ class EncryptedRecordService {
                         request.deleted(),
                         clock.instant());
         StoreRecordResult result;
-        if (existing.isEmpty()) {
-            records.insert(next);
-            result = StoreRecordResult.CREATED;
-        } else {
-            records.update(next);
-            result = StoreRecordResult.UPDATED;
+        try {
+            if (existing.isEmpty()) {
+                records.insert(next);
+                result = StoreRecordResult.CREATED;
+            } else {
+                records.update(next);
+                result = StoreRecordResult.UPDATED;
+            }
+        } catch (DataIntegrityViolationException e) {
+            throwRevisionConflictFromConstraint(ownerId, vaultId, secretId, request.revision(), e);
+            throw e;
         }
         audit.recordStored(
                 ownerId,
@@ -93,18 +99,23 @@ class EncryptedRecordService {
                         record ->
                                 throwRevisionConflict(
                                         ownerId, vaultId, secretId, record, revision));
-        records.update(
-                new StoredEncryptedRecord(
-                        ownerId,
-                        vaultId,
-                        secretId,
-                        revision,
-                        existing.secretType(),
-                        "",
-                        "",
-                        "",
-                        true,
-                        clock.instant()));
+        try {
+            records.update(
+                    new StoredEncryptedRecord(
+                            ownerId,
+                            vaultId,
+                            secretId,
+                            revision,
+                            existing.secretType(),
+                            "",
+                            "",
+                            "",
+                            true,
+                            clock.instant()));
+        } catch (DataIntegrityViolationException e) {
+            throwRevisionConflictFromConstraint(ownerId, vaultId, secretId, revision, e);
+            throw e;
+        }
         audit.recordDeleted(ownerId, ownerId, vaultId, secretId, revision);
     }
 
@@ -169,5 +180,30 @@ class EncryptedRecordService {
                 rejectedRevision,
                 serverRecord.deleted(),
                 serverRecord.updatedAt());
+    }
+
+    private void throwRevisionConflictFromConstraint(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String secretId,
+            long rejectedRevision,
+            @NonNull DataIntegrityViolationException cause) {
+        StoredEncryptedRecord serverRecord =
+                records.latestRevision(ownerId, vaultId)
+                        .orElseThrow(
+                                () ->
+                                        new InvalidRecordRequestException(
+                                                "Record revision could not be checked"));
+        audit.recordRevisionConflict(
+                ownerId, ownerId, vaultId, secretId, serverRecord.revision(), rejectedRevision);
+        throw new RevisionConflictException(
+                "Record revision must increase",
+                vaultId,
+                secretId,
+                serverRecord.revision(),
+                rejectedRevision,
+                serverRecord.deleted(),
+                serverRecord.updatedAt(),
+                cause);
     }
 }

@@ -2,6 +2,7 @@ package top.focess.keystead.server.record;
 
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 final class RevisionConflictException extends RuntimeException {
 
@@ -20,7 +21,27 @@ final class RevisionConflictException extends RuntimeException {
             long rejectedRevision,
             boolean serverDeleted,
             @NonNull Instant serverUpdatedAt) {
-        super(message);
+        this(
+                message,
+                vaultId,
+                secretId,
+                latestRevision,
+                rejectedRevision,
+                serverDeleted,
+                serverUpdatedAt,
+                null);
+    }
+
+    RevisionConflictException(
+            @NonNull String message,
+            @NonNull String vaultId,
+            @NonNull String secretId,
+            long latestRevision,
+            long rejectedRevision,
+            boolean serverDeleted,
+            @NonNull Instant serverUpdatedAt,
+            @Nullable Throwable cause) {
+        super(message, cause);
         this.vaultId = vaultId;
         this.secretId = secretId;
         this.latestRevision = latestRevision;
