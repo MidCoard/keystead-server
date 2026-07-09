@@ -15,14 +15,21 @@ class IdentityRowInvariantTest {
     void storedUserRejectsBlankPasswordHash() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new StoredUser("alice", " ", CREATED_AT, UPDATED_AT));
+                () -> new StoredUser("alice", " ", CREATED_AT, UPDATED_AT, 0L));
     }
 
     @Test
     void storedUserRejectsUpdatedTimeBeforeCreatedTime() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new StoredUser("alice", "password-hash", UPDATED_AT, CREATED_AT));
+                () -> new StoredUser("alice", "password-hash", UPDATED_AT, CREATED_AT, 0L));
+    }
+
+    @Test
+    void storedUserRejectsNegativeTokenVersion() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StoredUser("alice", "password-hash", CREATED_AT, UPDATED_AT, -1L));
     }
 
     @Test

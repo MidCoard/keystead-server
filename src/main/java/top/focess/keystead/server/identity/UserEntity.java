@@ -24,25 +24,34 @@ public class UserEntity {
     @Column(name = "updated_at", nullable = false)
     @NonNull Instant updatedAt = Instant.EPOCH;
 
+    @Column(name = "token_version", nullable = false)
+    long tokenVersion;
+
     protected UserEntity() {}
 
     UserEntity(
             @NonNull String username,
             @NonNull String passwordHash,
             @NonNull Instant createdAt,
-            @NonNull Instant updatedAt) {
+            @NonNull Instant updatedAt,
+            long tokenVersion) {
         this.username = username;
         this.passwordHash = passwordHash;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.tokenVersion = tokenVersion;
     }
 
     static @NonNull UserEntity from(@NonNull StoredUser user) {
         return new UserEntity(
-                user.username(), user.passwordHash(), user.createdAt(), user.updatedAt());
+                user.username(),
+                user.passwordHash(),
+                user.createdAt(),
+                user.updatedAt(),
+                user.tokenVersion());
     }
 
     @NonNull StoredUser toStored() {
-        return new StoredUser(username, passwordHash, createdAt, updatedAt);
+        return new StoredUser(username, passwordHash, createdAt, updatedAt, tokenVersion);
     }
 }

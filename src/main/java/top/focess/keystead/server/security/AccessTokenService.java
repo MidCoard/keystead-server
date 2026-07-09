@@ -30,24 +30,33 @@ public final class AccessTokenService {
         new SecureRandom().nextBytes(signingKey);
     }
 
-    public @NonNull IssuedAccessToken issue(@NonNull String username) {
+    public @NonNull IssuedAccessToken issue(@NonNull String username, long tokenVersion) {
         Instant expiresAt = clock.instant().plus(ACCESS_TOKEN_TTL);
         String user = b64(username.getBytes(StandardCharsets.UTF_8));
         String body =
-                VERSION + "." + user + "." + expiresAt.getEpochSecond() + "." + UUID.randomUUID();
+                VERSION
+                        + "."
+                        + user
+                        + "."
+                        + expiresAt.getEpochSecond()
+                        + "."
+                        + tokenVersion
+                        + "."
+                        + UUID.randomUUID();
         return new IssuedAccessToken(body + "." + sign(body), expiresAt);
     }
 
-    public @NonNull Optional<String> authenticate(@NonNull String token) {
+    public @NonNull Optional<AccessTokenSubject> authenticate(@NonNull String token) {
         try {
             String[] parts = token.split("\\.", -1);
-            if (parts.length != 5 || !VERSION.equals(parts[0])) {
+            if (parts.length != 6 || !VERSION.equals(parts[0])) {
                 return Optional.empty();
             }
-            String body = parts[0] + "." + parts[1] + "." + parts[2] + "." + parts[3];
+            String body =
+                    parts[0] + "." + parts[1] + "." + parts[2] + "." + parts[3] + "." + parts[4];
             if (!MessageDigest.isEqual(
                     sign(body).getBytes(StandardCharsets.US_ASCII),
-                    parts[4].getBytes(StandardCharsets.US_ASCII))) {
+                    parts[5].getBytes(StandardCharsets.US_ASCII))) {
                 return Optional.empty();
             }
             Instant expiresAt = Instant.ofEpochSecond(Long.parseLong(parts[2]));
@@ -55,7 +64,11 @@ public final class AccessTokenService {
                 return Optional.empty();
             }
             return Optional.of(
-                    new String(Base64.getUrlDecoder().decode(parts[1]), StandardCharsets.UTF_8));
+                    new AccessTokenSubject(
+                            new String(
+                                    Base64.getUrlDecoder().decode(parts[1]),
+                                    StandardCharsets.UTF_8),
+                            Long.parseLong(parts[3])));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
@@ -76,4 +89,6 @@ public final class AccessTokenService {
     }
 
     public record IssuedAccessToken(@NonNull String token, @NonNull Instant expiresAt) {}
+
+    public record AccessTokenSubject(@NonNull String username, long tokenVersion) {}
 }

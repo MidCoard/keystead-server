@@ -14,6 +14,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.identity.UserTokenVersionService;
 import top.focess.keystead.server.security.AccessTokenService;
 import top.focess.keystead.server.security.AccessTokenService.IssuedAccessToken;
 
@@ -27,6 +28,7 @@ class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenRepository refreshTokens;
     private final AccessTokenService accessTokens;
+    private final UserTokenVersionService tokenVersions;
     private final Clock clock;
     private final SecureRandom secureRandom;
 
@@ -35,11 +37,13 @@ class AuthService {
             @NonNull PasswordEncoder passwordEncoder,
             @NonNull RefreshTokenRepository refreshTokens,
             @NonNull AccessTokenService accessTokens,
+            @NonNull UserTokenVersionService tokenVersions,
             @NonNull Clock clock) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokens = refreshTokens;
         this.accessTokens = accessTokens;
+        this.tokenVersions = tokenVersions;
         this.clock = clock;
         this.secureRandom = new SecureRandom();
     }
@@ -62,7 +66,9 @@ class AuthService {
                         null,
                         now,
                         now));
-        IssuedAccessToken accessToken = accessTokens.issue(user.getUsername());
+        IssuedAccessToken accessToken =
+                accessTokens.issue(
+                        user.getUsername(), tokenVersions.tokenVersion(user.getUsername()));
         return AuthTokenResponse.login(
                 accessToken.token(), refreshToken, accessToken.expiresAt(), refreshExpiresAt);
     }
@@ -78,7 +84,8 @@ class AuthService {
             throw new AuthFailedException("Authentication failed");
         }
         refreshTokens.upsert(token.withLastUsedAt(now));
-        IssuedAccessToken accessToken = accessTokens.issue(token.username());
+        IssuedAccessToken accessToken =
+                accessTokens.issue(token.username(), tokenVersions.tokenVersion(token.username()));
         return AuthTokenResponse.refreshed(accessToken.token(), accessToken.expiresAt());
     }
 
@@ -93,6 +100,7 @@ class AuthService {
     @Transactional
     void logoutAll(@NonNull String username) {
         refreshTokens.revokeAllForUsername(username, clock.instant());
+        tokenVersions.incrementTokenVersion(username);
     }
 
     private @NonNull UserDetails loadUser(@NonNull String username) {

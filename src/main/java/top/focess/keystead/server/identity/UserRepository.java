@@ -3,6 +3,9 @@ package top.focess.keystead.server.identity;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 interface UserRepository extends JpaRepository<UserEntity, String> {
 
@@ -17,4 +20,9 @@ interface UserRepository extends JpaRepository<UserEntity, String> {
     default void insert(@NonNull StoredUser user) {
         save(UserEntity.from(user));
     }
+
+    @Modifying
+    @Query(
+            "update UserEntity u set u.tokenVersion = u.tokenVersion + 1 where u.username = :username")
+    void incrementTokenVersion(@Param("username") @NonNull String username);
 }

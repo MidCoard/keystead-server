@@ -8,7 +8,8 @@ record StoredUser(
         @NonNull String username,
         @NonNull String passwordHash,
         @NonNull Instant createdAt,
-        @NonNull Instant updatedAt) {
+        @NonNull Instant updatedAt,
+        long tokenVersion) {
 
     StoredUser {
         Objects.requireNonNull(username, "username");
@@ -20,6 +21,9 @@ record StoredUser(
         }
         if (updatedAt.isBefore(createdAt)) {
             throw new IllegalArgumentException("User updated time must not be before created time");
+        }
+        if (tokenVersion < 0) {
+            throw new IllegalArgumentException("User token version must not be negative");
         }
     }
 }

@@ -120,6 +120,25 @@ class AuthApiTest {
     }
 
     @Test
+    void logoutAllInvalidatesAlreadyIssuedAccessTokens() throws Exception {
+        register("logout-access-alice");
+        MvcResult firstLogin = loginResult("logout-access-alice");
+        MvcResult secondLogin = loginResult("logout-access-alice");
+        String logoutToken = JsonStrings.field(firstLogin, "accessToken");
+        String staleAccessToken = JsonStrings.field(secondLogin, "accessToken");
+
+        mvc.perform(
+                        post("/api/v1/auth/logout-all")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + logoutToken))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        get("/api/v1/vaults")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + staleAccessToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void loginFailureIsGeneric() throws Exception {
         register("failed-login-alice");
 

@@ -55,7 +55,11 @@ class IdentityService {
         Instant now = clock.instant();
         users.insert(
                 new StoredUser(
-                        request.username(), passwordEncoder.encode(request.password()), now, now));
+                        request.username(),
+                        passwordEncoder.encode(request.password()),
+                        now,
+                        now,
+                        0L));
     }
 
     @Transactional

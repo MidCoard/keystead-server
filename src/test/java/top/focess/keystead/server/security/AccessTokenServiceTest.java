@@ -16,9 +16,9 @@ class AccessTokenServiceTest {
     void issuedTokenAuthenticatesUntilItExpires() {
         MutableClock clock = new MutableClock(Instant.parse("2026-07-09T00:00:00Z"));
         AccessTokenService service = new AccessTokenService(clock);
-        AccessTokenService.IssuedAccessToken token = service.issue("alice");
+        AccessTokenService.IssuedAccessToken token = service.issue("alice", 0L);
 
-        assertEquals("alice", service.authenticate(token.token()).orElseThrow());
+        assertEquals("alice", service.authenticate(token.token()).orElseThrow().username());
 
         clock.now = token.expiresAt();
 
@@ -29,7 +29,7 @@ class AccessTokenServiceTest {
     void tamperedTokenIsRejected() {
         MutableClock clock = new MutableClock(Instant.parse("2026-07-09T00:00:00Z"));
         AccessTokenService service = new AccessTokenService(clock);
-        String token = service.issue("alice").token();
+        String token = service.issue("alice", 0L).token();
         String[] parts = token.split("\\.", -1);
         parts[1] = Base64.getUrlEncoder().withoutPadding().encodeToString("bob".getBytes());
 

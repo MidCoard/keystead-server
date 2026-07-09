@@ -12,6 +12,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import top.focess.keystead.server.identity.UserTokenVersionService;
 
 @Component
 public final class BearerAccessTokenFilter extends OncePerRequestFilter {
@@ -19,9 +20,13 @@ public final class BearerAccessTokenFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final AccessTokenService accessTokens;
+    private final UserTokenVersionService tokenVersions;
 
-    public BearerAccessTokenFilter(@NonNull AccessTokenService accessTokens) {
+    public BearerAccessTokenFilter(
+            @NonNull AccessTokenService accessTokens,
+            @NonNull UserTokenVersionService tokenVersions) {
         this.accessTokens = accessTokens;
+        this.tokenVersions = tokenVersions;
     }
 
     @Override
@@ -36,12 +41,16 @@ public final class BearerAccessTokenFilter extends OncePerRequestFilter {
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
             accessTokens
                     .authenticate(authorization.substring(BEARER_PREFIX.length()))
+                    .filter(
+                            subject ->
+                                    tokenVersions.tokenVersion(subject.username())
+                                            == subject.tokenVersion())
                     .ifPresent(
-                            username ->
+                            subject ->
                                     SecurityContextHolder.getContext()
                                             .setAuthentication(
                                                     new UsernamePasswordAuthenticationToken(
-                                                            username,
+                                                            subject.username(),
                                                             "N/A",
                                                             AuthorityUtils.createAuthorityList(
                                                                     "ROLE_USER"))));
