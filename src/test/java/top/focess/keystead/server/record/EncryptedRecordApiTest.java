@@ -348,6 +348,20 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.highestRevision").value(2))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andExpect(jsonPath("$.nextSinceRevision").value(2));
+
+        mvc.perform(
+                        get("/api/v1/vaults/vault-sync-page/records/page")
+                                .param("sinceRevision", "2")
+                                .param("limit", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.vaultId").value("vault-sync-page"))
+                .andExpect(jsonPath("$.sinceRevision").value(2))
+                .andExpect(jsonPath("$.records[0].secretId").value("secret-c"))
+                .andExpect(jsonPath("$.records[0].revision").value(3))
+                .andExpect(jsonPath("$.records[1]").doesNotExist())
+                .andExpect(jsonPath("$.highestRevision").value(3))
+                .andExpect(jsonPath("$.hasMore").value(false))
+                .andExpect(jsonPath("$.nextSinceRevision").doesNotExist());
     }
 
     @Test
