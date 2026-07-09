@@ -30,14 +30,26 @@ class StoredEncryptedRecordTest {
         assertThrows(IllegalArgumentException.class, () -> deletedRecord("", "envelope", 1L));
     }
 
+    @Test
+    void rejectsUnsupportedSecretType() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> activeRecord("profile", "envelope", 1L, "PLAINTEXT_PASSWORD"));
+    }
+
     private static StoredEncryptedRecord activeRecord(
             String encryptedProfile, String envelope, long revision) {
+        return activeRecord(encryptedProfile, envelope, revision, "API_TOKEN");
+    }
+
+    private static StoredEncryptedRecord activeRecord(
+            String encryptedProfile, String envelope, long revision, String secretType) {
         return new StoredEncryptedRecord(
                 "alice",
                 "vault-a",
                 "secret-a",
                 revision,
-                "API_TOKEN",
+                secretType,
                 encryptedProfile,
                 encryptedProfile,
                 envelope,
