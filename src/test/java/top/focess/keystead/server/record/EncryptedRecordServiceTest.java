@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +22,25 @@ class EncryptedRecordServiceTest {
 
     private static final Clock CLOCK =
             Clock.fixed(Instant.parse("2026-07-09T00:00:00Z"), ZoneOffset.UTC);
+
+    @Test
+    void findRequiresVaultOwnershipBeforeRecordLookup() {
+        EncryptedRecordRepository records = mock(EncryptedRecordRepository.class);
+        VaultAccessGuard accessGuard = mock(VaultAccessGuard.class);
+        AuditService audit = mock(AuditService.class);
+        EncryptedRecordService service =
+                new EncryptedRecordService(records, accessGuard, audit, CLOCK);
+        RuntimeException denied = new RuntimeException("vault denied");
+        doThrow(denied).when(accessGuard).requireOwnedVault("alice", "vault-denied");
+
+        RuntimeException exception =
+                assertThrows(
+                        RuntimeException.class,
+                        () -> service.find("alice", "vault-denied", "secret-hidden"));
+
+        assertEquals(denied, exception);
+        verify(records, never()).find("alice", "vault-denied", "secret-hidden");
+    }
 
     @Test
     void storeTranslatesRacedRevisionConstraintIntoConflict() {

@@ -122,6 +122,7 @@ class EncryptedRecordService {
     @Transactional(readOnly = true)
     @NonNull Optional<StoredEncryptedRecord> find(
             @NonNull String ownerId, @NonNull String vaultId, @NonNull String secretId) {
+        accessGuard.requireOwnedVault(ownerId, vaultId);
         return records.find(ownerId, vaultId, secretId);
     }
 
