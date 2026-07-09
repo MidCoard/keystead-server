@@ -39,6 +39,13 @@ class StoredAuditEventTest {
         assertThrows(IllegalArgumentException.class, () -> eventWithTargetType("plaintext"));
     }
 
+    @Test
+    void rejectsDetailsThatAreNotJsonObjects() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event("event-a", "alice", "SUCCESS", "not-json"));
+    }
+
     private static StoredAuditEvent event(
             String eventId, String ownerId, String outcome, String details) {
         return new StoredAuditEvent(

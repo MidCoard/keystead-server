@@ -1,5 +1,8 @@
 package top.focess.keystead.server.audit;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
@@ -19,6 +22,7 @@ public record StoredAuditEvent(
         @NonNull String details,
         @NonNull Instant createdAt) {
 
+    private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> ALLOWED_OUTCOMES = Set.of("SUCCESS", "FAILURE", "CONFLICT");
     private static final Set<String> ALLOWED_TARGET_TYPES =
             Set.of("auth", "device", "key_package", "record");
@@ -49,6 +53,7 @@ public record StoredAuditEvent(
             throw new IllegalArgumentException("Audit outcome is unsupported");
         }
         requireNotBlank(details, "details");
+        requireJsonObjectDetails(details);
         Objects.requireNonNull(createdAt, "createdAt");
     }
 
@@ -56,6 +61,17 @@ public record StoredAuditEvent(
         Objects.requireNonNull(value, field);
         if (value.isBlank()) {
             throw new IllegalArgumentException(field + " must not be blank");
+        }
+    }
+
+    private static void requireJsonObjectDetails(@NonNull String details) {
+        try {
+            JsonNode node = JSON.readTree(details);
+            if (node == null || !node.isObject()) {
+                throw new IllegalArgumentException("Audit details must be a JSON object");
+            }
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Audit details must be a JSON object", e);
         }
     }
 }
