@@ -19,6 +19,13 @@ class IdentityRowInvariantTest {
     }
 
     @Test
+    void storedUserRejectsBlankUsername() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StoredUser(" ", "password-hash", CREATED_AT, UPDATED_AT, 0L));
+    }
+
+    @Test
     void storedUserRejectsUpdatedTimeBeforeCreatedTime() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -42,6 +49,23 @@ class IdentityRowInvariantTest {
     }
 
     @Test
+    void storedDeviceRejectsBlankPrimaryKeys() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> device(" ", "device-a", "RSA_OAEP_SHA256", "public-key"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> device("alice", " ", "RSA_OAEP_SHA256", "public-key"));
+    }
+
+    @Test
+    void storedDeviceRejectsUnsupportedAlgorithm() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> device("alice", "device-a", "RAW_RSA", "public-key"));
+    }
+
+    @Test
     void storedDeviceRejectsLifecycleMarkersBeforeCreatedTime() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -58,6 +82,18 @@ class IdentityRowInvariantTest {
     void storedDeviceChallengeRejectsBlankNonce() {
         assertThrows(
                 IllegalArgumentException.class, () -> challenge(" ", UPDATED_AT, null, CREATED_AT));
+    }
+
+    @Test
+    void storedDeviceChallengeRejectsBlankPrimaryKeys() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> challenge(" ", "device-a", "challenge-a", "nonce"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> challenge("alice", " ", "challenge-a", "nonce"));
+        assertThrows(
+                IllegalArgumentException.class, () -> challenge("alice", "device-a", " ", "nonce"));
     }
 
     @Test
@@ -88,9 +124,26 @@ class IdentityRowInvariantTest {
             Instant verifiedAt,
             Instant lastSeenAt,
             Instant revokedAt) {
+        return device(
+                "alice", "device-a", keyAlgorithm, publicKey, verifiedAt, lastSeenAt, revokedAt);
+    }
+
+    private static StoredDevice device(
+            String ownerId, String deviceId, String keyAlgorithm, String publicKey) {
+        return device(ownerId, deviceId, keyAlgorithm, publicKey, null, null, null);
+    }
+
+    private static StoredDevice device(
+            String ownerId,
+            String deviceId,
+            String keyAlgorithm,
+            String publicKey,
+            Instant verifiedAt,
+            Instant lastSeenAt,
+            Instant revokedAt) {
         return new StoredDevice(
-                "alice",
-                "device-a",
+                ownerId,
+                deviceId,
                 keyAlgorithm,
                 publicKey,
                 CREATED_AT,
@@ -103,5 +156,11 @@ class IdentityRowInvariantTest {
             String nonce, Instant expiresAt, Instant usedAt, Instant createdAt) {
         return new StoredDeviceChallenge(
                 "alice", "device-a", "challenge-a", nonce, expiresAt, usedAt, createdAt);
+    }
+
+    private static StoredDeviceChallenge challenge(
+            String ownerId, String deviceId, String challengeId, String nonce) {
+        return new StoredDeviceChallenge(
+                ownerId, deviceId, challengeId, nonce, UPDATED_AT, null, CREATED_AT);
     }
 }

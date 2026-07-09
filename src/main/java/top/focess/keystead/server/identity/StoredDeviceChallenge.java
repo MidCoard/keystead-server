@@ -15,9 +15,9 @@ record StoredDeviceChallenge(
         @NonNull Instant createdAt) {
 
     StoredDeviceChallenge {
-        Objects.requireNonNull(ownerId, "ownerId");
-        Objects.requireNonNull(deviceId, "deviceId");
-        Objects.requireNonNull(challengeId, "challengeId");
+        requireNotBlank(ownerId, "ownerId");
+        requireNotBlank(deviceId, "deviceId");
+        requireNotBlank(challengeId, "challengeId");
         Objects.requireNonNull(nonce, "nonce");
         Objects.requireNonNull(expiresAt, "expiresAt");
         Objects.requireNonNull(createdAt, "createdAt");
@@ -30,6 +30,13 @@ record StoredDeviceChallenge(
         if (usedAt != null && (usedAt.isBefore(createdAt) || usedAt.isAfter(expiresAt))) {
             throw new IllegalArgumentException(
                     "Challenge used time must be inside challenge window");
+        }
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
         }
     }
 }

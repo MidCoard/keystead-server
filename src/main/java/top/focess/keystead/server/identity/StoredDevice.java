@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 
 record StoredDevice(
         @NonNull String ownerId,
@@ -16,8 +17,8 @@ record StoredDevice(
         @Nullable Instant revokedAt) {
 
     StoredDevice {
-        Objects.requireNonNull(ownerId, "ownerId");
-        Objects.requireNonNull(deviceId, "deviceId");
+        requireNotBlank(ownerId, "ownerId");
+        requireNotBlank(deviceId, "deviceId");
         Objects.requireNonNull(keyAlgorithm, "keyAlgorithm");
         Objects.requireNonNull(publicKey, "publicKey");
         Objects.requireNonNull(createdAt, "createdAt");
@@ -27,9 +28,19 @@ record StoredDevice(
         if (publicKey.isBlank()) {
             throw new IllegalArgumentException("Public key must not be blank");
         }
+        if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(keyAlgorithm)) {
+            throw new IllegalArgumentException("Device key algorithm is unsupported");
+        }
         requireNotBeforeCreated("verifiedAt", createdAt, verifiedAt);
         requireNotBeforeCreated("lastSeenAt", createdAt, lastSeenAt);
         requireNotBeforeCreated("revokedAt", createdAt, revokedAt);
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
+        }
     }
 
     private static void requireNotBeforeCreated(

@@ -12,7 +12,7 @@ record StoredUser(
         long tokenVersion) {
 
     StoredUser {
-        Objects.requireNonNull(username, "username");
+        requireNotBlank(username, "username");
         Objects.requireNonNull(passwordHash, "passwordHash");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
@@ -24,6 +24,13 @@ record StoredUser(
         }
         if (tokenVersion < 0) {
             throw new IllegalArgumentException("User token version must not be negative");
+        }
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
         }
     }
 }
