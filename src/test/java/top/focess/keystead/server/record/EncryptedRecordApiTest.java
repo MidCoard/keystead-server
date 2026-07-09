@@ -219,8 +219,6 @@ class EncryptedRecordApiTest {
                                         {
                                           "revision": 2,
                                           "secretType": "SECURE_NOTE",
-                                          "metadata": "bWV0YQ",
-                                          "envelope": "dmVyc2lvbi0y",
                                           "deleted": true
                                         }
                                         """))
@@ -260,6 +258,27 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.encryptedProfile").doesNotExist())
                 .andExpect(jsonPath("$.envelope").doesNotExist())
                 .andExpect(jsonPath("$.deleted").value(true));
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
+    void tombstoneUploadRejectsEncryptedProfileOrPayload() throws Exception {
+        createVault("alice", "vault-tombstone-strict");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-tombstone-strict/records/secret-tombstone")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "SECURE_NOTE",
+                                          "encryptedProfile": "encrypted-profile",
+                                          "envelope": "encrypted-payload",
+                                          "deleted": true
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

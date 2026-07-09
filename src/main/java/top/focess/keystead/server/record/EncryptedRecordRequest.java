@@ -17,12 +17,16 @@ public record EncryptedRecordRequest(
 
     @NonNull String resolvedEncryptedProfile() {
         if (deleted) {
+            if (hasText(metadata) || hasText(encryptedProfile)) {
+                throw new InvalidRecordRequestException(
+                        "tombstone must not include encryptedProfile");
+            }
             return "";
         }
-        if (encryptedProfile != null && !encryptedProfile.isBlank()) {
+        if (hasText(encryptedProfile)) {
             return encryptedProfile;
         }
-        if (metadata != null && !metadata.isBlank()) {
+        if (hasText(metadata)) {
             return metadata;
         }
         throw new InvalidRecordRequestException("encryptedProfile is required");
@@ -30,11 +34,18 @@ public record EncryptedRecordRequest(
 
     @NonNull String resolvedEnvelope() {
         if (deleted) {
+            if (hasText(envelope)) {
+                throw new InvalidRecordRequestException("tombstone must not include envelope");
+            }
             return "";
         }
-        if (envelope != null && !envelope.isBlank()) {
+        if (hasText(envelope)) {
             return envelope;
         }
         throw new InvalidRecordRequestException("envelope is required");
+    }
+
+    private static boolean hasText(@Nullable String value) {
+        return value != null && !value.isBlank();
     }
 }
