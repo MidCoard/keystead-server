@@ -26,11 +26,18 @@ record StoredRefreshToken(
         if (username.isBlank()) {
             throw new IllegalArgumentException("Refresh token username must not be blank");
         }
+        if (deviceId != null && deviceId.isBlank()) {
+            throw new IllegalArgumentException("Refresh token device id must not be blank");
+        }
         if (!refreshExpiresAt.isAfter(createdAt)) {
             throw new IllegalArgumentException("Refresh token expiry must be after creation");
         }
         requireNotBeforeCreated("revokedAt", createdAt, revokedAt);
         requireNotBeforeCreated("lastUsedAt", createdAt, lastUsedAt);
+        if (revokedAt != null && lastUsedAt.isAfter(revokedAt)) {
+            throw new IllegalArgumentException(
+                    "Refresh token last used time must not be after revocation time");
+        }
     }
 
     @NonNull StoredRefreshToken withLastUsedAt(@NonNull Instant value) {
