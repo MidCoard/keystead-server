@@ -2,12 +2,20 @@ package top.focess.keystead.server.auth;
 
 import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
+import java.security.Signature;
+import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -175,6 +183,60 @@ class AuthApiTest {
                 .andExpect(jsonPath("$.message").value("Authentication failed"));
     }
 
+    @Test
+    void deviceRevocationInvalidatesAlreadyIssuedDeviceAccessToken() throws Exception {
+        register("device-token-alice");
+        registerVerifiedDevice("device-token-alice", "phone-token");
+        MvcResult login = loginResult("device-token-alice", "phone-token");
+        String accessToken = JsonStrings.field(login, "accessToken");
+
+        mvc.perform(
+                        get("/api/v1/vaults")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        mvc.perform(
+                        delete("/api/v1/devices/phone-token")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        "Basic "
+                                                + Base64.getEncoder()
+                                                        .encodeToString(
+                                                                "device-token-alice:correct horse battery staple"
+                                                                        .getBytes(
+                                                                                StandardCharsets
+                                                                                        .UTF_8))))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        get("/api/v1/vaults")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void deviceRevocationRejectsDeviceBoundRefreshToken() throws Exception {
+        register("device-refresh-alice");
+        registerVerifiedDevice("device-refresh-alice", "phone-refresh");
+        MvcResult login = loginResult("device-refresh-alice", "phone-refresh");
+        String refreshToken = JsonStrings.field(login, "refreshToken");
+
+        mvc.perform(
+                        delete("/api/v1/devices/phone-refresh")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        basic(
+                                                "device-refresh-alice",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(refreshBody(refreshToken)))
+                .andExpect(status().isUnauthorized());
+    }
+
     private void register(String username) throws Exception {
         mvc.perform(
                         post("/api/v1/users")
@@ -195,6 +257,11 @@ class AuthApiTest {
     }
 
     private MvcResult loginResult(String username) throws Exception {
+        return loginResult(username, null);
+    }
+
+    private MvcResult loginResult(String username, String deviceId) throws Exception {
+        String deviceLine = deviceId == null ? "" : ",\n  \"deviceId\": \"%s\"".formatted(deviceId);
         return mvc.perform(
                         post("/api/v1/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -202,12 +269,94 @@ class AuthApiTest {
                                         """
                                         {
                                           "username": "%s",
-                                          "password": "correct horse battery staple"
+                                          "password": "correct horse battery staple"%s
                                         }
                                         """
-                                                .formatted(username)))
+                                                .formatted(username, deviceLine)))
                 .andExpect(status().isOk())
                 .andReturn();
+    }
+
+    private void registerVerifiedDevice(String username, String deviceId) throws Exception {
+        KeyPair keyPair = rsaKeyPair();
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        basic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "%s",
+                                          "keyAlgorithm": "RSA_OAEP_SHA256",
+                                          "publicKey": "%s"
+                                        }
+                                        """
+                                                .formatted(
+                                                        deviceId,
+                                                        Base64.getEncoder()
+                                                                .encodeToString(
+                                                                        keyPair.getPublic()
+                                                                                .getEncoded()))))
+                .andExpect(status().isCreated());
+        String challengeJson =
+                mvc.perform(
+                                post("/api/v1/devices/{deviceId}/challenges", deviceId)
+                                        .header(
+                                                HttpHeaders.AUTHORIZATION,
+                                                basic(username, "correct horse battery staple")))
+                        .andExpect(status().isCreated())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        String challengeId = JsonPath.read(challengeJson, "$.challengeId");
+        String nonce = JsonPath.read(challengeJson, "$.nonce");
+        mvc.perform(
+                        post("/api/v1/devices/{deviceId}/proof", deviceId)
+                                .header(
+                                        HttpHeaders.AUTHORIZATION,
+                                        basic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "challengeId": "%s",
+                                          "signature": "%s"
+                                        }
+                                        """
+                                                .formatted(
+                                                        challengeId,
+                                                        signature(
+                                                                keyPair.getPrivate(),
+                                                                challengeId,
+                                                                nonce))))
+                .andExpect(status().isNoContent());
+    }
+
+    private static KeyPair rsaKeyPair() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        return generator.generateKeyPair();
+    }
+
+    private static String signature(PrivateKey privateKey, String challengeId, String nonce)
+            throws Exception {
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(privateKey);
+        signature.update(proofPayload(challengeId, nonce).getBytes(StandardCharsets.UTF_8));
+        return Base64.getEncoder().encodeToString(signature.sign());
+    }
+
+    private static String proofPayload(String challengeId, String nonce) {
+        return "keystead-device-proof:v1:" + challengeId + ":" + nonce;
+    }
+
+    private static String basic(String username, String password) {
+        return "Basic "
+                + Base64.getEncoder()
+                        .encodeToString(
+                                (username + ":" + password).getBytes(StandardCharsets.UTF_8));
     }
 
     private static String refreshBody(String refreshToken) {

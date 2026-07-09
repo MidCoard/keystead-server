@@ -12,14 +12,16 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
 public final class AccessTokenService {
 
     private static final Duration ACCESS_TOKEN_TTL = Duration.ofMinutes(15);
-    private static final String VERSION = "kst1";
+    private static final String VERSION = "kst2";
     private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String NO_DEVICE = "-";
 
     private final Clock clock;
     private final byte[] signingKey;
@@ -31,8 +33,15 @@ public final class AccessTokenService {
     }
 
     public @NonNull IssuedAccessToken issue(@NonNull String username, long tokenVersion) {
+        return issue(username, tokenVersion, null);
+    }
+
+    public @NonNull IssuedAccessToken issue(
+            @NonNull String username, long tokenVersion, @Nullable String deviceId) {
         Instant expiresAt = clock.instant().plus(ACCESS_TOKEN_TTL);
         String user = b64(username.getBytes(StandardCharsets.UTF_8));
+        String device =
+                deviceId == null ? NO_DEVICE : b64(deviceId.getBytes(StandardCharsets.UTF_8));
         String body =
                 VERSION
                         + "."
@@ -42,6 +51,8 @@ public final class AccessTokenService {
                         + "."
                         + tokenVersion
                         + "."
+                        + device
+                        + "."
                         + UUID.randomUUID();
         return new IssuedAccessToken(body + "." + sign(body), expiresAt);
     }
@@ -49,14 +60,15 @@ public final class AccessTokenService {
     public @NonNull Optional<AccessTokenSubject> authenticate(@NonNull String token) {
         try {
             String[] parts = token.split("\\.", -1);
-            if (parts.length != 6 || !VERSION.equals(parts[0])) {
+            if (parts.length != 7 || !VERSION.equals(parts[0])) {
                 return Optional.empty();
             }
             String body =
-                    parts[0] + "." + parts[1] + "." + parts[2] + "." + parts[3] + "." + parts[4];
+                    parts[0] + "." + parts[1] + "." + parts[2] + "." + parts[3] + "." + parts[4]
+                            + "." + parts[5];
             if (!MessageDigest.isEqual(
                     sign(body).getBytes(StandardCharsets.US_ASCII),
-                    parts[5].getBytes(StandardCharsets.US_ASCII))) {
+                    parts[6].getBytes(StandardCharsets.US_ASCII))) {
                 return Optional.empty();
             }
             Instant expiresAt = Instant.ofEpochSecond(Long.parseLong(parts[2]));
@@ -68,6 +80,7 @@ public final class AccessTokenService {
                             new String(
                                     Base64.getUrlDecoder().decode(parts[1]),
                                     StandardCharsets.UTF_8),
+                            decodeNullable(parts[4]),
                             Long.parseLong(parts[3])));
         } catch (IllegalArgumentException e) {
             return Optional.empty();
@@ -88,7 +101,15 @@ public final class AccessTokenService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    private static @Nullable String decodeNullable(@NonNull String value) {
+        if (NO_DEVICE.equals(value)) {
+            return null;
+        }
+        return new String(Base64.getUrlDecoder().decode(value), StandardCharsets.UTF_8);
+    }
+
     public record IssuedAccessToken(@NonNull String token, @NonNull Instant expiresAt) {}
 
-    public record AccessTokenSubject(@NonNull String username, long tokenVersion) {}
+    public record AccessTokenSubject(
+            @NonNull String username, @Nullable String deviceId, long tokenVersion) {}
 }

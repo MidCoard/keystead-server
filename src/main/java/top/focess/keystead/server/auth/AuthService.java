@@ -76,7 +76,9 @@ class AuthService {
                         now));
         IssuedAccessToken accessToken =
                 accessTokens.issue(
-                        user.getUsername(), tokenVersions.tokenVersion(user.getUsername()));
+                        user.getUsername(),
+                        tokenVersions.tokenVersion(user.getUsername()),
+                        request.deviceId());
         return AuthTokenResponse.login(
                 accessToken.token(), refreshToken, accessToken.expiresAt(), refreshExpiresAt);
     }
@@ -91,9 +93,16 @@ class AuthService {
         if (token.revokedAt() != null || !token.refreshExpiresAt().isAfter(now)) {
             throw new AuthFailedException("Authentication failed");
         }
+        if (token.deviceId() != null
+                && !deviceSessions.canStartSession(token.username(), token.deviceId())) {
+            throw new AuthFailedException("Authentication failed");
+        }
         refreshTokens.upsert(token.withLastUsedAt(now));
         IssuedAccessToken accessToken =
-                accessTokens.issue(token.username(), tokenVersions.tokenVersion(token.username()));
+                accessTokens.issue(
+                        token.username(),
+                        tokenVersions.tokenVersion(token.username()),
+                        token.deviceId());
         return AuthTokenResponse.refreshed(accessToken.token(), accessToken.expiresAt());
     }
 
