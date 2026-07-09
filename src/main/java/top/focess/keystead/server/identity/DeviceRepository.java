@@ -9,7 +9,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface DeviceRepository extends JpaRepository<DeviceEntity, DeviceEntityId> {
+interface DeviceRepository
+        extends JpaRepository<DeviceEntity, DeviceEntityId>, DeviceRepositoryWrites {
 
     @Query("select d from DeviceEntity d where d.id.ownerId = :ownerId order by d.id.deviceId")
     @NonNull List<DeviceEntity> listEntities(@Param("ownerId") @NonNull String ownerId);
@@ -21,10 +22,6 @@ interface DeviceRepository extends JpaRepository<DeviceEntity, DeviceEntityId> {
     default @NonNull Optional<StoredDevice> find(
             @NonNull String ownerId, @NonNull String deviceId) {
         return findById(new DeviceEntityId(ownerId, deviceId)).map(DeviceEntity::toStored);
-    }
-
-    default void upsert(@NonNull StoredDevice device) {
-        save(DeviceEntity.from(device));
     }
 
     @Modifying

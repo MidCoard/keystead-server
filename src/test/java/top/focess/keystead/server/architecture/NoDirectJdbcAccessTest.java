@@ -94,4 +94,48 @@ class NoDirectJdbcAccessTest {
         assertEquals(true, writes.contains("entityManager.merge(RefreshTokenEntity.from(token))"));
         assertEquals(true, writes.contains("entityManager.flush()"));
     }
+
+    @Test
+    void identityWritesFlushJpaConstraintsInsideServiceBoundary() throws IOException {
+        String userRepository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/UserRepository.java"));
+        String deviceRepository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceRepository.java"));
+        String challengeRepository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceChallengeRepository.java"));
+        String userWrites =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/UserRepositoryWritesImpl.java"));
+        String deviceWrites =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceRepositoryWritesImpl.java"));
+        String challengeWrites =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceChallengeRepositoryWritesImpl.java"));
+
+        assertEquals(false, userRepository.contains("save(UserEntity.from(user))"));
+        assertEquals(false, deviceRepository.contains("save(DeviceEntity.from(device))"));
+        assertEquals(
+                false, challengeRepository.contains("save(DeviceChallengeEntity.from(challenge))"));
+        assertEquals(true, userWrites.contains("entityManager.persist(UserEntity.from(user))"));
+        assertEquals(true, userWrites.contains("entityManager.flush()"));
+        assertEquals(
+                true, deviceWrites.contains("entityManager.persist(DeviceEntity.from(device))"));
+        assertEquals(true, deviceWrites.contains("entityManager.merge(DeviceEntity.from(device))"));
+        assertEquals(true, deviceWrites.contains("entityManager.flush()"));
+        assertEquals(
+                true,
+                challengeWrites.contains(
+                        "entityManager.persist(DeviceChallengeEntity.from(challenge))"));
+        assertEquals(true, challengeWrites.contains("entityManager.flush()"));
+    }
 }

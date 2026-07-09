@@ -9,11 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface DeviceChallengeRepository
-        extends JpaRepository<DeviceChallengeEntity, DeviceChallengeEntityId> {
-
-    default void insert(@NonNull StoredDeviceChallenge challenge) {
-        save(DeviceChallengeEntity.from(challenge));
-    }
+        extends JpaRepository<DeviceChallengeEntity, DeviceChallengeEntityId>,
+                DeviceChallengeRepositoryWrites {
 
     default @NonNull Optional<StoredDeviceChallenge> find(
             @NonNull String ownerId, @NonNull String deviceId, @NonNull String challengeId) {

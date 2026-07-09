@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface UserRepository extends JpaRepository<UserEntity, String> {
+interface UserRepository extends JpaRepository<UserEntity, String>, UserRepositoryWrites {
 
     default @NonNull Optional<StoredUser> find(@NonNull String username) {
         return findById(username).map(UserEntity::toStored);
@@ -15,10 +15,6 @@ interface UserRepository extends JpaRepository<UserEntity, String> {
 
     default boolean exists(@NonNull String username) {
         return existsById(username);
-    }
-
-    default void insert(@NonNull StoredUser user) {
-        save(UserEntity.from(user));
     }
 
     @Modifying

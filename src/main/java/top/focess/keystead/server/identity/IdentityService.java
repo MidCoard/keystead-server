@@ -80,7 +80,7 @@ class IdentityService {
                         device -> {
                             throw new DeviceAlreadyExistsException("Device already exists");
                         });
-        devices.upsert(
+        devices.insert(
                 new StoredDevice(
                         ownerId,
                         request.deviceId(),
@@ -153,7 +153,7 @@ class IdentityService {
             return;
         }
         Instant now = clock.instant();
-        devices.upsert(
+        devices.update(
                 new StoredDevice(
                         device.ownerId(),
                         device.deviceId(),
