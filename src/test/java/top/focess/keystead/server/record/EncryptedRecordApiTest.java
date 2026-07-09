@@ -353,6 +353,27 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
+    void unsupportedSecretTypeIsRejectedAsBadRequest() throws Exception {
+        createVault("alice", "vault-unsupported-type");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-unsupported-type/records/secret-type")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "PLAINTEXT_PASSWORD",
+                                          "metadata": "bWV0YQ",
+                                          "envelope": "ZW52ZWxvcGU",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
     void recordCannotBeStoredForMissingVault() throws Exception {
         mvc.perform(
                         put("/api/v1/vaults/missing-vault/records/secret-404")

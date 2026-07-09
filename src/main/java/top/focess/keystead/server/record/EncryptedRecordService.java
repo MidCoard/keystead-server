@@ -48,7 +48,7 @@ class EncryptedRecordService {
         String encryptedProfile = request.resolvedEncryptedProfile();
         String envelope = request.resolvedEnvelope();
         StoredEncryptedRecord next =
-                new StoredEncryptedRecord(
+                newRecord(
                         ownerId,
                         vaultId,
                         secretId,
@@ -57,8 +57,7 @@ class EncryptedRecordService {
                         "",
                         encryptedProfile,
                         envelope,
-                        request.deleted(),
-                        clock.instant());
+                        request.deleted());
         StoreRecordResult result;
         try {
             if (existing.isEmpty()) {
@@ -101,7 +100,7 @@ class EncryptedRecordService {
                                         ownerId, vaultId, secretId, record, revision));
         try {
             records.update(
-                    new StoredEncryptedRecord(
+                    newRecord(
                             ownerId,
                             vaultId,
                             secretId,
@@ -110,13 +109,39 @@ class EncryptedRecordService {
                             "",
                             "",
                             "",
-                            true,
-                            clock.instant()));
+                            true));
         } catch (DataIntegrityViolationException e) {
             throwRevisionConflictFromConstraint(ownerId, vaultId, secretId, revision, e);
             throw e;
         }
         audit.recordDeleted(ownerId, ownerId, vaultId, secretId, revision);
+    }
+
+    private @NonNull StoredEncryptedRecord newRecord(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String secretId,
+            long revision,
+            @NonNull String secretType,
+            @NonNull String metadata,
+            @NonNull String encryptedProfile,
+            @NonNull String envelope,
+            boolean deleted) {
+        try {
+            return new StoredEncryptedRecord(
+                    ownerId,
+                    vaultId,
+                    secretId,
+                    revision,
+                    secretType,
+                    metadata,
+                    encryptedProfile,
+                    envelope,
+                    deleted,
+                    clock.instant());
+        } catch (IllegalArgumentException e) {
+            throw new InvalidRecordRequestException(e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
