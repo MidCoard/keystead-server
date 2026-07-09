@@ -18,6 +18,18 @@ class VaultRowInvariantTest {
     }
 
     @Test
+    void storedVaultRejectsBlankPrimaryKeys() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredVault(
+                                " ", "vault-a", "encrypted-metadata", CREATED_AT, UPDATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StoredVault("alice", " ", "encrypted-metadata", CREATED_AT, UPDATED_AT));
+    }
+
+    @Test
     void storedVaultRejectsUpdatedTimeBeforeCreatedTime() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -48,6 +60,58 @@ class VaultRowInvariantTest {
                                 "device-a",
                                 "RSA_OAEP_SHA256",
                                 " ",
+                                CREATED_AT,
+                                UPDATED_AT));
+    }
+
+    @Test
+    void storedVaultKeyPackageRejectsBlankPrimaryKeys() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredVaultKeyPackage(
+                                " ",
+                                "vault-a",
+                                "device-a",
+                                "RSA_OAEP_SHA256",
+                                "wrapped-key",
+                                CREATED_AT,
+                                UPDATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredVaultKeyPackage(
+                                "alice",
+                                " ",
+                                "device-a",
+                                "RSA_OAEP_SHA256",
+                                "wrapped-key",
+                                CREATED_AT,
+                                UPDATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredVaultKeyPackage(
+                                "alice",
+                                "vault-a",
+                                " ",
+                                "RSA_OAEP_SHA256",
+                                "wrapped-key",
+                                CREATED_AT,
+                                UPDATED_AT));
+    }
+
+    @Test
+    void storedVaultKeyPackageRejectsUnsupportedAlgorithm() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredVaultKeyPackage(
+                                "alice",
+                                "vault-a",
+                                "device-a",
+                                "RAW_RSA",
+                                "wrapped-key",
                                 CREATED_AT,
                                 UPDATED_AT));
     }

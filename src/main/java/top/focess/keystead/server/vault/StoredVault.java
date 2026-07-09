@@ -12,8 +12,8 @@ record StoredVault(
         @NonNull Instant updatedAt) {
 
     StoredVault {
-        Objects.requireNonNull(ownerId, "ownerId");
-        Objects.requireNonNull(vaultId, "vaultId");
+        requireNotBlank(ownerId, "ownerId");
+        requireNotBlank(vaultId, "vaultId");
         Objects.requireNonNull(encryptedMetadata, "encryptedMetadata");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
@@ -23,6 +23,13 @@ record StoredVault(
         if (updatedAt.isBefore(createdAt)) {
             throw new IllegalArgumentException(
                     "Vault updated time must not be before created time");
+        }
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
         }
     }
 }

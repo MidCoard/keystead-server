@@ -3,6 +3,7 @@ package top.focess.keystead.server.vault;
 import java.time.Instant;
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
+import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 
 record StoredVaultKeyPackage(
         @NonNull String ownerId,
@@ -14,9 +15,9 @@ record StoredVaultKeyPackage(
         @NonNull Instant updatedAt) {
 
     StoredVaultKeyPackage {
-        Objects.requireNonNull(ownerId, "ownerId");
-        Objects.requireNonNull(vaultId, "vaultId");
-        Objects.requireNonNull(deviceId, "deviceId");
+        requireNotBlank(ownerId, "ownerId");
+        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(deviceId, "deviceId");
         Objects.requireNonNull(keyAlgorithm, "keyAlgorithm");
         Objects.requireNonNull(encryptedVaultKey, "encryptedVaultKey");
         Objects.requireNonNull(createdAt, "createdAt");
@@ -24,12 +25,22 @@ record StoredVaultKeyPackage(
         if (keyAlgorithm.isBlank()) {
             throw new IllegalArgumentException("Key algorithm must not be blank");
         }
+        if (!ServerCryptoAlgorithmRegistry.isApprovedVaultKeyPackageAlgorithm(keyAlgorithm)) {
+            throw new IllegalArgumentException("Key package algorithm is unsupported");
+        }
         if (encryptedVaultKey.isBlank()) {
             throw new IllegalArgumentException("Encrypted vault key must not be blank");
         }
         if (updatedAt.isBefore(createdAt)) {
             throw new IllegalArgumentException(
                     "Vault key package updated time must not be before created time");
+        }
+    }
+
+    private static void requireNotBlank(@NonNull String value, @NonNull String field) {
+        Objects.requireNonNull(value, field);
+        if (value.isBlank()) {
+            throw new IllegalArgumentException(field + " must not be blank");
         }
     }
 }
