@@ -78,14 +78,15 @@ class IdentityService {
 
     @Transactional
     void registerDevice(@NonNull String ownerId, @NonNull DeviceRegistrationRequest request) {
-        if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(request.keyAlgorithm())) {
-            throw new UnsupportedCryptoAlgorithmException("Unsupported device key algorithm");
-        }
         devices.find(ownerId, request.deviceId())
                 .ifPresent(
                         device -> {
                             throw new DeviceAlreadyExistsException("Device already exists");
                         });
+        validate(request);
+        if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(request.keyAlgorithm())) {
+            throw new UnsupportedCryptoAlgorithmException("Unsupported device key algorithm");
+        }
         devices.insert(
                 new StoredDevice(
                         ownerId,
@@ -192,6 +193,15 @@ class IdentityService {
         Set<ConstraintViolation<DeviceProofRequest>> violations = validator.validate(request);
         if (!violations.isEmpty()) {
             throw new InvalidDeviceProofRequestException(
+                    violations.iterator().next().getPropertyPath() + " is invalid");
+        }
+    }
+
+    private void validate(@NonNull DeviceRegistrationRequest request) {
+        Set<ConstraintViolation<DeviceRegistrationRequest>> violations =
+                validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new InvalidDeviceRegistrationRequestException(
                     violations.iterator().next().getPropertyPath() + " is invalid");
         }
     }

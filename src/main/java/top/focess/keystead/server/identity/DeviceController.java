@@ -1,6 +1,5 @@
 package top.focess.keystead.server.identity;
 
-import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import org.jspecify.annotations.NonNull;
@@ -26,8 +25,7 @@ class DeviceController {
 
     @PostMapping
     @NonNull ResponseEntity<Void> register(
-            @NonNull Principal principal,
-            @Valid @RequestBody @NonNull DeviceRegistrationRequest request) {
+            @NonNull Principal principal, @RequestBody @NonNull DeviceRegistrationRequest request) {
         service.registerDevice(principal.getName(), request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }

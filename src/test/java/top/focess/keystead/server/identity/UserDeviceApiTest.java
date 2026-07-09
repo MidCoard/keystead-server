@@ -137,6 +137,46 @@ class UserDeviceApiTest {
     }
 
     @Test
+    void duplicateDeviceRegistrationDoesNotValidateReplacementBody() throws Exception {
+        registerUser("device-duplicate-shape-user");
+        registerDevice(
+                "device-duplicate-shape-user",
+                "phone-duplicate-shape",
+                "RSA_OAEP_SHA256",
+                "original-public-key");
+
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-duplicate-shape-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-duplicate-shape",
+                                          "keyAlgorithm": "",
+                                          "publicKey": "%s"
+                                        }
+                                        """
+                                                .formatted("x".repeat(16_385))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.keyAlgorithm").doesNotExist())
+                .andExpect(jsonPath("$.publicKey").doesNotExist());
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-duplicate-shape-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("phone-duplicate-shape"))
+                .andExpect(jsonPath("$[0].publicKey").value("original-public-key"));
+    }
+
+    @Test
     void deviceChallengeProofMarksDeviceVerified() throws Exception {
         registerUser("device-proof-user");
         KeyPair keyPair = rsaKeyPair();
