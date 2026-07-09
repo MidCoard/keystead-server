@@ -34,6 +34,11 @@ class StoredAuditEventTest {
         assertThrows(IllegalArgumentException.class, () -> eventWithType("SECRET_EXFILTRATED"));
     }
 
+    @Test
+    void rejectsUnsupportedTargetType() {
+        assertThrows(IllegalArgumentException.class, () -> eventWithTargetType("plaintext"));
+    }
+
     private static StoredAuditEvent event(
             String eventId, String ownerId, String outcome, String details) {
         return new StoredAuditEvent(
@@ -47,6 +52,21 @@ class StoredAuditEventTest {
                 1L,
                 outcome,
                 details,
+                CREATED_AT);
+    }
+
+    private static StoredAuditEvent eventWithTargetType(String targetType) {
+        return new StoredAuditEvent(
+                "event-a",
+                "alice",
+                "actor-a",
+                AuditEventType.RECORD_STORED.name(),
+                targetType,
+                "secret-a",
+                "vault-a",
+                1L,
+                "SUCCESS",
+                "{}",
                 CREATED_AT);
     }
 
