@@ -1,5 +1,6 @@
 package top.focess.keystead.server.record;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,10 +8,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
@@ -22,6 +25,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class EncryptedRecordApiTest {
 
     @Autowired private MockMvc mvc;
+
+    @Autowired private EncryptedRecordRepository records;
 
     @Test
     void healthIsPublic() throws Exception {
@@ -139,6 +144,23 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.rejectedRevision").value(1))
                 .andExpect(jsonPath("$.vaultId").value("vault-wide-revision"))
                 .andExpect(jsonPath("$.secretId").value("secret-b"));
+    }
+
+    @Test
+    void databaseRejectsDuplicateRecordRevisionWithinVault() {
+        Instant now = Instant.parse("2026-07-04T00:00:00Z");
+        records.insert(storedRecord("revision-db-owner", "revision-db-vault", "secret-a", 1L, now));
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () ->
+                        records.insert(
+                                storedRecord(
+                                        "revision-db-owner",
+                                        "revision-db-vault",
+                                        "secret-b",
+                                        1L,
+                                        now)));
     }
 
     @Test
@@ -518,5 +540,20 @@ class EncryptedRecordApiTest {
                                         """
                                                 .formatted(revision, envelope)))
                 .andExpect(status().isCreated());
+    }
+
+    private static StoredEncryptedRecord storedRecord(
+            String ownerId, String vaultId, String secretId, long revision, Instant now) {
+        return new StoredEncryptedRecord(
+                ownerId,
+                vaultId,
+                secretId,
+                revision,
+                "SECURE_NOTE",
+                "metadata",
+                "encrypted-profile",
+                "envelope",
+                false,
+                now);
     }
 }
