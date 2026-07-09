@@ -94,6 +94,32 @@ class AuthApiTest {
     }
 
     @Test
+    void logoutAllRevokesAllUserRefreshTokens() throws Exception {
+        register("logout-all-alice");
+        MvcResult firstLogin = loginResult("logout-all-alice");
+        MvcResult secondLogin = loginResult("logout-all-alice");
+        String accessToken = JsonStrings.field(firstLogin, "accessToken");
+        String firstRefreshToken = JsonStrings.field(firstLogin, "refreshToken");
+        String secondRefreshToken = JsonStrings.field(secondLogin, "refreshToken");
+
+        mvc.perform(
+                        post("/api/v1/auth/logout-all")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(refreshBody(firstRefreshToken)))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(refreshBody(secondRefreshToken)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void loginFailureIsGeneric() throws Exception {
         register("failed-login-alice");
 
@@ -127,21 +153,23 @@ class AuthApiTest {
     }
 
     private String login(String username) throws Exception {
-        MvcResult result =
-                mvc.perform(
-                                post("/api/v1/auth/login")
-                                        .contentType(MediaType.APPLICATION_JSON)
-                                        .content(
-                                                """
-                                                {
-                                                  "username": "%s",
-                                                  "password": "correct horse battery staple"
-                                                }
-                                                """
-                                                        .formatted(username)))
-                        .andExpect(status().isOk())
-                        .andReturn();
-        return JsonStrings.field(result, "refreshToken");
+        return JsonStrings.field(loginResult(username), "refreshToken");
+    }
+
+    private MvcResult loginResult(String username) throws Exception {
+        return mvc.perform(
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "username": "%s",
+                                          "password": "correct horse battery staple"
+                                        }
+                                        """
+                                                .formatted(username)))
+                .andExpect(status().isOk())
+                .andReturn();
     }
 
     private static String refreshBody(String refreshToken) {

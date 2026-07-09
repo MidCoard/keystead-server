@@ -1,6 +1,7 @@
 package top.focess.keystead.server.auth;
 
 import jakarta.validation.Valid;
+import java.security.Principal;
 import java.util.Map;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
@@ -34,6 +35,12 @@ class AuthController {
     @PostMapping("/revoke")
     @NonNull ResponseEntity<Void> revoke(@Valid @RequestBody @NonNull RefreshTokenRequest request) {
         service.revoke(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/logout-all")
+    @NonNull ResponseEntity<Void> logoutAll(@NonNull Principal principal) {
+        service.logoutAll(principal.getName());
         return ResponseEntity.noContent().build();
     }
 

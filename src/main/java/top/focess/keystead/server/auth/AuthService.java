@@ -90,6 +90,11 @@ class AuthService {
                 .ifPresent(token -> refreshTokens.upsert(token.revoked(clock.instant())));
     }
 
+    @Transactional
+    void logoutAll(@NonNull String username) {
+        refreshTokens.revokeAllForUsername(username, clock.instant());
+    }
+
     private @NonNull UserDetails loadUser(@NonNull String username) {
         try {
             return users.loadUserByUsername(username);

@@ -45,7 +45,11 @@ public class SecurityConfig {
                                                 org.springframework.http.HttpMethod.POST,
                                                 "/api/v1/users")
                                         .permitAll()
-                                        .requestMatchers("/api/v1/auth/**")
+                                        .requestMatchers(
+                                                org.springframework.http.HttpMethod.POST,
+                                                "/api/v1/auth/login",
+                                                "/api/v1/auth/refresh",
+                                                "/api/v1/auth/revoke")
                                         .permitAll()
                                         .anyRequest()
                                         .authenticated());
