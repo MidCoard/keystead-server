@@ -29,6 +29,11 @@ class StoredAuditEventTest {
                 IllegalArgumentException.class, () -> event("event-a", "alice", "LEAKED", "{}"));
     }
 
+    @Test
+    void rejectsUnsupportedEventType() {
+        assertThrows(IllegalArgumentException.class, () -> eventWithType("SECRET_EXFILTRATED"));
+    }
+
     private static StoredAuditEvent event(
             String eventId, String ownerId, String outcome, String details) {
         return new StoredAuditEvent(
@@ -42,6 +47,21 @@ class StoredAuditEventTest {
                 1L,
                 outcome,
                 details,
+                CREATED_AT);
+    }
+
+    private static StoredAuditEvent eventWithType(String eventType) {
+        return new StoredAuditEvent(
+                "event-a",
+                "alice",
+                "actor-a",
+                eventType,
+                "record",
+                "secret-a",
+                "vault-a",
+                1L,
+                "SUCCESS",
+                "{}",
                 CREATED_AT);
     }
 

@@ -26,6 +26,11 @@ public record StoredAuditEvent(
         requireNotBlank(ownerId, "ownerId");
         requireNotBlank(actorId, "actorId");
         requireNotBlank(eventType, "eventType");
+        try {
+            AuditEventType.valueOf(eventType);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Audit event type is unsupported", e);
+        }
         requireNotBlank(targetType, "targetType");
         requireNotBlank(targetId, "targetId");
         if (vaultId != null && vaultId.isBlank()) {
