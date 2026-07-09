@@ -88,6 +88,7 @@ class EncryptedRecordService {
             @NonNull String vaultId,
             @NonNull String secretId,
             long revision) {
+        requirePositiveRevision(revision);
         accessGuard.requireOwnedVault(ownerId, vaultId);
         StoredEncryptedRecord existing =
                 records.find(ownerId, vaultId, secretId)
@@ -115,6 +116,12 @@ class EncryptedRecordService {
             throw e;
         }
         audit.recordDeleted(ownerId, ownerId, vaultId, secretId, revision);
+    }
+
+    private void requirePositiveRevision(long revision) {
+        if (revision <= 0) {
+            throw new InvalidRecordRequestException("revision must be positive");
+        }
     }
 
     private @NonNull StoredEncryptedRecord newRecord(

@@ -501,6 +501,19 @@ class EncryptedRecordApiTest {
 
     @Test
     @WithMockUser(username = "alice")
+    void deleteRejectsNonPositiveRevisionAsBadRequest() throws Exception {
+        createVault("alice", "vault-delete-revision");
+        putRecord("vault-delete-revision", "secret-delete-revision", 1, "delete-envelope");
+
+        mvc.perform(
+                        delete(
+                                        "/api/v1/vaults/vault-delete-revision/records/secret-delete-revision")
+                                .param("revision", "0"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "alice")
     void staleDeleteRevisionIsConflictWithRevisionDetails() throws Exception {
         createVault("alice", "vault-delete-conflict");
         putRecord("vault-delete-conflict", "secret-delete-conflict", 3, "delete-envelope");
