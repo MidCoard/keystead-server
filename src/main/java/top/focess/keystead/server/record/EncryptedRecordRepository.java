@@ -9,7 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 interface EncryptedRecordRepository
-        extends JpaRepository<EncryptedRecordEntity, EncryptedRecordEntityId> {
+        extends JpaRepository<EncryptedRecordEntity, EncryptedRecordEntityId>,
+                EncryptedRecordRepositoryWrites {
 
     default @NonNull Optional<StoredEncryptedRecord> find(
             @NonNull String ownerId, @NonNull String vaultId, @NonNull String secretId) {
@@ -80,13 +81,5 @@ interface EncryptedRecordRepository
                 .stream()
                 .map(EncryptedRecordEntity::toStored)
                 .toList();
-    }
-
-    default void insert(@NonNull StoredEncryptedRecord record) {
-        saveAndFlush(EncryptedRecordEntity.from(record));
-    }
-
-    default void update(@NonNull StoredEncryptedRecord record) {
-        saveAndFlush(EncryptedRecordEntity.from(record));
     }
 }

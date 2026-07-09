@@ -166,6 +166,23 @@ class EncryptedRecordApiTest {
     }
 
     @Test
+    void databaseInsertRejectsDuplicateRecordPrimaryKey() {
+        Instant now = Instant.parse("2026-07-04T00:00:00Z");
+        records.insert(storedRecord("primary-key-owner", "primary-key-vault", "secret-a", 1L, now));
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () ->
+                        records.insert(
+                                storedRecord(
+                                        "primary-key-owner",
+                                        "primary-key-vault",
+                                        "secret-a",
+                                        2L,
+                                        now)));
+    }
+
+    @Test
     @WithMockUser(username = "alice")
     void encryptedProfileResponseOmitsLegacyMetadataAlias() throws Exception {
         createVault("alice", "vault-profile");

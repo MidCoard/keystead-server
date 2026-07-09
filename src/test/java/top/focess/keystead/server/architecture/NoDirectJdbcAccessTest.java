@@ -46,8 +46,18 @@ class NoDirectJdbcAccessTest {
                 Files.readString(
                         Path.of(
                                 "src/main/java/top/focess/keystead/server/record/EncryptedRecordRepository.java"));
+        String writes =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/record/EncryptedRecordRepositoryWritesImpl.java"));
 
-        assertEquals(true, repository.contains("saveAndFlush(EncryptedRecordEntity.from(record))"));
+        assertEquals(
+                false, repository.contains("saveAndFlush(EncryptedRecordEntity.from(record))"));
         assertEquals(false, repository.contains("save(EncryptedRecordEntity.from(record))"));
+        assertEquals(
+                true, writes.contains("entityManager.persist(EncryptedRecordEntity.from(record))"));
+        assertEquals(
+                true, writes.contains("entityManager.merge(EncryptedRecordEntity.from(record))"));
+        assertEquals(true, writes.contains("entityManager.flush()"));
     }
 }
