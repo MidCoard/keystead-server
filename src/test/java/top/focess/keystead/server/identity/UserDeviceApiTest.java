@@ -15,6 +15,8 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
+import java.security.spec.MGF1ParameterSpec;
+import java.security.spec.PSSParameterSpec;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -343,6 +345,12 @@ class UserDeviceApiTest {
                 ecdsaKeyPair("secp256r1"),
                 "SHA256withECDSA");
         proveDeviceWithAlgorithm(
+                "device-proof-algorithms",
+                "phone-rsa-pss",
+                "RSA_PSS_SHA256",
+                rsaKeyPair(),
+                "RSASSA-PSS");
+        proveDeviceWithAlgorithm(
                 "device-proof-algorithms", "phone-ed25519", "ED25519", ed25519KeyPair(), "Ed25519");
 
         mvc.perform(
@@ -353,7 +361,8 @@ class UserDeviceApiTest {
                                                 "correct horse battery staple")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].verifiedAt").isNotEmpty())
-                .andExpect(jsonPath("$[1].verifiedAt").isNotEmpty());
+                .andExpect(jsonPath("$[1].verifiedAt").isNotEmpty())
+                .andExpect(jsonPath("$[2].verifiedAt").isNotEmpty());
     }
 
     @Test
@@ -500,9 +509,17 @@ class UserDeviceApiTest {
             PrivateKey privateKey, String challengeId, String nonce, String algorithm)
             throws Exception {
         Signature signature = Signature.getInstance(algorithm);
+        if ("RSASSA-PSS".equals(algorithm)) {
+            signature.setParameter(rsaPssSha256Parameters());
+        }
         signature.initSign(privateKey);
         signature.update(proofPayload(challengeId, nonce).getBytes(StandardCharsets.UTF_8));
         return Base64.getEncoder().encodeToString(signature.sign());
+    }
+
+    private static PSSParameterSpec rsaPssSha256Parameters() {
+        return new PSSParameterSpec(
+                "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, PSSParameterSpec.TRAILER_FIELD_BC);
     }
 
     private static String proofPayload(String challengeId, String nonce) {
