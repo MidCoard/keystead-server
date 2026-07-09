@@ -39,7 +39,8 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(
                                                 org.springframework.http.HttpMethod.GET,
-                                                "/api/v1/crypto/algorithms")
+                                                "/api/v1/crypto/algorithms",
+                                                "/api/v1/secret-types/catalog")
                                         .permitAll()
                                         .requestMatchers(
                                                 org.springframework.http.HttpMethod.POST,
