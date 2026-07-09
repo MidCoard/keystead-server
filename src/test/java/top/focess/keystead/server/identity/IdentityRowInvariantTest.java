@@ -47,6 +47,34 @@ class IdentityRowInvariantTest {
                 () -> device("RSA_OAEP_SHA256", "public-key", null, null, BEFORE_CREATED_AT));
     }
 
+    @Test
+    void storedDeviceChallengeRejectsBlankNonce() {
+        assertThrows(
+                IllegalArgumentException.class, () -> challenge(" ", UPDATED_AT, null, CREATED_AT));
+    }
+
+    @Test
+    void storedDeviceChallengeRejectsExpiryBeforeCreatedTime() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> challenge("nonce", BEFORE_CREATED_AT, null, CREATED_AT));
+    }
+
+    @Test
+    void storedDeviceChallengeRejectsUsedTimeOutsideChallengeWindow() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> challenge("nonce", UPDATED_AT, BEFORE_CREATED_AT, CREATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        challenge(
+                                "nonce",
+                                UPDATED_AT,
+                                Instant.parse("2026-07-09T00:02:00Z"),
+                                CREATED_AT));
+    }
+
     private static StoredDevice device(
             String keyAlgorithm,
             String publicKey,
@@ -62,5 +90,11 @@ class IdentityRowInvariantTest {
                 verifiedAt,
                 lastSeenAt,
                 revokedAt);
+    }
+
+    private static StoredDeviceChallenge challenge(
+            String nonce, Instant expiresAt, Instant usedAt, Instant createdAt) {
+        return new StoredDeviceChallenge(
+                "alice", "device-a", "challenge-a", nonce, expiresAt, usedAt, createdAt);
     }
 }
