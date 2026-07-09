@@ -623,6 +623,31 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.deleted").value(false));
     }
 
+    @Test
+    void unauthorizedRecordWriteDoesNotValidateRequestBodyBeforeOwnership() throws Exception {
+        createVault("shape-private-alice", "vault-shape-private");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-shape-private/records/secret-private")
+                                .with(user("shape-private-bob"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 0,
+                                          "secretType": "",
+                                          "encryptedProfile": "%s",
+                                          "envelope": "",
+                                          "deleted": false
+                                        }
+                                        """
+                                                .formatted("x".repeat(262_145))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.secretType").doesNotExist())
+                .andExpect(jsonPath("$.encryptedProfile").doesNotExist())
+                .andExpect(jsonPath("$.envelope").doesNotExist());
+    }
+
     private void createVault(String username, String vaultId) throws Exception {
         mvc.perform(
                         put("/api/v1/vaults/{vaultId}", vaultId)

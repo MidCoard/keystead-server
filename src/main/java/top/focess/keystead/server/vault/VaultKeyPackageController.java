@@ -1,6 +1,5 @@
 package top.focess.keystead.server.vault;
 
-import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import org.jspecify.annotations.NonNull;
@@ -28,7 +27,7 @@ class VaultKeyPackageController {
             @NonNull Principal principal,
             @PathVariable @NonNull String vaultId,
             @PathVariable @NonNull String deviceId,
-            @Valid @RequestBody @NonNull VaultKeyPackageRequest request) {
+            @RequestBody @NonNull VaultKeyPackageRequest request) {
         service.put(principal.getName(), vaultId, deviceId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }

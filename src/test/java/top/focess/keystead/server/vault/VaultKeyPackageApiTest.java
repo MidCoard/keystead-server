@@ -301,6 +301,33 @@ class VaultKeyPackageApiTest {
                 .andExpect(jsonPath("$").isEmpty());
     }
 
+    @Test
+    void unauthorizedKeyPackageWriteDoesNotValidateRequestBodyBeforeOwnership() throws Exception {
+        registerUser("package-alice-shape-private");
+        registerUser("package-bob-shape-private");
+        registerDevice("package-bob-shape-private", "bob-laptop-shape-private");
+        createVault("package-alice-shape-private", "vault-key-package-shape-private");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-key-package-shape-private/key-packages/bob-laptop-shape-private")
+                                .with(
+                                        httpBasic(
+                                                "package-bob-shape-private",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "keyAlgorithm": "",
+                                          "encryptedVaultKey": "%s"
+                                        }
+                                        """
+                                                .formatted("x".repeat(16_385))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.keyAlgorithm").doesNotExist())
+                .andExpect(jsonPath("$.encryptedVaultKey").doesNotExist());
+    }
+
     private void registerUser(String username) throws Exception {
         mvc.perform(
                         post("/api/v1/users")

@@ -1,8 +1,11 @@
 package top.focess.keystead.server.record;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.jspecify.annotations.NonNull;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -19,16 +22,19 @@ class EncryptedRecordService {
     private final VaultAccessGuard accessGuard;
     private final AuditService audit;
     private final Clock clock;
+    private final Validator validator;
 
     EncryptedRecordService(
             @NonNull EncryptedRecordRepository records,
             @NonNull VaultAccessGuard accessGuard,
             @NonNull AuditService audit,
-            @NonNull Clock clock) {
+            @NonNull Clock clock,
+            @NonNull Validator validator) {
         this.records = records;
         this.accessGuard = accessGuard;
         this.audit = audit;
         this.clock = clock;
+        this.validator = validator;
     }
 
     @Transactional
@@ -38,6 +44,7 @@ class EncryptedRecordService {
             @NonNull String secretId,
             @NonNull EncryptedRecordRequest request) {
         accessGuard.requireOwnedVault(ownerId, vaultId);
+        validate(request);
         Optional<StoredEncryptedRecord> existing = records.find(ownerId, vaultId, secretId);
         records.latestRevision(ownerId, vaultId)
                 .filter(record -> request.revision() <= record.revision())
@@ -121,6 +128,14 @@ class EncryptedRecordService {
     private void requirePositiveRevision(long revision) {
         if (revision <= 0) {
             throw new InvalidRecordRequestException("revision must be positive");
+        }
+    }
+
+    private void validate(@NonNull EncryptedRecordRequest request) {
+        Set<ConstraintViolation<EncryptedRecordRequest>> violations = validator.validate(request);
+        if (!violations.isEmpty()) {
+            throw new InvalidRecordRequestException(
+                    violations.iterator().next().getPropertyPath() + " is invalid");
         }
     }
 

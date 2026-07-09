@@ -1,6 +1,5 @@
 package top.focess.keystead.server.record;
 
-import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import org.jspecify.annotations.NonNull;
@@ -31,7 +30,7 @@ class EncryptedRecordController {
             @NonNull Principal principal,
             @PathVariable @NonNull String vaultId,
             @PathVariable @NonNull String secretId,
-            @Valid @RequestBody @NonNull EncryptedRecordRequest request) {
+            @RequestBody @NonNull EncryptedRecordRequest request) {
         StoreRecordResult result = service.store(principal.getName(), vaultId, secretId, request);
         return ResponseEntity.status(
                         result == StoreRecordResult.CREATED ? HttpStatus.CREATED : HttpStatus.OK)
