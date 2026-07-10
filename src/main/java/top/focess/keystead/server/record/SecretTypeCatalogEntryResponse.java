@@ -2,6 +2,8 @@ package top.focess.keystead.server.record;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import top.focess.keystead.model.SecretTypeCatalogEntry;
@@ -23,6 +25,7 @@ record SecretTypeCatalogEntryResponse(
         requireNullableNotBlank(defaultSoftware, "defaultSoftware");
         requireNullableNotBlank(customFieldType, "customFieldType");
         fields = List.copyOf(Objects.requireNonNull(fields, "fields"));
+        requireUniqueFieldNames(fields);
         if (allowsCustomFields && customFieldType == null) {
             throw new IllegalArgumentException("customFieldType is required");
         }
@@ -31,6 +34,17 @@ record SecretTypeCatalogEntryResponse(
         }
         if (!allowsCustomFields && customFieldsRevealable) {
             throw new IllegalArgumentException("custom fields cannot be revealable when disabled");
+        }
+    }
+
+    private static void requireUniqueFieldNames(
+            @NonNull List<SecretTypeFieldCatalogResponse> fields) {
+        Set<String> names =
+                fields.stream()
+                        .map(SecretTypeFieldCatalogResponse::name)
+                        .collect(Collectors.toSet());
+        if (names.size() != fields.size()) {
+            throw new IllegalArgumentException("fields must not contain duplicate names");
         }
     }
 
