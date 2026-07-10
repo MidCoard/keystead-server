@@ -3,13 +3,16 @@ package top.focess.keystead.server.auth;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @Entity
-@Table(name = "auth_refresh_tokens")
+@Table(
+        name = "auth_refresh_tokens",
+        indexes = @Index(name = "idx_auth_refresh_tokens_username", columnList = "username"))
 public class RefreshTokenEntity {
 
     @Id

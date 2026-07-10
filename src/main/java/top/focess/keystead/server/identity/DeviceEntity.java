@@ -3,13 +3,14 @@ package top.focess.keystead.server.identity;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @Entity
-@Table(name = "devices")
+@Table(name = "devices", indexes = @Index(name = "idx_devices_owner", columnList = "owner_id"))
 public class DeviceEntity {
 
     @EmbeddedId @NonNull DeviceEntityId id = new DeviceEntityId();
