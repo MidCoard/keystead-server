@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.NonNull;
@@ -26,6 +27,17 @@ public record StoredAuditEvent(
     private static final Set<String> ALLOWED_OUTCOMES = Set.of("SUCCESS", "FAILURE", "CONFLICT");
     private static final Set<String> ALLOWED_TARGET_TYPES =
             Set.of("auth", "device", "key_package", "record");
+    private static final Set<String> FORBIDDEN_DETAIL_KEYS =
+            Set.of(
+                    "encryptedProfile",
+                    "metadata",
+                    "envelope",
+                    "encryptedPayload",
+                    "wrappedVaultKey",
+                    "password",
+                    "token",
+                    "refreshToken",
+                    "devicePrivateKey");
 
     public StoredAuditEvent {
         requireNotBlank(eventId, "eventId");
@@ -72,8 +84,23 @@ public record StoredAuditEvent(
             if (node == null || !node.isObject()) {
                 throw new IllegalArgumentException("Audit details must be a JSON object");
             }
+            requireNoForbiddenDetailKeys(node);
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Audit details must be a JSON object", e);
+        }
+    }
+
+    private static void requireNoForbiddenDetailKeys(@NonNull JsonNode node) {
+        Iterator<String> fieldNames = node.fieldNames();
+        while (fieldNames.hasNext()) {
+            String fieldName = fieldNames.next();
+            if (FORBIDDEN_DETAIL_KEYS.contains(fieldName)) {
+                throw new IllegalArgumentException("Audit details contain forbidden field");
+            }
+            requireNoForbiddenDetailKeys(node.get(fieldName));
+        }
+        for (JsonNode child : node) {
+            requireNoForbiddenDetailKeys(child);
         }
     }
 
