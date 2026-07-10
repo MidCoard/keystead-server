@@ -19,6 +19,9 @@ public class VaultKeyPackageEntity {
 
     @EmbeddedId @NonNull VaultKeyPackageEntityId id = new VaultKeyPackageEntityId();
 
+    @Column(name = "vault_key_id", nullable = false)
+    @NonNull String vaultKeyId = "";
+
     @Column(name = "key_algorithm", nullable = false)
     @NonNull String keyAlgorithm = "";
 
@@ -37,6 +40,7 @@ public class VaultKeyPackageEntity {
         this.id =
                 new VaultKeyPackageEntityId(
                         keyPackage.ownerId(), keyPackage.vaultId(), keyPackage.deviceId());
+        this.vaultKeyId = keyPackage.vaultKeyId();
         this.keyAlgorithm = keyPackage.keyAlgorithm();
         this.encryptedVaultKey = keyPackage.encryptedVaultKey();
         this.createdAt = keyPackage.createdAt();
@@ -52,6 +56,7 @@ public class VaultKeyPackageEntity {
                 id.ownerId,
                 id.vaultId,
                 id.deviceId,
+                vaultKeyId,
                 keyAlgorithm,
                 encryptedVaultKey,
                 createdAt,

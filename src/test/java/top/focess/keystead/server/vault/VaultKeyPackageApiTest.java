@@ -43,6 +43,7 @@ class VaultKeyPackageApiTest {
                                 .content(
                                         """
                                         {
+                                          "vaultKeyId": "vault-key-2",
                                           "keyAlgorithm": "RSA_OAEP_SHA256",
                                           "encryptedVaultKey": "opaque-device-wrapped-vault-key"
                                         }
@@ -55,6 +56,7 @@ class VaultKeyPackageApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].vaultId").value("package-vault-a"))
                 .andExpect(jsonPath("$[0].deviceId").value("laptop-1"))
+                .andExpect(jsonPath("$[0].vaultKeyId").value("vault-key-2"))
                 .andExpect(jsonPath("$[0].keyAlgorithm").value("RSA_OAEP_SHA256"))
                 .andExpect(
                         jsonPath("$[0].encryptedVaultKey")
@@ -427,6 +429,7 @@ class VaultKeyPackageApiTest {
     private String packageBody() {
         return """
         {
+          "vaultKeyId": "vault-key-1",
           "keyAlgorithm": "RSA_OAEP_SHA256",
           "encryptedVaultKey": "opaque-device-wrapped-vault-key"
         }

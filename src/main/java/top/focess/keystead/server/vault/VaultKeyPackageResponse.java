@@ -8,14 +8,26 @@ import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 public record VaultKeyPackageResponse(
         @NonNull String vaultId,
         @NonNull String deviceId,
+        @NonNull String vaultKeyId,
         @NonNull String keyAlgorithm,
         @NonNull String encryptedVaultKey,
         @NonNull Instant createdAt,
         @NonNull Instant updatedAt) {
 
+    VaultKeyPackageResponse(
+            @NonNull String vaultId,
+            @NonNull String deviceId,
+            @NonNull String keyAlgorithm,
+            @NonNull String encryptedVaultKey,
+            @NonNull Instant createdAt,
+            @NonNull Instant updatedAt) {
+        this(vaultId, deviceId, "legacy", keyAlgorithm, encryptedVaultKey, createdAt, updatedAt);
+    }
+
     public VaultKeyPackageResponse {
         requireNotBlank(vaultId, "vaultId");
         requireNotBlank(deviceId, "deviceId");
+        requireNotBlank(vaultKeyId, "vaultKeyId");
         requireNotBlank(keyAlgorithm, "keyAlgorithm");
         requireNotBlank(encryptedVaultKey, "encryptedVaultKey");
         Objects.requireNonNull(createdAt, "createdAt");
@@ -33,6 +45,7 @@ public record VaultKeyPackageResponse(
         return new VaultKeyPackageResponse(
                 keyPackage.vaultId(),
                 keyPackage.deviceId(),
+                keyPackage.vaultKeyId(),
                 keyPackage.keyAlgorithm(),
                 keyPackage.encryptedVaultKey(),
                 keyPackage.createdAt(),

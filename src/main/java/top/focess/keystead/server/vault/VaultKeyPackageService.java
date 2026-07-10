@@ -50,6 +50,7 @@ class VaultKeyPackageService {
                         ownerId,
                         vaultId,
                         deviceId,
+                        request.resolvedVaultKeyId(),
                         request.keyAlgorithm(),
                         request.encryptedVaultKey(),
                         createdAt,

@@ -9,15 +9,36 @@ record StoredVaultKeyPackage(
         @NonNull String ownerId,
         @NonNull String vaultId,
         @NonNull String deviceId,
+        @NonNull String vaultKeyId,
         @NonNull String keyAlgorithm,
         @NonNull String encryptedVaultKey,
         @NonNull Instant createdAt,
         @NonNull Instant updatedAt) {
 
+    StoredVaultKeyPackage(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String deviceId,
+            @NonNull String keyAlgorithm,
+            @NonNull String encryptedVaultKey,
+            @NonNull Instant createdAt,
+            @NonNull Instant updatedAt) {
+        this(
+                ownerId,
+                vaultId,
+                deviceId,
+                "legacy",
+                keyAlgorithm,
+                encryptedVaultKey,
+                createdAt,
+                updatedAt);
+    }
+
     StoredVaultKeyPackage {
         requireNotBlank(ownerId, "ownerId");
         requireNotBlank(vaultId, "vaultId");
         requireNotBlank(deviceId, "deviceId");
+        requireNotBlank(vaultKeyId, "vaultKeyId");
         Objects.requireNonNull(keyAlgorithm, "keyAlgorithm");
         Objects.requireNonNull(encryptedVaultKey, "encryptedVaultKey");
         Objects.requireNonNull(createdAt, "createdAt");

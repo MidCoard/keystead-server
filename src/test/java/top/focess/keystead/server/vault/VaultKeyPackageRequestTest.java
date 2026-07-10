@@ -28,6 +28,15 @@ class VaultKeyPackageRequestTest {
                 () -> request("RSA_OAEP_SHA256", " ").validateShape());
     }
 
+    @Test
+    void rejectsBlankVaultKeyId() {
+        assertThrows(
+                InvalidVaultKeyPackageRequestException.class,
+                () ->
+                        new VaultKeyPackageRequest(" ", "RSA_OAEP_SHA256", "wrapped-key")
+                                .validateShape());
+    }
+
     private static VaultKeyPackageRequest request(String keyAlgorithm, String encryptedVaultKey) {
         return new VaultKeyPackageRequest(keyAlgorithm, encryptedVaultKey);
     }
