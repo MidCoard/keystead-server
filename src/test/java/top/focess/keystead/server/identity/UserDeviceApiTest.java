@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -52,6 +53,94 @@ class UserDeviceApiTest {
                                 .with(httpBasic("auth-user", "correct horse battery staple")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void verifiedDeviceCanAcknowledgePulledVaultRevision() throws Exception {
+        String username = "device-sync-cursor-user";
+        String password = "correct horse battery staple";
+        registerUser(username);
+        proveDeviceWithAlgorithm(
+                username, "phone-sync-cursor", "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        mvc.perform(
+                        put("/api/v1/vaults/vault-sync-cursor")
+                                .with(httpBasic(username, password))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"encryptedMetadata\":\"opaque-vault-metadata\"}"))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        put("/api/v1/devices/phone-sync-cursor/vaults/vault-sync-cursor/sync-cursor")
+                                .with(httpBasic(username, password))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"pulledRevision\":7}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deviceSyncCursorCannotMoveBackwards() throws Exception {
+        String username = "device-sync-cursor-monotonic-user";
+        String password = "correct horse battery staple";
+        String deviceId = "phone-sync-cursor-monotonic";
+        String vaultId = "vault-sync-cursor-monotonic";
+        registerUser(username);
+        proveDeviceWithAlgorithm(
+                username, deviceId, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        createVault(username, password, vaultId);
+        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+                .andExpect(status().isNoContent());
+
+        acknowledgePulledRevision(username, password, deviceId, vaultId, 6)
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deviceSyncCursorAcknowledgementIsIdempotent() throws Exception {
+        String username = "device-sync-cursor-idempotent-user";
+        String password = "correct horse battery staple";
+        String deviceId = "phone-sync-cursor-idempotent";
+        String vaultId = "vault-sync-cursor-idempotent";
+        registerUser(username);
+        proveDeviceWithAlgorithm(
+                username, deviceId, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        createVault(username, password, vaultId);
+
+        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+                .andExpect(status().isNoContent());
+        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void unverifiedDeviceCannotAcknowledgePulledVaultRevision() throws Exception {
+        String username = "device-sync-cursor-unverified-user";
+        String password = "correct horse battery staple";
+        String deviceId = "phone-sync-cursor-unverified";
+        String vaultId = "vault-sync-cursor-unverified";
+        registerUser(username);
+        registerDevice(username, deviceId, "RSA_OAEP_SHA256", "public-key-material");
+        createVault(username, password, vaultId);
+
+        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void vaultOwnerBoundaryIsCheckedBeforeDeviceCursorRequestValidation() throws Exception {
+        String alice = "device-sync-cursor-owner-alice";
+        String bob = "device-sync-cursor-owner-bob";
+        String password = "correct horse battery staple";
+        registerUser(alice);
+        createVault(alice, password, "vault-sync-cursor-owner-private");
+        registerUser(bob);
+
+        mvc.perform(
+                        put("/api/v1/devices/device-not-owned/vaults/vault-sync-cursor-owner-private/sync-cursor")
+                                .with(httpBasic(bob, password))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"pulledRevision\":-1}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.pulledRevision").doesNotExist());
     }
 
     @Test
@@ -512,6 +601,25 @@ class UserDeviceApiTest {
                                         """
                                                 .formatted(username)))
                 .andExpect(status().isCreated());
+    }
+
+    private void createVault(String username, String password, String vaultId) throws Exception {
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}", vaultId)
+                                .with(httpBasic(username, password))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"encryptedMetadata\":\"opaque-vault-metadata\"}"))
+                .andExpect(status().isCreated());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions acknowledgePulledRevision(
+            String username, String password, String deviceId, String vaultId, long pulledRevision)
+            throws Exception {
+        return mvc.perform(
+                put("/api/v1/devices/{deviceId}/vaults/{vaultId}/sync-cursor", deviceId, vaultId)
+                        .with(httpBasic(username, password))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pulledRevision\":%d}".formatted(pulledRevision)));
     }
 
     private void registerDevice(

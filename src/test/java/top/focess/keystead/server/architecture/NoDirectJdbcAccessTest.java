@@ -121,11 +121,21 @@ class NoDirectJdbcAccessTest {
                 Files.readString(
                         Path.of(
                                 "src/main/java/top/focess/keystead/server/identity/DeviceChallengeRepositoryWritesImpl.java"));
+        String cursorRepository =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceVaultSyncCursorRepository.java"));
+        String cursorWrites =
+                Files.readString(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceVaultSyncCursorRepositoryWritesImpl.java"));
 
         assertEquals(false, userRepository.contains("save(UserEntity.from(user))"));
         assertEquals(false, deviceRepository.contains("save(DeviceEntity.from(device))"));
         assertEquals(
                 false, challengeRepository.contains("save(DeviceChallengeEntity.from(challenge))"));
+        assertEquals(
+                false, cursorRepository.contains("save(DeviceVaultSyncCursorEntity.from(cursor))"));
         assertEquals(true, userWrites.contains("entityManager.persist(UserEntity.from(user))"));
         assertEquals(true, userWrites.contains("entityManager.flush()"));
         assertEquals(
@@ -137,6 +147,15 @@ class NoDirectJdbcAccessTest {
                 challengeWrites.contains(
                         "entityManager.persist(DeviceChallengeEntity.from(challenge))"));
         assertEquals(true, challengeWrites.contains("entityManager.flush()"));
+        assertEquals(
+                true,
+                cursorWrites.contains(
+                        "entityManager.persist(DeviceVaultSyncCursorEntity.from(cursor))"));
+        assertEquals(
+                true,
+                cursorWrites.contains(
+                        "entityManager.merge(DeviceVaultSyncCursorEntity.from(cursor))"));
+        assertEquals(true, cursorWrites.contains("entityManager.flush()"));
     }
 
     @Test

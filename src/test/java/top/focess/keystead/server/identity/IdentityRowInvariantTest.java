@@ -118,6 +118,24 @@ class IdentityRowInvariantTest {
                                 CREATED_AT));
     }
 
+    @Test
+    void storedDeviceVaultSyncCursorRejectsNegativeRevisionAndBlankPrimaryKeys() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredDeviceVaultSyncCursor(
+                                "alice", "vault-a", "device-a", -1L, UPDATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StoredDeviceVaultSyncCursor(" ", "vault-a", "device-a", 1L, UPDATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StoredDeviceVaultSyncCursor("alice", " ", "device-a", 1L, UPDATED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StoredDeviceVaultSyncCursor("alice", "vault-a", " ", 1L, UPDATED_AT));
+    }
+
     private static StoredDevice device(
             String keyAlgorithm,
             String publicKey,

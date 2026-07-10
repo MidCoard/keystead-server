@@ -19,6 +19,7 @@ class IdentityRepositoryTest {
     @Autowired private UserRepository users;
     @Autowired private DeviceRepository devices;
     @Autowired private DeviceChallengeRepository challenges;
+    @Autowired private DeviceVaultSyncCursorRepository cursors;
 
     @Test
     void databaseInsertRejectsDuplicateUsername() {
@@ -56,6 +57,17 @@ class IdentityRepositoryTest {
                                         "nonce-b")));
     }
 
+    @Test
+    void databaseInsertRejectsDuplicateDeviceVaultSyncCursorPrimaryKey() {
+        cursors.insert(cursor("identity-db-cursor-owner", "vault-a", "laptop-a", 7L));
+
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () ->
+                        cursors.insert(
+                                cursor("identity-db-cursor-owner", "vault-a", "laptop-a", 8L)));
+    }
+
     private static StoredUser user(String username, String passwordHash) {
         return new StoredUser(username, passwordHash, CREATED_AT, UPDATED_AT, 0L);
     }
@@ -69,5 +81,11 @@ class IdentityRepositoryTest {
             String ownerId, String deviceId, String challengeId, String nonce) {
         return new StoredDeviceChallenge(
                 ownerId, deviceId, challengeId, nonce, UPDATED_AT, null, CREATED_AT);
+    }
+
+    private static StoredDeviceVaultSyncCursor cursor(
+            String ownerId, String vaultId, String deviceId, long pulledRevision) {
+        return new StoredDeviceVaultSyncCursor(
+                ownerId, vaultId, deviceId, pulledRevision, UPDATED_AT);
     }
 }
