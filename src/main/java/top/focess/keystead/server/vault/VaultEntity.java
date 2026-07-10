@@ -5,11 +5,16 @@ import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 
 @Entity
-@Table(name = "vaults", indexes = @Index(name = "idx_vaults_owner", columnList = "owner_id"))
+@Table(
+        name = "vaults",
+        uniqueConstraints =
+                @UniqueConstraint(name = "uq_vaults_vault_id", columnNames = "vault_id"),
+        indexes = @Index(name = "idx_vaults_owner", columnList = "owner_id"))
 public class VaultEntity {
 
     @EmbeddedId @NonNull VaultEntityId id = new VaultEntityId();
