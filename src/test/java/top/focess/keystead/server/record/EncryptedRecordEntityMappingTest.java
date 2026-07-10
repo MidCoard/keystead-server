@@ -30,6 +30,14 @@ class EncryptedRecordEntityMappingTest {
                                 index ->
                                         hasNameAndColumnList(
                                                 index,
+                                                "idx_encrypted_records_owner_vault",
+                                                "owner_id, vault_id")));
+        assertTrue(
+                Arrays.stream(table.indexes())
+                        .anyMatch(
+                                index ->
+                                        hasNameAndColumnList(
+                                                index,
                                                 "idx_encrypted_records_sync_page",
                                                 "owner_id, vault_id, revision, secret_id")));
     }
