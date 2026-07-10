@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import top.focess.keystead.model.SecretTypeCatalogEntry;
 
 record SecretTypeCatalogEntryResponse(
         @NonNull String type,
@@ -31,6 +32,18 @@ record SecretTypeCatalogEntryResponse(
         if (!allowsCustomFields && customFieldsRevealable) {
             throw new IllegalArgumentException("custom fields cannot be revealable when disabled");
         }
+    }
+
+    static @NonNull SecretTypeCatalogEntryResponse from(@NonNull SecretTypeCatalogEntry entry) {
+        return new SecretTypeCatalogEntryResponse(
+                entry.type().name(),
+                entry.defaultCategory(),
+                entry.defaultProvider(),
+                entry.defaultSoftware(),
+                entry.allowsCustomFields(),
+                entry.customFieldType() == null ? null : entry.customFieldType().name(),
+                entry.customFieldsRevealable(),
+                entry.fields().stream().map(SecretTypeFieldCatalogResponse::from).toList());
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {

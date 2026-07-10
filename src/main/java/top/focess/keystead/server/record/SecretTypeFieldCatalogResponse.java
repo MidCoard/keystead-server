@@ -2,6 +2,7 @@ package top.focess.keystead.server.record;
 
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
+import top.focess.keystead.model.SecretFieldSchema;
 
 record SecretTypeFieldCatalogResponse(
         @NonNull String name, @NonNull String fieldType, boolean required, boolean revealable) {
@@ -9,6 +10,11 @@ record SecretTypeFieldCatalogResponse(
     SecretTypeFieldCatalogResponse {
         requireNotBlank(name, "name");
         requireNotBlank(fieldType, "fieldType");
+    }
+
+    static @NonNull SecretTypeFieldCatalogResponse from(@NonNull SecretFieldSchema field) {
+        return new SecretTypeFieldCatalogResponse(
+                field.name(), field.type().name(), field.required(), field.revealable());
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {
