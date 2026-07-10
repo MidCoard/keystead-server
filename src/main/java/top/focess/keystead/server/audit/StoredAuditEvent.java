@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import org.jspecify.annotations.NonNull;
@@ -29,15 +30,15 @@ public record StoredAuditEvent(
             Set.of("auth", "device", "key_package", "record");
     private static final Set<String> FORBIDDEN_DETAIL_KEYS =
             Set.of(
-                    "encryptedProfile",
+                    "encryptedprofile",
                     "metadata",
                     "envelope",
-                    "encryptedPayload",
-                    "wrappedVaultKey",
+                    "encryptedpayload",
+                    "wrappedvaultkey",
                     "password",
                     "token",
-                    "refreshToken",
-                    "devicePrivateKey");
+                    "refreshtoken",
+                    "deviceprivatekey");
 
     public StoredAuditEvent {
         requireNotBlank(eventId, "eventId");
@@ -94,7 +95,7 @@ public record StoredAuditEvent(
         Iterator<String> fieldNames = node.fieldNames();
         while (fieldNames.hasNext()) {
             String fieldName = fieldNames.next();
-            if (FORBIDDEN_DETAIL_KEYS.contains(fieldName)) {
+            if (FORBIDDEN_DETAIL_KEYS.contains(normalizedDetailKey(fieldName))) {
                 throw new IllegalArgumentException("Audit details contain forbidden field");
             }
             requireNoForbiddenDetailKeys(node.get(fieldName));
@@ -102,6 +103,15 @@ public record StoredAuditEvent(
         for (JsonNode child : node) {
             requireNoForbiddenDetailKeys(child);
         }
+    }
+
+    private static @NonNull String normalizedDetailKey(@NonNull String key) {
+        StringBuilder normalized = new StringBuilder(key.length());
+        key.toLowerCase(Locale.ROOT)
+                .chars()
+                .filter(Character::isLetterOrDigit)
+                .forEach(character -> normalized.append((char) character));
+        return normalized.toString();
     }
 
     private static void requireEventShape(

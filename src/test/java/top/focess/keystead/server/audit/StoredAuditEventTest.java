@@ -147,6 +147,27 @@ class StoredAuditEventTest {
                 () -> event("event-a", "alice", "SUCCESS", "{\"token\":\"leak\"}"));
     }
 
+    @Test
+    void rejectsForbiddenSensitiveDetailKeyAliases() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event("event-a", "alice", "SUCCESS", "{\"encrypted_profile\":\"leak\"}"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event("event-a", "alice", "SUCCESS", "{\"wrapped-vault-key\":\"leak\"}"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event("event-a", "alice", "SUCCESS", "{\"REFRESH_TOKEN\":\"leak\"}"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                "event-a",
+                                "alice",
+                                "SUCCESS",
+                                "{\"nested\":{\"device_private_key\":\"leak\"}}"));
+    }
+
     private static StoredAuditEvent event(
             String eventId, String ownerId, String outcome, String details) {
         return new StoredAuditEvent(
