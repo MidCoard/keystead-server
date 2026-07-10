@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.vault.VaultAccessGuard;
+import top.focess.keystead.server.vault.VaultKeyRotationService;
 
 @Service
 class AutomationService {
@@ -26,6 +27,7 @@ class AutomationService {
     private final AutomationTokenRepository tokens;
     private final AutomationVaultKeyPackageRepository keyPackages;
     private final VaultAccessGuard accessGuard;
+    private final VaultKeyRotationService rotations;
     private final AuditService audit;
     private final Clock clock;
     private final Validator validator;
@@ -36,6 +38,7 @@ class AutomationService {
             @NonNull AutomationTokenRepository tokens,
             @NonNull AutomationVaultKeyPackageRepository keyPackages,
             @NonNull VaultAccessGuard accessGuard,
+            @NonNull VaultKeyRotationService rotations,
             @NonNull AuditService audit,
             @NonNull Clock clock,
             @NonNull Validator validator) {
@@ -43,6 +46,7 @@ class AutomationService {
         this.tokens = tokens;
         this.keyPackages = keyPackages;
         this.accessGuard = accessGuard;
+        this.rotations = rotations;
         this.audit = audit;
         this.clock = clock;
         this.validator = validator;
@@ -59,6 +63,9 @@ class AutomationService {
         request.validateShape();
         Instant now = clock.instant();
         AutomationPrincipal existing = principals.find(ownerId, principalId).orElse(null);
+        if (existing != null && existing.revokedAt() != null) {
+            throw new AutomationNotFoundException("Automation principal does not exist");
+        }
         principals.persist(
                 new AutomationPrincipal(
                         ownerId,
@@ -123,6 +130,35 @@ class AutomationService {
     }
 
     @Transactional
+    void revokePrincipal(
+            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
+        accessGuard.requireOwnedVault(ownerId, vaultId);
+        AutomationPrincipal principal =
+                principals
+                        .find(ownerId, principalId)
+                        .orElseThrow(
+                                () ->
+                                        new AutomationNotFoundException(
+                                                "Automation principal does not exist"));
+        if (principal.revokedAt() != null) {
+            return;
+        }
+        Instant now = clock.instant();
+        principals.persist(
+                new AutomationPrincipal(
+                        principal.ownerId(),
+                        principal.principalId(),
+                        principal.publicKeyAlgorithm(),
+                        principal.publicKey(),
+                        principal.createdAt(),
+                        now,
+                        now));
+        tokens.revokeActiveForPrincipal(ownerId, principalId, now);
+        keyPackages.deleteForPrincipal(ownerId, principalId);
+        audit.automationPrincipalRevoked(ownerId, principalId, vaultId);
+    }
+
+    @Transactional
     void putKeyPackage(
             @NonNull String ownerId,
             @NonNull String vaultId,
@@ -131,6 +167,7 @@ class AutomationService {
         accessGuard.requireOwnedVault(ownerId, vaultId);
         validate(request);
         request.validateShape();
+        rotations.requireCurrentOrLegacy(ownerId, vaultId, request.vaultKeyId());
         principals
                 .find(ownerId, principalId)
                 .filter(value -> value.revokedAt() == null)

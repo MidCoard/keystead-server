@@ -17,6 +17,7 @@ class VaultKeyPackageService {
     private final VaultAccessGuard accessGuard;
     private final AuditService audit;
     private final VaultKeyPackageRepository keyPackages;
+    private final VaultKeyRotationService rotations;
     private final Clock clock;
     private final Validator validator;
 
@@ -24,11 +25,13 @@ class VaultKeyPackageService {
             @NonNull VaultAccessGuard accessGuard,
             @NonNull AuditService audit,
             @NonNull VaultKeyPackageRepository keyPackages,
+            @NonNull VaultKeyRotationService rotations,
             @NonNull Clock clock,
             @NonNull Validator validator) {
         this.accessGuard = accessGuard;
         this.audit = audit;
         this.keyPackages = keyPackages;
+        this.rotations = rotations;
         this.clock = clock;
         this.validator = validator;
     }
@@ -42,6 +45,7 @@ class VaultKeyPackageService {
         requireVaultAndDevice(ownerId, vaultId, deviceId);
         validate(request);
         request.validateShape();
+        rotations.requireCurrentOrLegacy(ownerId, vaultId, request.resolvedVaultKeyId());
         Instant now = clock.instant();
         StoredVaultKeyPackage existing = keyPackages.find(ownerId, vaultId, deviceId).orElse(null);
         Instant createdAt = existing == null ? now : existing.createdAt();
@@ -85,6 +89,7 @@ class VaultKeyPackageService {
         }
         validate(request);
         request.validateShape();
+        rotations.requireCurrentOrLegacy(ownerId, vaultId, request.resolvedVaultKeyId());
         Instant now = clock.instant();
         StoredVaultKeyPackage existing =
                 keyPackages.find(ownerId, vaultId, recipientId, deviceId).orElse(null);

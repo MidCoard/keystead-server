@@ -114,6 +114,18 @@ public class AuditService {
                 "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}");
     }
 
+    public void automationPrincipalRevoked(
+            @NonNull String ownerId, @NonNull String principalId, @NonNull String vaultId) {
+        appendAutomation(
+                ownerId,
+                ownerId,
+                AuditEventType.AUTOMATION_PRINCIPAL_REVOKED,
+                TARGET_AUTOMATION_PRINCIPAL,
+                principalId,
+                vaultId,
+                "{\"revoked\":true}");
+    }
+
     public void automationTokenIssued(
             @NonNull String ownerId,
             @NonNull String principalId,

@@ -61,6 +61,15 @@ class AutomationController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping("/{principalId}")
+    @NonNull ResponseEntity<Void> revokePrincipal(
+            @NonNull Principal principal,
+            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String principalId) {
+        automation.revokePrincipal(principal.getName(), vaultId, principalId);
+        return ResponseEntity.noContent().build();
+    }
+
     @ExceptionHandler(InvalidAutomationRequestException.class)
     @NonNull ResponseEntity<Void> invalidRequest(
             @NonNull InvalidAutomationRequestException exception) {

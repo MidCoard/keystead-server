@@ -3,6 +3,9 @@ package top.focess.keystead.server.automation;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 interface AutomationVaultKeyPackageRepository
         extends JpaRepository<AutomationVaultKeyPackageEntity, AutomationVaultKeyPackageEntityId> {
@@ -16,4 +19,15 @@ interface AutomationVaultKeyPackageRepository
     default void persist(@NonNull AutomationVaultKeyPackage keyPackage) {
         save(AutomationVaultKeyPackageEntity.from(keyPackage));
     }
+
+    @Modifying
+    @Query(
+            """
+            delete from AutomationVaultKeyPackageEntity k
+             where k.id.ownerId = :ownerId
+               and k.id.principalId = :principalId
+            """)
+    int deleteForPrincipal(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("principalId") @NonNull String principalId);
 }
