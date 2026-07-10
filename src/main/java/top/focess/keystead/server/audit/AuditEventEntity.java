@@ -3,13 +3,19 @@ package top.focess.keystead.server.audit;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @Entity
-@Table(name = "audit_events")
+@Table(
+        name = "audit_events",
+        indexes = {
+            @Index(name = "idx_audit_events_owner_created", columnList = "owner_id, created_at"),
+            @Index(name = "idx_audit_events_owner_vault", columnList = "owner_id, vault_id")
+        })
 public class AuditEventEntity {
 
     @Id
