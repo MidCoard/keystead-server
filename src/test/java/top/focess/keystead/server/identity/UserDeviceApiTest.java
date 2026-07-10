@@ -1,6 +1,8 @@
 package top.focess.keystead.server.identity;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,6 +35,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class UserDeviceApiTest {
 
     @Autowired private MockMvc mvc;
+    @Autowired private TombstoneCompactionEligibilityService compactionEligibility;
 
     @Test
     void userRegistrationCreatesBasicAuthIdentity() throws Exception {
@@ -141,6 +144,48 @@ class UserDeviceApiTest {
                                 .content("{\"pulledRevision\":-1}"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.pulledRevision").doesNotExist());
+    }
+
+    @Test
+    void tombstoneEligibilityRequiresEveryActiveDeviceToAcknowledgeRevision() throws Exception {
+        String username = "tombstone-eligibility-user";
+        String password = "correct horse battery staple";
+        String vaultId = "vault-tombstone-eligibility";
+        String laptop = "laptop-tombstone-eligibility";
+        String phone = "phone-tombstone-eligibility";
+        registerUser(username);
+        proveDeviceWithAlgorithm(
+                username, laptop, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        proveDeviceWithAlgorithm(username, phone, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        createVault(username, password, vaultId);
+        acknowledgePulledRevision(username, password, laptop, vaultId, 8)
+                .andExpect(status().isNoContent());
+        acknowledgePulledRevision(username, password, phone, vaultId, 7)
+                .andExpect(status().isNoContent());
+
+        assertTrue(compactionEligibility.isEligible(username, vaultId, 7L));
+        assertFalse(compactionEligibility.isEligible(username, vaultId, 8L));
+    }
+
+    @Test
+    void revokedDeviceDoesNotBlockTombstoneEligibility() throws Exception {
+        String username = "tombstone-eligibility-revoked-user";
+        String password = "correct horse battery staple";
+        String vaultId = "vault-tombstone-eligibility-revoked";
+        String laptop = "laptop-tombstone-eligibility-revoked";
+        String phone = "phone-tombstone-eligibility-revoked";
+        registerUser(username);
+        proveDeviceWithAlgorithm(
+                username, laptop, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        proveDeviceWithAlgorithm(username, phone, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
+        createVault(username, password, vaultId);
+        acknowledgePulledRevision(username, password, laptop, vaultId, 7)
+                .andExpect(status().isNoContent());
+
+        mvc.perform(delete("/api/v1/devices/{deviceId}", phone).with(httpBasic(username, password)))
+                .andExpect(status().isNoContent());
+
+        assertTrue(compactionEligibility.isEligible(username, vaultId, 7L));
     }
 
     @Test
