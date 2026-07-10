@@ -32,6 +32,17 @@ class VaultKeyPackageController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    @PutMapping("/recipients/{recipientId}/devices/{deviceId}")
+    @NonNull ResponseEntity<Void> putForRecipient(
+            @NonNull Principal principal,
+            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String recipientId,
+            @PathVariable @NonNull String deviceId,
+            @RequestBody @NonNull VaultKeyPackageRequest request) {
+        service.putForRecipient(principal.getName(), vaultId, recipientId, deviceId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
     @GetMapping
     @NonNull List<VaultKeyPackageResponse> list(
             @NonNull Principal principal, @PathVariable @NonNull String vaultId) {

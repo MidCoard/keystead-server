@@ -70,6 +70,47 @@ class VaultKeyPackageService {
                 request.keyAlgorithm());
     }
 
+    @Transactional
+    void putForRecipient(
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String recipientId,
+            @NonNull String deviceId,
+            @NonNull VaultKeyPackageRequest request) {
+        accessGuard.requireMemberManager(actorId, vaultId);
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+        accessGuard.requireActiveMember(recipientId, vaultId);
+        if (!keyPackages.verifiedDeviceExists(recipientId, deviceId)) {
+            throw new VaultKeyPackageNotFoundException("Device does not exist");
+        }
+        validate(request);
+        request.validateShape();
+        Instant now = clock.instant();
+        StoredVaultKeyPackage existing =
+                keyPackages.find(ownerId, vaultId, recipientId, deviceId).orElse(null);
+        Instant createdAt = existing == null ? now : existing.createdAt();
+        StoredVaultKeyPackage next =
+                new StoredVaultKeyPackage(
+                        ownerId,
+                        vaultId,
+                        recipientId,
+                        deviceId,
+                        request.resolvedVaultKeyId(),
+                        request.keyAlgorithm(),
+                        request.encryptedVaultKey(),
+                        createdAt,
+                        now);
+        if (existing == null) keyPackages.insert(next);
+        else keyPackages.update(next);
+        audit.keyPackageStored(
+                ownerId,
+                actorId,
+                vaultId,
+                deviceId,
+                request.resolvedVaultKeyId(),
+                request.keyAlgorithm());
+    }
+
     @Transactional(readOnly = true)
     @NonNull List<VaultKeyPackageResponse> list(@NonNull String ownerId, @NonNull String vaultId) {
         accessGuard.requireOwnedVault(ownerId, vaultId);

@@ -3,6 +3,7 @@ package top.focess.keystead.server.audit;
 import java.time.Clock;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ public class AuditService {
     private static final String TARGET_AUTH = "auth";
     private static final String TARGET_DEVICE = "device";
     private static final String TARGET_KEY_PACKAGE = "key_package";
+    private static final String TARGET_AUTOMATION_PRINCIPAL = "automation_principal";
+    private static final String TARGET_AUTOMATION_TOKEN = "automation_token";
     private static final String TARGET_RECORD = "record";
 
     private final AuditEventRepository auditEvents;
@@ -99,6 +102,61 @@ public class AuditService {
                         clock.instant()));
     }
 
+    public void automationPrincipalStored(
+            @NonNull String ownerId, @NonNull String principalId, @NonNull String keyAlgorithm) {
+        appendAutomation(
+                ownerId,
+                ownerId,
+                AuditEventType.AUTOMATION_PRINCIPAL_STORED,
+                TARGET_AUTOMATION_PRINCIPAL,
+                principalId,
+                null,
+                "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}");
+    }
+
+    public void automationTokenIssued(
+            @NonNull String ownerId,
+            @NonNull String principalId,
+            @NonNull String vaultId,
+            @NonNull String scopes) {
+        appendAutomation(
+                ownerId,
+                ownerId,
+                AuditEventType.AUTOMATION_TOKEN_ISSUED,
+                TARGET_AUTOMATION_TOKEN,
+                principalId,
+                vaultId,
+                "{\"scopes\":\"" + escapeJson(scopes) + "\"}");
+    }
+
+    public void automationTokenRevoked(
+            @NonNull String ownerId, @NonNull String principalId, @NonNull String vaultId) {
+        appendAutomation(
+                ownerId,
+                ownerId,
+                AuditEventType.AUTOMATION_TOKEN_REVOKED,
+                TARGET_AUTOMATION_TOKEN,
+                principalId,
+                vaultId,
+                "{\"revoked\":true}");
+    }
+
+    public void automationKeyPackageStored(
+            @NonNull String ownerId,
+            @NonNull String principalId,
+            @NonNull String vaultId,
+            @NonNull String vaultKeyId,
+            @NonNull String keyAlgorithm) {
+        appendAutomation(
+                ownerId,
+                ownerId,
+                AuditEventType.AUTOMATION_KEY_PACKAGE_STORED,
+                TARGET_KEY_PACKAGE,
+                principalId,
+                vaultId,
+                safeKeyPackageDetails(vaultKeyId, keyAlgorithm));
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordRevisionConflict(
             @NonNull String ownerId,
@@ -157,6 +215,29 @@ public class AuditService {
                         targetId,
                         vaultId,
                         revision,
+                        OUTCOME_SUCCESS,
+                        details,
+                        clock.instant()));
+    }
+
+    private void appendAutomation(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull AuditEventType eventType,
+            @NonNull String targetType,
+            @NonNull String targetId,
+            @Nullable String vaultId,
+            @NonNull String details) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        eventType.name(),
+                        targetType,
+                        targetId,
+                        vaultId,
+                        null,
                         OUTCOME_SUCCESS,
                         details,
                         clock.instant()));

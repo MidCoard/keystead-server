@@ -14,7 +14,7 @@ import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.vault.VaultAccessGuard;
 
 @Service
-class EncryptedRecordService {
+public class EncryptedRecordService {
 
     private static final int MAX_PAGE_LIMIT = 500;
 
@@ -198,6 +198,15 @@ class EncryptedRecordService {
     }
 
     @Transactional(readOnly = true)
+    public @NonNull List<EncryptedRecordResponse> listForAutomation(
+            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
+        requireNonNegativeSinceRevision(sinceRevision);
+        return records.listSince(ownerId, vaultId, sinceRevision).stream()
+                .map(EncryptedRecordResponse::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     @NonNull EncryptedRecordPageResponse pageSince(
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
         requireNonNegativeSinceRevision(sinceRevision);
@@ -207,6 +216,28 @@ class EncryptedRecordService {
         String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
         List<StoredEncryptedRecord> fetched =
                 records.pageSince(vaultOwnerId, vaultId, sinceRevision, limit + 1);
+        boolean hasMore = fetched.size() > limit;
+        List<EncryptedRecordResponse> page =
+                fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();
+        long highestRevision =
+                page.stream()
+                        .mapToLong(EncryptedRecordResponse::revision)
+                        .max()
+                        .orElse(sinceRevision);
+        Long nextSinceRevision = hasMore ? highestRevision : null;
+        return new EncryptedRecordPageResponse(
+                vaultId, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
+    }
+
+    @Transactional(readOnly = true)
+    public @NonNull EncryptedRecordPageResponse pageForAutomation(
+            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
+        requireNonNegativeSinceRevision(sinceRevision);
+        if (limit <= 0 || limit > MAX_PAGE_LIMIT) {
+            throw new InvalidRecordRequestException("Record page limit is out of range");
+        }
+        List<StoredEncryptedRecord> fetched =
+                records.pageSince(ownerId, vaultId, sinceRevision, limit + 1);
         boolean hasMore = fetched.size() > limit;
         List<EncryptedRecordResponse> page =
                 fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();

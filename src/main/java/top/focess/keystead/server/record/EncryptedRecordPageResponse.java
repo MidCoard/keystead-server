@@ -5,7 +5,7 @@ import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-record EncryptedRecordPageResponse(
+public record EncryptedRecordPageResponse(
         @NonNull String vaultId,
         long sinceRevision,
         @NonNull List<EncryptedRecordResponse> records,
@@ -13,7 +13,7 @@ record EncryptedRecordPageResponse(
         boolean hasMore,
         @Nullable Long nextSinceRevision) {
 
-    EncryptedRecordPageResponse {
+    public EncryptedRecordPageResponse {
         requireNotBlank(vaultId, "vaultId");
         records = List.copyOf(Objects.requireNonNull(records, "records"));
         if (sinceRevision < 0) {

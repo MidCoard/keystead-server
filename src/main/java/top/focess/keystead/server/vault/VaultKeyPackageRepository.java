@@ -13,7 +13,15 @@ interface VaultKeyPackageRepository
 
     default @NonNull Optional<StoredVaultKeyPackage> find(
             @NonNull String ownerId, @NonNull String vaultId, @NonNull String deviceId) {
-        return findById(new VaultKeyPackageEntityId(ownerId, vaultId, deviceId))
+        return find(ownerId, vaultId, ownerId, deviceId);
+    }
+
+    default @NonNull Optional<StoredVaultKeyPackage> find(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String recipientId,
+            @NonNull String deviceId) {
+        return findById(new VaultKeyPackageEntityId(ownerId, vaultId, recipientId, deviceId))
                 .map(VaultKeyPackageEntity::toStored);
     }
 
@@ -38,7 +46,7 @@ interface VaultKeyPackageRepository
             select k
               from VaultKeyPackageEntity k
               join DeviceEntity d
-                on d.id.ownerId = k.id.ownerId
+                on d.id.ownerId = k.id.recipientId
                and d.id.deviceId = k.id.deviceId
              where k.id.ownerId = :ownerId and k.id.vaultId = :vaultId
                and d.verifiedAt is not null
