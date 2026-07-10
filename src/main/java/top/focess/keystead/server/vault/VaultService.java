@@ -16,16 +16,19 @@ import org.springframework.transaction.annotation.Transactional;
 class VaultService {
 
     private final VaultRepository vaults;
+    private final VaultMemberRepository members;
     private final VaultAccessGuard accessGuard;
     private final Clock clock;
     private final Validator validator;
 
     VaultService(
             @NonNull VaultRepository vaults,
+            @NonNull VaultMemberRepository members,
             @NonNull VaultAccessGuard accessGuard,
             @NonNull Clock clock,
             @NonNull Validator validator) {
         this.vaults = vaults;
+        this.members = members;
         this.accessGuard = accessGuard;
         this.clock = clock;
         this.validator = validator;
@@ -43,6 +46,7 @@ class VaultService {
         try {
             if (existing.isEmpty()) {
                 vaults.insert(next);
+                members.insertOwner(vaultId, ownerId, now);
             } else {
                 vaults.update(next);
             }
