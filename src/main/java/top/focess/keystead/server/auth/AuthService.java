@@ -97,13 +97,27 @@ class AuthService {
                 && !deviceSessions.canStartSession(token.username(), token.deviceId())) {
             throw new AuthFailedException("Authentication failed");
         }
-        refreshTokens.update(token.withLastUsedAt(now));
+        refreshTokens.update(token.revoked(now));
+        String replacementRefreshToken = newRefreshToken();
+        refreshTokens.insert(
+                new StoredRefreshToken(
+                        hash(replacementRefreshToken),
+                        token.username(),
+                        token.deviceId(),
+                        token.refreshExpiresAt(),
+                        null,
+                        now,
+                        now));
         IssuedAccessToken accessToken =
                 accessTokens.issue(
                         token.username(),
                         tokenVersions.tokenVersion(token.username()),
                         token.deviceId());
-        return AuthTokenResponse.refreshed(accessToken.token(), accessToken.expiresAt());
+        return AuthTokenResponse.refreshed(
+                accessToken.token(),
+                replacementRefreshToken,
+                accessToken.expiresAt(),
+                token.refreshExpiresAt());
     }
 
     @Transactional

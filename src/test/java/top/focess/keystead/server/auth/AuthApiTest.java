@@ -76,29 +76,33 @@ class AuthApiTest {
     }
 
     @Test
-    void refreshTokenCanRefreshThenBeRevoked() throws Exception {
+    void refreshTokenRotatesAndRejectsReplay() throws Exception {
         register("refresh-alice");
         String refreshToken = login("refresh-alice");
 
-        mvc.perform(
-                        post("/api/v1/auth/refresh")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(refreshBody(refreshToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
-                .andExpect(jsonPath("$.refreshToken").doesNotExist());
-
-        mvc.perform(
-                        post("/api/v1/auth/revoke")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(refreshBody(refreshToken)))
-                .andExpect(status().isNoContent());
+        MvcResult refreshed =
+                mvc.perform(
+                                post("/api/v1/auth/refresh")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(refreshBody(refreshToken)))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.accessToken", not(blankOrNullString())))
+                        .andExpect(jsonPath("$.refreshToken", not(blankOrNullString())))
+                        .andExpect(jsonPath("$.refreshTokenExpiresAt", not(blankOrNullString())))
+                        .andReturn();
+        String replacementToken = JsonStrings.field(refreshed, "refreshToken");
 
         mvc.perform(
                         post("/api/v1/auth/refresh")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(refreshBody(refreshToken)))
                 .andExpect(status().isUnauthorized());
+
+        mvc.perform(
+                        post("/api/v1/auth/refresh")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(refreshBody(replacementToken)))
+                .andExpect(status().isOk());
     }
 
     @Test

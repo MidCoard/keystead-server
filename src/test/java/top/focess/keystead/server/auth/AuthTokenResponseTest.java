@@ -43,4 +43,10 @@ class AuthTokenResponseTest {
                         new AuthTokenResponse(
                                 "access-token", null, ACCESS_EXPIRES_AT, REFRESH_EXPIRES_AT));
     }
+
+    @Test
+    void refreshedResponseCarriesReplacementRefreshToken() {
+        new AuthTokenResponse(
+                "access-token", "replacement-token", ACCESS_EXPIRES_AT, REFRESH_EXPIRES_AT);
+    }
 }

@@ -40,8 +40,12 @@ public record AuthTokenResponse(
     }
 
     static @NonNull AuthTokenResponse refreshed(
-            @NonNull String accessToken, @NonNull Instant accessTokenExpiresAt) {
-        return new AuthTokenResponse(accessToken, null, accessTokenExpiresAt, null);
+            @NonNull String accessToken,
+            @NonNull String refreshToken,
+            @NonNull Instant accessTokenExpiresAt,
+            @NonNull Instant refreshTokenExpiresAt) {
+        return new AuthTokenResponse(
+                accessToken, refreshToken, accessTokenExpiresAt, refreshTokenExpiresAt);
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {
