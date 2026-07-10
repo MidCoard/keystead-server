@@ -13,6 +13,13 @@ interface VaultRepository extends JpaRepository<VaultEntity, VaultEntityId>, Vau
         return findById(new VaultEntityId(ownerId, vaultId)).map(VaultEntity::toStored);
     }
 
+    @Query("select v from VaultEntity v where v.id.vaultId = :vaultId")
+    @NonNull Optional<VaultEntity> findEntityByVaultId(@Param("vaultId") @NonNull String vaultId);
+
+    default @NonNull Optional<StoredVault> findGlobally(@NonNull String vaultId) {
+        return findEntityByVaultId(vaultId).map(VaultEntity::toStored);
+    }
+
     default boolean exists(@NonNull String ownerId, @NonNull String vaultId) {
         return existsById(new VaultEntityId(ownerId, vaultId));
     }

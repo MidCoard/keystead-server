@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface UserRepository extends JpaRepository<UserEntity, String>, UserRepositoryWrites {
+public interface UserRepository extends JpaRepository<UserEntity, String>, UserRepositoryWrites {
 
     default @NonNull Optional<StoredUser> find(@NonNull String username) {
         return findById(username).map(UserEntity::toStored);

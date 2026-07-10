@@ -23,4 +23,9 @@ interface VaultMemberRepository extends JpaRepository<VaultMemberEntity, VaultMe
                                 now,
                                 now)));
     }
+
+    default @NonNull Optional<StoredVaultMember> findActive(
+            @NonNull String vaultId, @NonNull String userId) {
+        return find(vaultId, userId).filter(member -> member.state() == VaultMemberState.ACTIVE);
+    }
 }

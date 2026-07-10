@@ -1,0 +1,110 @@
+package top.focess.keystead.server.vault;
+
+import java.time.Clock;
+import java.time.Instant;
+import org.jspecify.annotations.NonNull;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.identity.UserRepository;
+
+@Service
+class VaultMemberService {
+    private final VaultAccessGuard access;
+    private final VaultMemberRepository members;
+    private final UserRepository users;
+    private final Clock clock;
+
+    VaultMemberService(
+            @NonNull VaultAccessGuard access,
+            @NonNull VaultMemberRepository members,
+            @NonNull UserRepository users,
+            @NonNull Clock clock) {
+        this.access = access;
+        this.members = members;
+        this.users = users;
+        this.clock = clock;
+    }
+
+    @Transactional
+    void invite(
+            @NonNull String actor,
+            @NonNull String vaultId,
+            @NonNull String userId,
+            @NonNull VaultMemberRequest request) {
+        access.requireMemberManager(actor, vaultId);
+        if (request.role() == VaultMemberRole.OWNER || !users.exists(userId))
+            throw new VaultNotFoundException("Vault does not exist");
+        Instant now = clock.instant();
+        StoredVaultMember previous = members.find(vaultId, userId).orElse(null);
+        Instant created = previous == null ? now : previous.createdAt();
+        members.saveAndFlush(
+                VaultMemberEntity.from(
+                        new StoredVaultMember(
+                                vaultId,
+                                userId,
+                                request.role(),
+                                VaultMemberState.INVITED,
+                                created,
+                                now)));
+    }
+
+    @Transactional
+    void accept(@NonNull String userId, @NonNull String vaultId) {
+        StoredVaultMember member =
+                members.find(vaultId, userId)
+                        .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
+        if (member.state() != VaultMemberState.INVITED)
+            throw new VaultNotFoundException("Vault does not exist");
+        members.saveAndFlush(
+                VaultMemberEntity.from(
+                        new StoredVaultMember(
+                                vaultId,
+                                userId,
+                                member.role(),
+                                VaultMemberState.ACTIVE,
+                                member.createdAt(),
+                                clock.instant())));
+    }
+
+    @Transactional
+    void changeRole(
+            @NonNull String actor,
+            @NonNull String vaultId,
+            @NonNull String userId,
+            @NonNull VaultMemberRequest request) {
+        access.requireMemberManager(actor, vaultId);
+        StoredVaultMember member =
+                members.find(vaultId, userId)
+                        .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
+        if (member.role() == VaultMemberRole.OWNER || request.role() == VaultMemberRole.OWNER)
+            throw new VaultNotFoundException("Vault does not exist");
+        members.saveAndFlush(
+                VaultMemberEntity.from(
+                        new StoredVaultMember(
+                                vaultId,
+                                userId,
+                                request.role(),
+                                member.state(),
+                                member.createdAt(),
+                                clock.instant())));
+    }
+
+    @Transactional
+    void remove(@NonNull String actor, @NonNull String vaultId, @NonNull String userId) {
+        access.requireMemberManager(actor, vaultId);
+        StoredVaultMember member =
+                members.find(vaultId, userId)
+                        .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
+        if (member.role() == VaultMemberRole.OWNER)
+            throw new VaultNotFoundException("Vault does not exist");
+        members.saveAndFlush(
+                VaultMemberEntity.from(
+                        new StoredVaultMember(
+                                vaultId,
+                                userId,
+                                member.role(),
+                                VaultMemberState.REMOVED,
+                                member.createdAt(),
+                                clock.instant())));
+    }
+}

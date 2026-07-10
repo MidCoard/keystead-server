@@ -43,21 +43,26 @@ class EncryptedRecordService {
             @NonNull String vaultId,
             @NonNull String secretId,
             @NonNull EncryptedRecordRequest request) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
+        accessGuard.requireWritableMember(ownerId, vaultId);
         validate(request);
         request.validateShape();
-        Optional<StoredEncryptedRecord> existing = records.find(ownerId, vaultId, secretId);
-        records.latestRevision(ownerId, vaultId)
+        Optional<StoredEncryptedRecord> existing = records.find(vaultOwnerId, vaultId, secretId);
+        records.latestRevision(vaultOwnerId, vaultId)
                 .filter(record -> request.revision() <= record.revision())
                 .ifPresent(
                         record ->
                                 throwRevisionConflict(
-                                        ownerId, vaultId, secretId, record, request.revision()));
+                                        vaultOwnerId,
+                                        vaultId,
+                                        secretId,
+                                        record,
+                                        request.revision()));
         String encryptedProfile = request.resolvedEncryptedProfile();
         String envelope = request.resolvedEnvelope();
         StoredEncryptedRecord next =
                 newRecord(
-                        ownerId,
+                        vaultOwnerId,
                         vaultId,
                         secretId,
                         request.revision(),
@@ -76,11 +81,12 @@ class EncryptedRecordService {
                 result = StoreRecordResult.UPDATED;
             }
         } catch (DataIntegrityViolationException e) {
-            throwRevisionConflictFromConstraint(ownerId, vaultId, secretId, request.revision(), e);
+            throwRevisionConflictFromConstraint(
+                    vaultOwnerId, vaultId, secretId, request.revision(), e);
             throw e;
         }
         audit.recordStored(
-                ownerId,
+                vaultOwnerId,
                 ownerId,
                 vaultId,
                 secretId,
@@ -97,20 +103,21 @@ class EncryptedRecordService {
             @NonNull String secretId,
             long revision) {
         requirePositiveRevision(revision);
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
+        accessGuard.requireWritableMember(ownerId, vaultId);
         StoredEncryptedRecord existing =
-                records.find(ownerId, vaultId, secretId)
+                records.find(vaultOwnerId, vaultId, secretId)
                         .orElseThrow(() -> new RecordNotFoundException("Record does not exist"));
-        records.latestRevision(ownerId, vaultId)
+        records.latestRevision(vaultOwnerId, vaultId)
                 .filter(record -> revision <= record.revision())
                 .ifPresent(
                         record ->
                                 throwRevisionConflict(
-                                        ownerId, vaultId, secretId, record, revision));
+                                        vaultOwnerId, vaultId, secretId, record, revision));
         try {
             records.update(
                     newRecord(
-                            ownerId,
+                            vaultOwnerId,
                             vaultId,
                             secretId,
                             revision,
@@ -120,10 +127,10 @@ class EncryptedRecordService {
                             "",
                             true));
         } catch (DataIntegrityViolationException e) {
-            throwRevisionConflictFromConstraint(ownerId, vaultId, secretId, revision, e);
+            throwRevisionConflictFromConstraint(vaultOwnerId, vaultId, secretId, revision, e);
             throw e;
         }
-        audit.recordDeleted(ownerId, ownerId, vaultId, secretId, revision);
+        audit.recordDeleted(vaultOwnerId, ownerId, vaultId, secretId, revision);
     }
 
     private void requirePositiveRevision(long revision) {
@@ -170,16 +177,22 @@ class EncryptedRecordService {
     @Transactional(readOnly = true)
     @NonNull Optional<StoredEncryptedRecord> find(
             @NonNull String ownerId, @NonNull String vaultId, @NonNull String secretId) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
-        return records.find(ownerId, vaultId, secretId);
+        return records.find(
+                accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId),
+                vaultId,
+                secretId);
     }
 
     @Transactional(readOnly = true)
     @NonNull List<EncryptedRecordResponse> listSince(
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
         requireNonNegativeSinceRevision(sinceRevision);
-        accessGuard.requireOwnedVault(ownerId, vaultId);
-        return records.listSince(ownerId, vaultId, sinceRevision).stream()
+        return records
+                .listSince(
+                        accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId),
+                        vaultId,
+                        sinceRevision)
+                .stream()
                 .map(EncryptedRecordResponse::from)
                 .toList();
     }
@@ -191,9 +204,9 @@ class EncryptedRecordService {
         if (limit <= 0 || limit > MAX_PAGE_LIMIT) {
             throw new InvalidRecordRequestException("Record page limit is out of range");
         }
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
         List<StoredEncryptedRecord> fetched =
-                records.pageSince(ownerId, vaultId, sinceRevision, limit + 1);
+                records.pageSince(vaultOwnerId, vaultId, sinceRevision, limit + 1);
         boolean hasMore = fetched.size() > limit;
         List<EncryptedRecordResponse> page =
                 fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();

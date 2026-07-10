@@ -32,7 +32,8 @@ class EncryptedRecordServiceTest {
         AuditService audit = mock(AuditService.class);
         EncryptedRecordService service = newService(records, accessGuard, audit);
         RuntimeException denied = new RuntimeException("vault denied");
-        doThrow(denied).when(accessGuard).requireOwnedVault("alice", "vault-denied");
+        when(accessGuard.requireActiveMemberAndResolveOwner("alice", "vault-denied"))
+                .thenThrow(denied);
 
         RuntimeException exception =
                 assertThrows(
@@ -49,6 +50,8 @@ class EncryptedRecordServiceTest {
         VaultAccessGuard accessGuard = mock(VaultAccessGuard.class);
         AuditService audit = mock(AuditService.class);
         EncryptedRecordService service = newService(records, accessGuard, audit);
+        when(accessGuard.requireActiveMemberAndResolveOwner("alice", "vault-race"))
+                .thenReturn("alice");
         StoredEncryptedRecord latest =
                 storedRecord("alice", "vault-race", "secret-existing", 4L, false);
         when(records.find("alice", "vault-race", "secret-new")).thenReturn(Optional.empty());
@@ -87,6 +90,8 @@ class EncryptedRecordServiceTest {
         VaultAccessGuard accessGuard = mock(VaultAccessGuard.class);
         AuditService audit = mock(AuditService.class);
         EncryptedRecordService service = newService(records, accessGuard, audit);
+        when(accessGuard.requireActiveMemberAndResolveOwner("alice", "vault-delete-race"))
+                .thenReturn("alice");
         StoredEncryptedRecord existing =
                 storedRecord("alice", "vault-delete-race", "secret-delete", 2L, false);
         StoredEncryptedRecord latest =
