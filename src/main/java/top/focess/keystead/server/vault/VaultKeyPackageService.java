@@ -49,6 +49,7 @@ class VaultKeyPackageService {
                 new StoredVaultKeyPackage(
                         ownerId,
                         vaultId,
+                        ownerId,
                         deviceId,
                         request.resolvedVaultKeyId(),
                         request.keyAlgorithm(),

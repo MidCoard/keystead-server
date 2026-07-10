@@ -39,7 +39,10 @@ public class VaultKeyPackageEntity {
     private VaultKeyPackageEntity(@NonNull StoredVaultKeyPackage keyPackage) {
         this.id =
                 new VaultKeyPackageEntityId(
-                        keyPackage.ownerId(), keyPackage.vaultId(), keyPackage.deviceId());
+                        keyPackage.ownerId(),
+                        keyPackage.vaultId(),
+                        keyPackage.recipientId(),
+                        keyPackage.deviceId());
         this.vaultKeyId = keyPackage.vaultKeyId();
         this.keyAlgorithm = keyPackage.keyAlgorithm();
         this.encryptedVaultKey = keyPackage.encryptedVaultKey();
@@ -55,6 +58,7 @@ public class VaultKeyPackageEntity {
         return new StoredVaultKeyPackage(
                 id.ownerId,
                 id.vaultId,
+                id.recipientId,
                 id.deviceId,
                 vaultKeyId,
                 keyAlgorithm,

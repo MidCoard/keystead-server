@@ -8,6 +8,7 @@ import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 record StoredVaultKeyPackage(
         @NonNull String ownerId,
         @NonNull String vaultId,
+        @NonNull String recipientId,
         @NonNull String deviceId,
         @NonNull String vaultKeyId,
         @NonNull String keyAlgorithm,
@@ -26,6 +27,7 @@ record StoredVaultKeyPackage(
         this(
                 ownerId,
                 vaultId,
+                ownerId,
                 deviceId,
                 "legacy",
                 keyAlgorithm,
@@ -37,6 +39,7 @@ record StoredVaultKeyPackage(
     StoredVaultKeyPackage {
         requireNotBlank(ownerId, "ownerId");
         requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(recipientId, "recipientId");
         requireNotBlank(deviceId, "deviceId");
         requireNotBlank(vaultKeyId, "vaultKeyId");
         Objects.requireNonNull(keyAlgorithm, "keyAlgorithm");
