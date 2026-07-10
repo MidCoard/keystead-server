@@ -60,7 +60,13 @@ class VaultKeyPackageService {
         } else {
             keyPackages.update(next);
         }
-        audit.keyPackageStored(ownerId, ownerId, vaultId, deviceId, request.keyAlgorithm());
+        audit.keyPackageStored(
+                ownerId,
+                ownerId,
+                vaultId,
+                deviceId,
+                request.resolvedVaultKeyId(),
+                request.keyAlgorithm());
     }
 
     @Transactional(readOnly = true)

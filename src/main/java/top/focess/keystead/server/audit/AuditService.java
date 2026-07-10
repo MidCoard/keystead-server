@@ -65,6 +65,7 @@ public class AuditService {
             @NonNull String actorId,
             @NonNull String vaultId,
             @NonNull String deviceId,
+            @NonNull String vaultKeyId,
             @NonNull String keyAlgorithm) {
         auditEvents.append(
                 new StoredAuditEvent(
@@ -77,7 +78,7 @@ public class AuditService {
                         vaultId,
                         null,
                         OUTCOME_SUCCESS,
-                        safeKeyPackageDetails(keyAlgorithm),
+                        safeKeyPackageDetails(vaultKeyId, keyAlgorithm),
                         clock.instant()));
     }
 
@@ -165,8 +166,13 @@ public class AuditService {
         return "{\"secretType\":\"" + escapeJson(secretType) + "\",\"deleted\":" + deleted + "}";
     }
 
-    private static @NonNull String safeKeyPackageDetails(@NonNull String keyAlgorithm) {
-        return "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}";
+    private static @NonNull String safeKeyPackageDetails(
+            @NonNull String vaultKeyId, @NonNull String keyAlgorithm) {
+        return "{\"vaultKeyId\":\""
+                + escapeJson(vaultKeyId)
+                + "\",\"keyAlgorithm\":\""
+                + escapeJson(keyAlgorithm)
+                + "\"}";
     }
 
     private static @NonNull String safeConflictDetails(long latestRevision, long rejectedRevision) {

@@ -231,6 +231,7 @@ class AuditEventApiTest {
         assertThat(event.targetType()).isEqualTo("key_package");
         assertThat(event.targetId()).isEqualTo("audit-laptop-1");
         assertThat(event.revision()).isNull();
+        assertThat(event.details()).contains("vaultKeyId");
         assertThat(event.details()).contains("RSA_OAEP_SHA256");
         assertThat(event.details()).doesNotContain("wrapped-vault-key-audit-sentinel");
     }
