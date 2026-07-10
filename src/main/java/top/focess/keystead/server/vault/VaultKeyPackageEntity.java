@@ -3,12 +3,18 @@ package top.focess.keystead.server.vault;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 
 @Entity
-@Table(name = "vault_key_packages")
+@Table(
+        name = "vault_key_packages",
+        indexes =
+                @Index(
+                        name = "idx_vault_key_packages_owner_vault",
+                        columnList = "owner_id, vault_id"))
 public class VaultKeyPackageEntity {
 
     @EmbeddedId @NonNull VaultKeyPackageEntityId id = new VaultKeyPackageEntityId();
