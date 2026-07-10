@@ -121,7 +121,7 @@ class EncryptedRecordServiceTest {
                 secretId,
                 revision,
                 "SECURE_NOTE",
-                deleted ? "" : "metadata",
+                deleted ? "" : "encrypted-profile",
                 deleted ? "" : "encrypted-profile",
                 deleted ? "" : "envelope",
                 deleted,

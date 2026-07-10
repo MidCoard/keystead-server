@@ -25,6 +25,24 @@ class StoredEncryptedRecordTest {
     }
 
     @Test
+    void activeRowRejectsMetadataAliasThatDiffersFromEncryptedProfile() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredEncryptedRecord(
+                                "alice",
+                                "vault-a",
+                                "secret-a",
+                                1L,
+                                "API_TOKEN",
+                                "legacy-profile",
+                                "canonical-profile",
+                                "envelope",
+                                false,
+                                UPDATED_AT));
+    }
+
+    @Test
     void tombstoneRejectsEncryptedProfileOrEnvelope() {
         assertThrows(IllegalArgumentException.class, () -> deletedRecord("profile", "", 1L));
         assertThrows(IllegalArgumentException.class, () -> deletedRecord("", "envelope", 1L));

@@ -689,7 +689,7 @@ class EncryptedRecordApiTest {
                 secretId,
                 revision,
                 "SECURE_NOTE",
-                "metadata",
+                "encrypted-profile",
                 "encrypted-profile",
                 "envelope",
                 false,

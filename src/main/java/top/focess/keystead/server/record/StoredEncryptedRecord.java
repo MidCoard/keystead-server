@@ -35,8 +35,14 @@ record StoredEncryptedRecord(
             if (!metadata.isBlank() || !encryptedProfile.isBlank() || !envelope.isBlank()) {
                 throw new IllegalArgumentException("Tombstone rows must not carry encrypted data");
             }
-        } else if (encryptedProfile.isBlank() || envelope.isBlank()) {
-            throw new IllegalArgumentException("Active rows must carry encrypted data");
+        } else {
+            if (encryptedProfile.isBlank() || envelope.isBlank()) {
+                throw new IllegalArgumentException("Active rows must carry encrypted data");
+            }
+            if (!metadata.isBlank() && !metadata.equals(encryptedProfile)) {
+                throw new IllegalArgumentException(
+                        "Record metadata alias must match encrypted profile");
+            }
         }
     }
 
