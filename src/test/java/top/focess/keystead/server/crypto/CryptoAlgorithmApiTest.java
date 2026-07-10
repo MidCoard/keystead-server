@@ -40,6 +40,9 @@ class CryptoAlgorithmApiTest {
                 .andExpect(jsonPath("$.vaultKeyPackageAlgorithms[0]").value("RSA_OAEP_SHA256"))
                 .andExpect(
                         jsonPath("$.vaultKeyPackageAlgorithms[1]")
-                                .value("TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM"));
+                                .value("TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM"))
+                .andExpect(
+                        jsonPath("$.vaultKeyPackageAlgorithms[2]")
+                                .value("TINK_DEVICE_KEY_PACKAGE"));
     }
 }

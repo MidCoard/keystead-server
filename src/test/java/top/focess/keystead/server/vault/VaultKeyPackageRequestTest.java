@@ -14,6 +14,11 @@ class VaultKeyPackageRequestTest {
     }
 
     @Test
+    void acceptsCoreDeviceKeyPackageAlgorithm() {
+        request("TINK_DEVICE_KEY_PACKAGE", "wrapped-key").validateShape();
+    }
+
+    @Test
     void rejectsBlankOpaqueKeyPackageFields() {
         assertThrows(
                 InvalidVaultKeyPackageRequestException.class,
