@@ -24,6 +24,21 @@ class EncryptedRecordRequestTest {
     }
 
     @Test
+    void rejectsActiveRecordWithConflictingMetadataAlias() {
+        assertThrows(
+                InvalidRecordRequestException.class,
+                () ->
+                        new EncryptedRecordRequest(
+                                        1L,
+                                        "API_TOKEN",
+                                        "legacy-profile",
+                                        "canonical-profile",
+                                        "envelope",
+                                        false)
+                                .validateShape());
+    }
+
+    @Test
     void rejectsTombstoneWithEncryptedFields() {
         assertThrows(
                 InvalidRecordRequestException.class,

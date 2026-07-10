@@ -31,6 +31,12 @@ public record EncryptedRecordRequest(
             if (!hasText(metadata) && !hasText(encryptedProfile)) {
                 throw new InvalidRecordRequestException("encryptedProfile is required");
             }
+            if (hasText(metadata)
+                    && hasText(encryptedProfile)
+                    && !metadata.equals(encryptedProfile)) {
+                throw new InvalidRecordRequestException(
+                        "metadata alias must match encryptedProfile");
+            }
             if (!hasText(envelope)) {
                 throw new InvalidRecordRequestException("envelope is required");
             }
