@@ -3,13 +3,24 @@ package top.focess.keystead.server.record;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @Entity
-@Table(name = "encrypted_records")
+@Table(
+        name = "encrypted_records",
+        uniqueConstraints =
+                @UniqueConstraint(
+                        name = "uq_encrypted_records_owner_vault_revision",
+                        columnNames = {"owner_id", "vault_id", "revision"}),
+        indexes =
+                @Index(
+                        name = "idx_encrypted_records_sync_page",
+                        columnList = "owner_id, vault_id, revision, secret_id"))
 public class EncryptedRecordEntity {
 
     @EmbeddedId @NonNull EncryptedRecordEntityId id = new EncryptedRecordEntityId();
