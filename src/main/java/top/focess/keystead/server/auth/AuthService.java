@@ -97,7 +97,9 @@ class AuthService {
                 && !deviceSessions.canStartSession(token.username(), token.deviceId())) {
             throw new AuthFailedException("Authentication failed");
         }
-        refreshTokens.update(token.revoked(now));
+        if (refreshTokens.consumeActive(token.tokenHash(), now, now) != 1) {
+            throw new AuthFailedException("Authentication failed");
+        }
         String replacementRefreshToken = newRefreshToken();
         refreshTokens.insert(
                 new StoredRefreshToken(

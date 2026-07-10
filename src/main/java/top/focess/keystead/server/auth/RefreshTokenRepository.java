@@ -26,4 +26,19 @@ interface RefreshTokenRepository
     void revokeAllForUsername(
             @Param("username") @NonNull String username,
             @Param("revokedAt") @NonNull Instant revokedAt);
+
+    @Modifying
+    @Query(
+            """
+            update RefreshTokenEntity t
+               set t.revokedAt = :consumedAt,
+                   t.lastUsedAt = :consumedAt
+             where t.tokenHash = :tokenHash
+               and t.revokedAt is null
+               and t.refreshExpiresAt > :now
+            """)
+    int consumeActive(
+            @Param("tokenHash") @NonNull String tokenHash,
+            @Param("now") @NonNull Instant now,
+            @Param("consumedAt") @NonNull Instant consumedAt);
 }

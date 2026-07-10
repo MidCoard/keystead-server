@@ -1,5 +1,6 @@
 package top.focess.keystead.server.auth;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -26,6 +28,26 @@ class RefreshTokenRepositoryTest {
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> refreshTokens.insert(token("refresh-token-hash-a", "bob")));
+    }
+
+    @Test
+    @Transactional
+    void activeTokenCanBeConsumedOnlyOnce() {
+        StoredRefreshToken token = token("refresh-token-hash-consume", "consume-alice");
+        refreshTokens.insert(token);
+
+        assertEquals(
+                1,
+                refreshTokens.consumeActive(
+                        token.tokenHash(),
+                        LAST_USED_AT.plusSeconds(1),
+                        LAST_USED_AT.plusSeconds(1)));
+        assertEquals(
+                0,
+                refreshTokens.consumeActive(
+                        token.tokenHash(),
+                        LAST_USED_AT.plusSeconds(2),
+                        LAST_USED_AT.plusSeconds(2)));
     }
 
     private static StoredRefreshToken token(String tokenHash, String username) {
