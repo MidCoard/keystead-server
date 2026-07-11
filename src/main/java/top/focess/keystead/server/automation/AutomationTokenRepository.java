@@ -22,6 +22,19 @@ interface AutomationTokenRepository extends JpaRepository<AutomationTokenEntity,
     @Query(
             """
             update AutomationTokenEntity t
+               set t.lastUsedAt = :lastUsedAt
+             where t.tokenHash = :tokenHash
+               and t.revokedAt is null
+               and t.expiresAt > :lastUsedAt
+            """)
+    int touchActive(
+            @Param("tokenHash") @NonNull String tokenHash,
+            @Param("lastUsedAt") @NonNull Instant lastUsedAt);
+
+    @Modifying
+    @Query(
+            """
+            update AutomationTokenEntity t
                set t.revokedAt = :revokedAt
              where t.ownerId = :ownerId
                and t.principalId = :principalId

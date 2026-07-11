@@ -203,25 +203,17 @@ class AutomationService {
                                 principals
                                         .find(token.ownerId(), token.principalId())
                                         .filter(principal -> principal.revokedAt() == null)
+                                        .filter(
+                                                ignored ->
+                                                        tokens.touchActive(token.tokenHash(), now)
+                                                                == 1)
                                         .map(
-                                                ignored -> {
-                                                    tokens.persist(
-                                                            new AutomationToken(
-                                                                    token.tokenHash(),
-                                                                    token.ownerId(),
-                                                                    token.principalId(),
-                                                                    token.vaultId(),
-                                                                    token.scopes(),
-                                                                    token.expiresAt(),
-                                                                    token.createdAt(),
-                                                                    token.revokedAt(),
-                                                                    now));
-                                                    return new AutomationTokenSubject(
-                                                            token.ownerId(),
-                                                            token.principalId(),
-                                                            token.vaultId(),
-                                                            decodeScopes(token.scopes()));
-                                                }));
+                                                ignored ->
+                                                        new AutomationTokenSubject(
+                                                                token.ownerId(),
+                                                                token.principalId(),
+                                                                token.vaultId(),
+                                                                decodeScopes(token.scopes()))));
     }
 
     @Transactional(readOnly = true)
