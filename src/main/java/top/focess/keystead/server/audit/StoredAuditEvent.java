@@ -27,7 +27,13 @@ public record StoredAuditEvent(
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> ALLOWED_OUTCOMES = Set.of("SUCCESS", "FAILURE", "CONFLICT");
     private static final Set<String> ALLOWED_TARGET_TYPES =
-            Set.of("auth", "device", "key_package", "record");
+            Set.of(
+                    "auth",
+                    "device",
+                    "key_package",
+                    "record",
+                    "automation_principal",
+                    "automation_token");
     private static final Set<String> FORBIDDEN_DETAIL_KEYS =
             Set.of(
                     "encryptedprofile",
@@ -140,6 +146,18 @@ public record StoredAuditEvent(
             case LOGIN_FAILED -> {
                 requireShape(targetType, "auth", outcome, "FAILURE");
                 requireNoVaultOrRevision(vaultId, revision);
+            }
+            case AUTOMATION_PRINCIPAL_STORED, AUTOMATION_PRINCIPAL_REVOKED -> {
+                requireShape(targetType, "automation_principal", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
+            }
+            case AUTOMATION_TOKEN_ISSUED, AUTOMATION_TOKEN_REVOKED -> {
+                requireShape(targetType, "automation_token", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
+            }
+            case AUTOMATION_KEY_PACKAGE_STORED -> {
+                requireShape(targetType, "key_package", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
             }
         }
     }

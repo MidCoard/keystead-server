@@ -103,14 +103,17 @@ public class AuditService {
     }
 
     public void automationPrincipalStored(
-            @NonNull String ownerId, @NonNull String principalId, @NonNull String keyAlgorithm) {
+            @NonNull String ownerId,
+            @NonNull String principalId,
+            @NonNull String vaultId,
+            @NonNull String keyAlgorithm) {
         appendAutomation(
                 ownerId,
                 ownerId,
                 AuditEventType.AUTOMATION_PRINCIPAL_STORED,
                 TARGET_AUTOMATION_PRINCIPAL,
                 principalId,
-                null,
+                vaultId,
                 "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}");
     }
 

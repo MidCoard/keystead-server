@@ -75,7 +75,8 @@ class AutomationService {
                         existing == null ? now : existing.createdAt(),
                         now,
                         null));
-        audit.automationPrincipalStored(ownerId, principalId, request.publicKeyAlgorithm());
+        audit.automationPrincipalStored(
+                ownerId, principalId, vaultId, request.publicKeyAlgorithm());
     }
 
     @Transactional
