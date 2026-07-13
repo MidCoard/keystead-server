@@ -1,8 +1,9 @@
 # Keystead Server
 
-Keystead Server stores encrypted vault records for authenticated users. It does
-not decrypt client secrets; `metadata` and `envelope` are opaque encrypted
-payloads from the client/library layer.
+Keystead Server is the authenticated, zero-knowledge synchronization service
+for Keystead. It stores opaque encrypted records, vault envelopes, wrapped
+vault-key packages, public device keys, memberships, sync cursors, and redacted
+audit events. It never decrypts client secrets or receives raw vault keys.
 
 ## API Surface
 
@@ -14,6 +15,9 @@ payloads from the client/library layer.
 - `PUT /api/v1/vaults/{vaultId}/records/{secretId}`
 - `GET /api/v1/vaults/{vaultId}/records/{secretId}`
 - `GET /api/v1/vaults/{vaultId}/records?sinceRevision=0`
+- `GET /api/v1/vaults/{vaultId}/members`
+- Device enrollment, bearer-token auth, key-package, rotation, audit, and sync
+  cursor endpoints under the corresponding `/api/v1` resources.
 
 ## Local Development
 
@@ -51,4 +55,5 @@ Run verification:
 ```
 
 The development user is `local` / `local-development-only`. This is only for
-local bootstrapping; production auth will replace it.
+local bootstrapping. Production defaults to bearer authentication; Basic auth
+is an explicit compatibility/test option.
