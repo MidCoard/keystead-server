@@ -24,8 +24,10 @@ system when paired with a compatible client.
 - Revision-conflict responses instead of silent last-write-wins replacement.
 - Recipient-scoped wrapped vault-key packages.
 - Vault roles for owners, administrators, editors, and viewers.
-- Key-generation rotation records that prevent publication under a stale key
-  generation.
+- Invitations, acceptance, per-device package coverage, removal, and staged
+  key rotation with restart-safe client resumption.
+- Offline-kit and verified-device account recovery without server access to a
+  recovery private key or raw vault key.
 - Scoped automation principals that can read ciphertext without receiving
   plaintext or a raw vault key.
 - Append-only, redacted audit events stored through JPA.
@@ -112,6 +114,53 @@ member prevents future packages, but cannot erase ciphertext or plaintext that
 the member already synchronized. Protecting future data requires client-side
 key rotation and redistribution to the remaining devices.
 
+The server makes that transition explicit. Acceptance first enters
+`ACCEPTED_PENDING_KEY`; the member becomes active only when an authorized
+manager uploads a current package for one of the member's verified devices.
+Removing an active member changes the vault to `ROTATION_REQUIRED`, immediately
+rejects further writes, removes the former member's packages, and excludes the
+member from the next rotation snapshot.
+
+### Staged key rotation
+
+Rotation is coordinated without asking the server to generate or unwrap a key:
+
+1. A client prepares a new vault key locally and asks the server to begin a
+   generation against the current key ID and lifecycle version.
+2. The server snapshots every required verified device plus active automation
+   and recovery recipient. Public keys and public identifiers are returned;
+   private keys never enter the request.
+3. The client wraps the prepared key independently for every target and uploads
+   opaque packages. The generation becomes ready only after exact coverage.
+4. The initiating client commits its local encrypted records and header, then
+   commits the server generation. A restart between those steps resumes from a
+   staged self-package and public checkpoint IDs.
+5. The server atomically replaces current packages, activates selected pending
+   members, advances the lifecycle version, and allows writes again.
+
+Concurrent or stale commits lose a database compare-and-set and return a
+redacted lifecycle conflict. The persistent model and package replacement use
+JPA transactions; Flyway remains the only schema authority.
+
+### Account and vault recovery
+
+Keystead separates server-account recovery from vault-key recovery so a password
+reset never implies that the server can decrypt a vault.
+
+An offline recovery enrollment stores a hash of an account credential, an
+encrypted recovery private key, a recovery public key, and client-wrapped vault
+packages. The printable kit remains with the user. During recovery, a valid kit
+opens the recovery private key on the client, which rewraps current vault keys
+for the replacement device before the server atomically changes the account
+password and enrolls that verified device.
+
+Alternatively, a replacement device creates a canonical signed request. An
+existing verified, non-revoked device reviews it, wraps each current vault key
+for the replacement public key, and signs the approval. The replacement device
+proves possession before receiving a short-lived recovery session. Recovery
+tokens are hashed at rest, single use, time limited, and scoped to recovery
+completion.
+
 ## Deployment
 
 Requires JDK 21.
@@ -168,24 +217,23 @@ monitoring appropriate to their environment.
 ./gradlew spotlessCheck test --no-daemon --rerun-tasks
 ```
 
-The current complete suite contains 247 tests. It includes H2/Flyway database
+The current complete suite contains 295 tests. It includes H2/Flyway database
 constraints, JPA-only architecture checks, auth and device lifecycle tests,
 sync races, membership roles, rotation, automation isolation, and audit
 redaction sentinels.
 
-## Current limitations
+## Operational boundaries
 
 - The access-token HMAC key is generated at server startup. Restarting the
   process invalidates existing access tokens, and the current implementation is
   not suitable for active-active multi-node issuance without a durable shared
   signing-key design.
-- There is no built-in TLS termination, email verification, password-reset
-  service, passkey login, administrative console, or hosted recovery workflow.
+- There is no built-in TLS termination, email verification, passkey login, or
+  administrative console. Recovery is performed by a compatible client using
+  the offline-kit or verified-device APIs.
 - Automatic tombstone compaction is disabled.
-- Sharing primitives are implemented, but removal cannot revoke data already
-  copied by a former member.
-- The project has extensive automated tests but no independent security audit
-  or long-running public production record.
+- Removing a member and rotating protects future key generations; it cannot
+  revoke plaintext or ciphertext that a former member already copied.
 - H2 is for local use; PostgreSQL deployments still need operator-managed
   backups, upgrades, monitoring, and secrets.
 
