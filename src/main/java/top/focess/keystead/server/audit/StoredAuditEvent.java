@@ -32,6 +32,7 @@ public record StoredAuditEvent(
                     "device",
                     "key_package",
                     "record",
+                    "recovery_enrollment",
                     "automation_principal",
                     "automation_token");
     private static final Set<String> FORBIDDEN_DETAIL_KEYS =
@@ -44,7 +45,11 @@ public record StoredAuditEvent(
                     "password",
                     "token",
                     "refreshtoken",
-                    "deviceprivatekey");
+                    "deviceprivatekey",
+                    "accountcredential",
+                    "encryptedprivatekey",
+                    "encryptedvaultkey",
+                    "wrappingpublickey");
 
     public StoredAuditEvent {
         requireNotBlank(eventId, "eventId");
@@ -156,6 +161,14 @@ public record StoredAuditEvent(
                 requireVaultWithoutRevision(vaultId, revision);
             }
             case AUTOMATION_KEY_PACKAGE_STORED -> {
+                requireShape(targetType, "key_package", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
+            }
+            case RECOVERY_ENROLLMENT_CREATED, RECOVERY_ENROLLMENT_COMMITTED -> {
+                requireShape(targetType, "recovery_enrollment", outcome, "SUCCESS");
+                requireNoVaultOrRevision(vaultId, revision);
+            }
+            case RECOVERY_KEY_PACKAGE_STORED -> {
                 requireShape(targetType, "key_package", outcome, "SUCCESS");
                 requireVaultWithoutRevision(vaultId, revision);
             }

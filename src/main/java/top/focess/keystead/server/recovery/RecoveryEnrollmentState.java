@@ -1,6 +1,6 @@
 package top.focess.keystead.server.recovery;
 
-enum RecoveryEnrollmentState {
+public enum RecoveryEnrollmentState {
     PENDING,
     ACTIVE,
     CONSUMED,

@@ -20,6 +20,7 @@ public class AuditService {
     private static final String TARGET_AUTOMATION_PRINCIPAL = "automation_principal";
     private static final String TARGET_AUTOMATION_TOKEN = "automation_token";
     private static final String TARGET_RECORD = "record";
+    private static final String TARGET_RECOVERY_ENROLLMENT = "recovery_enrollment";
 
     private final AuditEventRepository auditEvents;
     private final Clock clock;
@@ -172,6 +173,57 @@ public class AuditService {
                 safeKeyPackageDetails(vaultKeyId, keyAlgorithm));
     }
 
+    public void recoveryEnrollmentCreated(
+            @NonNull String username, @NonNull String enrollmentId, long generation) {
+        appendRecoveryEnrollment(
+                username,
+                username,
+                AuditEventType.RECOVERY_ENROLLMENT_CREATED,
+                enrollmentId,
+                generation,
+                "PENDING");
+    }
+
+    public void recoveryEnrollmentCommitted(
+            @NonNull String username, @NonNull String enrollmentId, long generation) {
+        appendRecoveryEnrollment(
+                username,
+                username,
+                AuditEventType.RECOVERY_ENROLLMENT_COMMITTED,
+                enrollmentId,
+                generation,
+                "ACTIVE");
+    }
+
+    public void recoveryKeyPackageStored(
+            @NonNull String username,
+            @NonNull String actorId,
+            @NonNull String enrollmentId,
+            @NonNull String vaultId,
+            long generation,
+            @NonNull String vaultKeyId,
+            @NonNull String keyAlgorithm) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        username,
+                        actorId,
+                        AuditEventType.RECOVERY_KEY_PACKAGE_STORED.name(),
+                        TARGET_KEY_PACKAGE,
+                        enrollmentId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"generation\":"
+                                + generation
+                                + ",\"vaultKeyId\":\""
+                                + escapeJson(vaultKeyId)
+                                + "\",\"keyAlgorithm\":\""
+                                + escapeJson(keyAlgorithm)
+                                + "\"}",
+                        clock.instant()));
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordRevisionConflict(
             @NonNull String ownerId,
@@ -255,6 +307,32 @@ public class AuditService {
                         null,
                         OUTCOME_SUCCESS,
                         details,
+                        clock.instant()));
+    }
+
+    private void appendRecoveryEnrollment(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull AuditEventType eventType,
+            @NonNull String enrollmentId,
+            long generation,
+            @NonNull String state) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        eventType.name(),
+                        TARGET_RECOVERY_ENROLLMENT,
+                        enrollmentId,
+                        null,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"generation\":"
+                                + generation
+                                + ",\"state\":\""
+                                + escapeJson(state)
+                                + "\"}",
                         clock.instant()));
     }
 
