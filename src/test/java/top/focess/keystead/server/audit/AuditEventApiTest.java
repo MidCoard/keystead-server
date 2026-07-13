@@ -46,6 +46,33 @@ class AuditEventApiTest {
     }
 
     @Test
+    void auditEventsAreQueryableByOwnerAndVaultWithoutCrossOwnerLeakage() {
+        auditEvents.append(auditEvent("vault-query-a"));
+        auditEvents.append(
+                new StoredAuditEvent(
+                        "vault-query-b",
+                        "other-owner",
+                        "other-actor",
+                        AuditEventType.RECORD_STORED.name(),
+                        "record",
+                        "secret-a",
+                        "vault-a",
+                        1L,
+                        "SUCCESS",
+                        "{}",
+                        java.time.Instant.parse("2026-07-09T00:00:01Z")));
+
+        assertThat(auditEvents.listForOwnerAndVault("audit-db-owner", "vault-a"))
+                .extracting(StoredAuditEvent::eventId)
+                .contains("vault-query-a")
+                .doesNotContain("vault-query-b");
+        assertThat(auditEvents.listForOwnerAndVault("other-owner", "vault-a"))
+                .extracting(StoredAuditEvent::eventId)
+                .contains("vault-query-b")
+                .doesNotContain("vault-query-a");
+    }
+
+    @Test
     void recordWriteCreatesRedactedAuditEvent() throws Exception {
         createVault("audit-write-alice", "vault-audit");
 
