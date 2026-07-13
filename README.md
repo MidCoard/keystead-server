@@ -1,59 +1,34 @@
 # Keystead Server
 
-Keystead Server is the authenticated, zero-knowledge synchronization service
-for Keystead. It stores opaque encrypted records, vault envelopes, wrapped
-vault-key packages, public device keys, memberships, sync cursors, and redacted
-audit events. It never decrypts client secrets or receives raw vault keys.
+Keystead Server is the Spring Boot backend for Keystead. It authenticates
+users and devices and synchronizes opaque encrypted vault data without
+decrypting client secrets.
 
-## API Surface
+## What it provides
 
-- `POST /api/v1/users`
-- `POST /api/v1/devices`
-- `GET /api/v1/devices`
-- `PUT /api/v1/vaults/{vaultId}`
-- `GET /api/v1/vaults`
-- `PUT /api/v1/vaults/{vaultId}/records/{secretId}`
-- `GET /api/v1/vaults/{vaultId}/records/{secretId}`
-- `GET /api/v1/vaults/{vaultId}/records?sinceRevision=0`
-- `GET /api/v1/vaults/{vaultId}/members`
-- Device enrollment, bearer-token auth, key-package, rotation, audit, and sync
-  cursor endpoints under the corresponding `/api/v1` resources.
+- User and bearer-token authentication.
+- Device enrollment, verification, and revocation.
+- Vault and encrypted-record synchronization with revisions and tombstones.
+- Wrapped vault-key packages, memberships, and rotation records.
+- Redacted, append-only audit events and sync cursors.
 
-## Local Development
+The server does not receive plaintext secrets, raw vault keys, or device
+private keys. Persistence uses JPA repositories and Flyway migrations.
 
-Run the server:
+## Run locally
 
 ```powershell
 .\gradlew.bat bootRun
 ```
 
-By default, the server uses a local H2 database file under `data/`. No website
-or frontend is included.
+The default profile uses a local H2 database under `data/`. PostgreSQL is
+available through `compose.yml` with the `postgres` profile.
 
-Docker support is included for later PostgreSQL setup, but it is optional and
-not required for the default backend run:
-
-```powershell
-docker compose up -d
-.\gradlew.bat bootRun --args='--spring.profiles.active=postgres'
-```
-
-To run against PostgreSQL installed directly on your machine instead, set the
-database environment variables and enable the `postgres` profile:
+## Verify
 
 ```powershell
-$env:KEYSTEAD_DB_URL="jdbc:postgresql://localhost:5432/keystead"
-$env:KEYSTEAD_DB_USERNAME="keystead"
-$env:KEYSTEAD_DB_PASSWORD="your-password"
-.\gradlew.bat bootRun --args='--spring.profiles.active=postgres'
+.\gradlew.bat spotlessCheck test --no-daemon --rerun-tasks
 ```
 
-Run verification:
-
-```powershell
-.\gradlew.bat clean build --console=plain
-```
-
-The development user is `local` / `local-development-only`. This is only for
-local bootstrapping. Production defaults to bearer authentication; Basic auth
-is an explicit compatibility/test option.
+Basic authentication is retained only for explicit local compatibility and
+test configuration; bearer authentication is the production path.
