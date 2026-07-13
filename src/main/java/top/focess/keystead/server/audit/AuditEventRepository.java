@@ -23,9 +23,9 @@ interface AuditEventRepository
     }
 
     /**
-     * Returns the append-only audit trail for one owner's vault.  The owner
-     * predicate is intentionally retained even though vault ids are normally
-     * opaque: callers must never be able to infer another user's audit data.
+     * Returns the append-only audit trail for one owner's vault. The owner predicate is
+     * intentionally retained even though vault ids are normally opaque: callers must never be able
+     * to infer another user's audit data.
      */
     @Query(
             """
@@ -35,8 +35,7 @@ interface AuditEventRepository
                and e.vaultId = :vaultId
              order by e.createdAt, e.eventId
             """)
-    @NonNull
-    List<AuditEventEntity> listEntitiesForOwnerAndVault(
+    @NonNull List<AuditEventEntity> listEntitiesForOwnerAndVault(
             @Param("ownerId") @NonNull String ownerId, @Param("vaultId") @NonNull String vaultId);
 
     default @NonNull List<StoredAuditEvent> listForOwnerAndVault(

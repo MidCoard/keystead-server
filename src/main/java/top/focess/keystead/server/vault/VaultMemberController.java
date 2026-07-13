@@ -1,11 +1,11 @@
 package top.focess.keystead.server.vault;
 
 import java.security.Principal;
+import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/vaults/{vaultId}/members")

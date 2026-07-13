@@ -1,15 +1,17 @@
 package top.focess.keystead.server.vault;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface VaultMemberRepository extends JpaRepository<VaultMemberEntity, VaultMemberEntityId> {
-    @org.springframework.data.jpa.repository.Query("select m from VaultMemberEntity m where m.id.vaultId = :vaultId order by m.id.userId")
+    @org.springframework.data.jpa.repository.Query(
+            "select m from VaultMemberEntity m where m.id.vaultId = :vaultId order by m.id.userId")
     @NonNull List<VaultMemberEntity> findAllForVault(
             @org.springframework.data.repository.query.Param("vaultId") @NonNull String vaultId);
+
     default @NonNull Optional<StoredVaultMember> find(
             @NonNull String vaultId, @NonNull String userId) {
         return findById(new VaultMemberEntityId(vaultId, userId)).map(VaultMemberEntity::toStored);
