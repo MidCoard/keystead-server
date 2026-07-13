@@ -99,11 +99,13 @@ class VaultKeyPackageService {
     }
 
     @Transactional(readOnly = true)
-    @NonNull List<VaultKeyPackageResponse> list(@NonNull String ownerId, @NonNull String vaultId) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
-        return keyPackages.list(ownerId, vaultId).stream()
-                .map(VaultKeyPackageResponse::from)
-                .toList();
+    @NonNull List<VaultKeyPackageResponse> list(@NonNull String actorId, @NonNull String vaultId) {
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+        List<StoredVaultKeyPackage> packages =
+                actorId.equals(ownerId)
+                        ? keyPackages.list(ownerId, vaultId)
+                        : keyPackages.listForRecipient(ownerId, vaultId, actorId);
+        return packages.stream().map(VaultKeyPackageResponse::from).toList();
     }
 
     @Transactional(readOnly = true)

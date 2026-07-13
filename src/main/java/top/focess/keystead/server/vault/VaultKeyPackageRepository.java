@@ -88,6 +88,42 @@ interface VaultKeyPackageRepository
 
     @Query(
             """
+            select k
+              from VaultKeyPackageEntity k
+              join DeviceEntity d
+                on d.id.ownerId = k.id.recipientId
+               and d.id.deviceId = k.id.deviceId
+             where k.id.ownerId = :ownerId
+               and k.id.vaultId = :vaultId
+               and k.id.recipientId = :recipientId
+               and d.verifiedAt is not null
+               and d.revokedAt is null
+               and d.wrappingKeyAlgorithm is not null
+               and d.wrappingPublicKey is not null
+               and d.wrappingKeyAlgorithm in :approvedWrappingKeyAlgorithms
+             order by k.id.deviceId
+            """)
+    @NonNull List<VaultKeyPackageEntity> listRecipientEntities(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("recipientId") @NonNull String recipientId,
+            @Param("approvedWrappingKeyAlgorithms")
+                    @NonNull List<String> approvedWrappingKeyAlgorithms);
+
+    default @NonNull List<StoredVaultKeyPackage> listForRecipient(
+            @NonNull String ownerId, @NonNull String vaultId, @NonNull String recipientId) {
+        return listRecipientEntities(
+                        ownerId,
+                        vaultId,
+                        recipientId,
+                        ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms())
+                .stream()
+                .map(VaultKeyPackageEntity::toStored)
+                .toList();
+    }
+
+    @Query(
+            """
             select new top.focess.keystead.server.vault.VaultPackageRecipientDeviceResponse(
                 m.id.userId,
                 m.role,
