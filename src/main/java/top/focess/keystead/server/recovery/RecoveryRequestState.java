@@ -1,6 +1,6 @@
 package top.focess.keystead.server.recovery;
 
-enum RecoveryRequestState {
+public enum RecoveryRequestState {
     PENDING,
     APPROVED,
     CONSUMED,

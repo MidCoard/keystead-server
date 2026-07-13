@@ -3,15 +3,7 @@ package top.focess.keystead.server.identity;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Signature;
-import java.security.spec.AlgorithmParameterSpec;
-import java.security.spec.MGF1ParameterSpec;
-import java.security.spec.PSSParameterSpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -20,7 +12,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +33,7 @@ class IdentityService {
     private final Clock clock;
     private final SecureRandom secureRandom;
     private final Validator validator;
+    private final DeviceSignatureVerifier signatures;
 
     IdentityService(
             @NonNull UserRepository users,
@@ -50,7 +42,8 @@ class IdentityService {
             @NonNull AuditService audit,
             @NonNull PasswordEncoder passwordEncoder,
             @NonNull Clock clock,
-            @NonNull Validator validator) {
+            @NonNull Validator validator,
+            @NonNull DeviceSignatureVerifier signatures) {
         this.users = users;
         this.devices = devices;
         this.challenges = challenges;
@@ -59,6 +52,7 @@ class IdentityService {
         this.clock = clock;
         this.secureRandom = new SecureRandom();
         this.validator = validator;
+        this.signatures = signatures;
     }
 
     @Transactional
@@ -146,7 +140,8 @@ class IdentityService {
                 challenges
                         .find(ownerId, deviceId, request.challengeId())
                         .orElseThrow(() -> new DeviceProofFailedException("Device proof failed"));
-        if (!verifySignature(device, challenge, request.signature())) {
+        byte[] payload = proofPayload(challenge).getBytes(StandardCharsets.UTF_8);
+        if (!signatures.verifyRegisteredDevice(device, payload, request.signature())) {
             throw new DeviceProofFailedException("Device proof failed");
         }
         if (challenges.consumeActive(ownerId, deviceId, challenge.challengeId(), now) != 1
@@ -162,21 +157,6 @@ class IdentityService {
         Instant now = clock.instant();
         if (devices.revokeActive(ownerId, deviceId, now) == 1) {
             audit.deviceRevoked(ownerId, ownerId, deviceId);
-        }
-    }
-
-    private boolean verifySignature(
-            @NonNull StoredDevice device,
-            @NonNull StoredDeviceChallenge challenge,
-            @NonNull String encodedSignature) {
-        try {
-            Signature signature = Signature.getInstance(signatureAlgorithm(device.keyAlgorithm()));
-            configureSignature(signature, device.keyAlgorithm());
-            signature.initVerify(publicKey(device));
-            signature.update(proofPayload(challenge).getBytes(StandardCharsets.UTF_8));
-            return signature.verify(Base64.getDecoder().decode(encodedSignature));
-        } catch (IllegalArgumentException | GeneralSecurityException e) {
-            return false;
         }
     }
 
@@ -203,57 +183,6 @@ class IdentityService {
             throw new InvalidUserRegistrationRequestException(
                     violations.iterator().next().getPropertyPath() + " is invalid");
         }
-    }
-
-    private @NonNull PublicKey publicKey(@NonNull StoredDevice device)
-            throws GeneralSecurityException {
-        byte[] keyBytes = Base64.getDecoder().decode(device.publicKey());
-        return KeyFactory.getInstance(keyFactoryAlgorithm(device.keyAlgorithm()))
-                .generatePublic(new X509EncodedKeySpec(keyBytes));
-    }
-
-    private @NonNull String signatureAlgorithm(@NonNull String keyAlgorithm) {
-        return switch (keyAlgorithm) {
-            case ServerCryptoAlgorithmRegistry.DEVICE_RSA_OAEP_SHA256 -> "SHA256withRSA";
-            case ServerCryptoAlgorithmRegistry.DEVICE_RSA_PSS_SHA256 -> "RSASSA-PSS";
-            case ServerCryptoAlgorithmRegistry.DEVICE_ECDSA_P256_SHA256 -> "SHA256withECDSA";
-            case ServerCryptoAlgorithmRegistry.DEVICE_ECDSA_P384_SHA384 -> "SHA384withECDSA";
-            case ServerCryptoAlgorithmRegistry.DEVICE_ECDSA_P521_SHA512 -> "SHA512withECDSA";
-            case ServerCryptoAlgorithmRegistry.DEVICE_ED25519 -> "Ed25519";
-            default -> throw new IllegalArgumentException("Unsupported device key algorithm");
-        };
-    }
-
-    private void configureSignature(@NonNull Signature signature, @NonNull String keyAlgorithm)
-            throws GeneralSecurityException {
-        @Nullable AlgorithmParameterSpec parameters =
-                switch (keyAlgorithm) {
-                    case ServerCryptoAlgorithmRegistry.DEVICE_RSA_PSS_SHA256 ->
-                            rsaPssSha256Parameters();
-                    default -> null;
-                };
-        if (parameters != null) {
-            signature.setParameter(parameters);
-        }
-    }
-
-    private @NonNull PSSParameterSpec rsaPssSha256Parameters() {
-        return new PSSParameterSpec(
-                "SHA-256", "MGF1", MGF1ParameterSpec.SHA256, 32, PSSParameterSpec.TRAILER_FIELD_BC);
-    }
-
-    private @NonNull String keyFactoryAlgorithm(@NonNull String keyAlgorithm) {
-        return switch (keyAlgorithm) {
-            case ServerCryptoAlgorithmRegistry.DEVICE_RSA_OAEP_SHA256,
-                    ServerCryptoAlgorithmRegistry.DEVICE_RSA_PSS_SHA256 ->
-                    "RSA";
-            case ServerCryptoAlgorithmRegistry.DEVICE_ECDSA_P256_SHA256,
-                    ServerCryptoAlgorithmRegistry.DEVICE_ECDSA_P384_SHA384,
-                    ServerCryptoAlgorithmRegistry.DEVICE_ECDSA_P521_SHA512 ->
-                    "EC";
-            case ServerCryptoAlgorithmRegistry.DEVICE_ED25519 -> "Ed25519";
-            default -> throw new IllegalArgumentException("Unsupported device key algorithm");
-        };
     }
 
     private @NonNull String proofPayload(@NonNull StoredDeviceChallenge challenge) {

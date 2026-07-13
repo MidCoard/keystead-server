@@ -33,4 +33,21 @@ class RecoveryMigrationMappingTest {
         assertFalse(migration.contains("new_password"));
         assertFalse(migration.contains("local_passphrase"));
     }
+
+    @Test
+    void deviceApprovalPackageMigrationStoresOnlyOpaquePackages() throws IOException {
+        String migration =
+                Files.readString(
+                                Path.of(
+                                        "src/main/resources/db/migration/V20_1__device_recovery_packages.sql"))
+                        .toLowerCase(Locale.ROOT)
+                        .replaceAll("\\s+", " ")
+                        .trim();
+
+        assertTrue(migration.contains("create table recovery_device_request_packages"));
+        assertTrue(migration.contains("encrypted_vault_key text not null"));
+        assertFalse(migration.contains("vault_key_plaintext"));
+        assertFalse(migration.contains("device_private_key"));
+        assertFalse(migration.contains("new_password"));
+    }
 }

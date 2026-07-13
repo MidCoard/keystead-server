@@ -154,6 +154,21 @@ class RecoverySessionService {
                 .orElseThrow(RecoveryAuthenticationFailedException::new);
     }
 
+    @NonNull RecoverySessionResponse issueDeviceSession(
+            @NonNull RecoveryRequestEntity request, @NonNull Instant now) {
+        String token = randomToken();
+        Instant expiresAt = now.plus(SESSION_TTL);
+        RecoverySessionEntity session = new RecoverySessionEntity();
+        session.tokenHash = tokenHash(token);
+        session.username = request.username;
+        session.authority = RecoveryAuthority.DEVICE_APPROVAL;
+        session.requestId = request.requestId;
+        session.expiresAt = expiresAt;
+        session.createdAt = now;
+        sessions.saveAndFlush(session);
+        return new RecoverySessionResponse(token, expiresAt);
+    }
+
     private @Nullable RecoveryEnrollmentEntity enrollmentFor(
             @NonNull RecoveryChallengeEntity challenge) {
         if (challenge.enrollmentId == null || challenge.generation == null) {
