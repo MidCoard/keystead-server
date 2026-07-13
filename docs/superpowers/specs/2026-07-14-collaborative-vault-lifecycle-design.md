@@ -86,6 +86,8 @@ authorization. Revoking a device marks every vault for which that device has a
 current package as `ROTATION_REQUIRED`, even when the member has another device;
 this excludes a lost or compromised device from future versions. Revoking a
 device that never received a current package requires no vault rotation.
+Revoking an automation principal follows the same rule: every vault for which it
+has a current package becomes `ROTATION_REQUIRED`.
 
 ## Staged, resumable rotation
 
@@ -96,7 +98,7 @@ snapshots required targets:
 
 - every verified, non-revoked, wrapping-capable device of each `ACTIVE` member;
 - selected `ACCEPTED_PENDING_KEY` members that the initiator wants to activate;
-  and
+- every active automation principal with a wrapping public key; and
 - every active recovery enrollment that should retain access.
 
 An active member with no eligible device contributes no device target and is
@@ -122,8 +124,9 @@ own staged package and resume opening the locally rotated vault. Staged packages
 are never served as ordinary committed packages to other devices.
 
 Server commit succeeds only when every required target has one valid package
-bound to the pending vault, key identifier, recipient/enrollment, device where
-applicable, algorithm, and rotation generation. Commit atomically changes the
+bound to the pending vault, key identifier, recipient, device, automation
+principal, or recovery enrollment as applicable, algorithm, and rotation
+generation. Commit atomically changes the
 current key identifier, publishes staged packages, activates included pending
 members, clears the removal requirement, increments the lifecycle version, and
 records a redacted audit event.
@@ -201,7 +204,7 @@ transport failures.
 Server unit and integration tests cover every state and role transition,
 membership-aware discovery, invitation privacy, first-package activation,
 device-level coverage, removal and immediate authorization loss, write blocking,
-target snapshots, concurrent removal/rotation, stale generations, incomplete
+automation revocation, target snapshots, concurrent removal/rotation, stale generations, incomplete
 coverage, idempotency, transaction rollback, redacted audits, and JPA constraints.
 
 Core tests cover package binding and malformed input plus crash recovery before
