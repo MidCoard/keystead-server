@@ -81,7 +81,7 @@ class VerifiedDeviceRecoveryApiTest {
                                           "vaultPackages": [{
                                             "vaultId": "%s",
                                             "vaultKeyId": "vault-key-current",
-                                            "keyAlgorithm": "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
+                                            "keyAlgorithm": "TINK_DEVICE_KEY_PACKAGE",
                                             "encryptedVaultKey": "opaque-new-device-package"
                                           }]
                                         }

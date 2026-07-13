@@ -175,7 +175,9 @@ class RecoveryDeviceService {
                 throw new InvalidRecoveryRequestException("Recovery package vault is duplicated");
             }
             if (!ServerCryptoAlgorithmRegistry.DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM
-                    .equals(value.keyAlgorithm())) {
+                            .equals(value.keyAlgorithm())
+                    && !ServerCryptoAlgorithmRegistry.DEVICE_TINK_DEVICE_KEY_PACKAGE.equals(
+                            value.keyAlgorithm())) {
                 throw new InvalidRecoveryRequestException(
                         "Recovery package algorithm is unsupported");
             }
