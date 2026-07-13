@@ -5,6 +5,7 @@ import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
@@ -132,4 +133,58 @@ interface VaultKeyPackageRepository
                 currentVaultKeyId,
                 ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms());
     }
+
+    @Query(
+            """
+            select count(k) from VaultKeyPackageEntity k
+              join VaultKeyStateEntity s
+                on s.id.ownerId = k.id.ownerId
+               and s.id.vaultId = k.id.vaultId
+               and s.currentVaultKeyId = k.vaultKeyId
+             where k.id.ownerId = :ownerId
+               and k.id.vaultId = :vaultId
+               and k.id.recipientId = :recipientId
+            """)
+    long countCurrentForRecipient(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("recipientId") @NonNull String recipientId);
+
+    @Query(
+            """
+            select k from VaultKeyPackageEntity k
+              join VaultKeyStateEntity s
+                on s.id.ownerId = k.id.ownerId
+               and s.id.vaultId = k.id.vaultId
+               and s.currentVaultKeyId = k.vaultKeyId
+             where k.id.recipientId = :recipientId
+               and k.id.deviceId = :deviceId
+            """)
+    @NonNull List<VaultKeyPackageEntity> listCurrentForDevice(
+            @Param("recipientId") @NonNull String recipientId,
+            @Param("deviceId") @NonNull String deviceId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            delete from VaultKeyPackageEntity k
+             where k.id.ownerId = :ownerId
+               and k.id.vaultId = :vaultId
+               and k.id.recipientId = :recipientId
+            """)
+    int deleteForRecipient(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("recipientId") @NonNull String recipientId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            delete from VaultKeyPackageEntity k
+             where k.id.recipientId = :recipientId
+               and k.id.deviceId = :deviceId
+            """)
+    int deleteForDevice(
+            @Param("recipientId") @NonNull String recipientId,
+            @Param("deviceId") @NonNull String deviceId);
 }

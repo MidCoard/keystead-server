@@ -9,10 +9,15 @@ public class VaultAccessGuard {
 
     private final VaultRepository vaults;
     private final VaultMemberRepository members;
+    private final VaultKeyStateRepository keyStates;
 
-    VaultAccessGuard(@NonNull VaultRepository vaults, @NonNull VaultMemberRepository members) {
+    VaultAccessGuard(
+            @NonNull VaultRepository vaults,
+            @NonNull VaultMemberRepository members,
+            @NonNull VaultKeyStateRepository keyStates) {
         this.vaults = vaults;
         this.members = members;
+        this.keyStates = keyStates;
     }
 
     public void requireActiveMember(@NonNull String userId, @NonNull String vaultId) {
@@ -42,6 +47,17 @@ public class VaultAccessGuard {
     public void requireOwnedVault(@NonNull String ownerId, @NonNull String vaultId) {
         if (!vaults.exists(ownerId, vaultId)) {
             throw new VaultNotFoundException("Vault does not exist");
+        }
+    }
+
+    public void requireStableForWrite(@NonNull String ownerId, @NonNull String vaultId) {
+        VaultKeyLifecycleState state =
+                keyStates
+                        .findById(new VaultEntityId(ownerId, vaultId))
+                        .map(value -> value.lifecycleState)
+                        .orElse(VaultKeyLifecycleState.STABLE);
+        if (state != VaultKeyLifecycleState.STABLE) {
+            throw new VaultLifecycleConflictException(state);
         }
     }
 

@@ -20,6 +20,7 @@ public class AuditService {
     private static final String TARGET_AUTOMATION_PRINCIPAL = "automation_principal";
     private static final String TARGET_AUTOMATION_TOKEN = "automation_token";
     private static final String TARGET_RECORD = "record";
+    private static final String TARGET_VAULT_LIFECYCLE = "vault_lifecycle";
     private static final String TARGET_RECOVERY_ENROLLMENT = "recovery_enrollment";
     private static final String TARGET_RECOVERY_SESSION = "recovery_session";
 
@@ -101,6 +102,31 @@ public class AuditService {
                         null,
                         OUTCOME_SUCCESS,
                         "{\"revoked\":true}",
+                        clock.instant()));
+    }
+
+    public void vaultRotationRequired(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String reason,
+            @NonNull String subjectId) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_ROTATION_REQUIRED.name(),
+                        TARGET_VAULT_LIFECYCLE,
+                        vaultId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"reason\":\""
+                                + escapeJson(reason)
+                                + "\",\"subjectId\":\""
+                                + escapeJson(subjectId)
+                                + "\"}",
                         clock.instant()));
     }
 

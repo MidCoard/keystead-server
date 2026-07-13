@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import top.focess.keystead.server.vault.VaultLifecycleConflictException;
+import top.focess.keystead.server.vault.VaultLifecycleConflictResponse;
 
 @RestController
 @RequestMapping("/api/v1/vaults/{vaultId}/records")
@@ -80,5 +82,12 @@ class EncryptedRecordController {
             @NonNull RevisionConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(RevisionConflictResponse.from(exception));
+    }
+
+    @ExceptionHandler(VaultLifecycleConflictException.class)
+    @NonNull ResponseEntity<VaultLifecycleConflictResponse> lifecycleConflict(
+            @NonNull VaultLifecycleConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(VaultLifecycleConflictResponse.from(exception));
     }
 }

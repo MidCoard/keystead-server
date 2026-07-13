@@ -35,6 +35,11 @@ public class VaultKeyRotationService {
             throw new IllegalArgumentException("vaultKeyId is invalid");
         VaultEntityId id = new VaultEntityId(ownerId, vaultId);
         Optional<VaultKeyStateEntity> existing = keyStates.findById(id);
+        existing.filter(state -> state.lifecycleState != VaultKeyLifecycleState.STABLE)
+                .ifPresent(
+                        state -> {
+                            throw new VaultLifecycleConflictException(state.lifecycleState);
+                        });
         VaultKeyStateEntity state = existing.orElseGet(VaultKeyStateEntity::new);
         state.id = id;
         state.currentVaultKeyId = request.vaultKeyId();

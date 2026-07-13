@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 import top.focess.keystead.server.crypto.UnsupportedCryptoAlgorithmException;
+import top.focess.keystead.server.vault.VaultDeviceRevocationService;
 
 @Service
 class IdentityService {
@@ -34,6 +35,7 @@ class IdentityService {
     private final SecureRandom secureRandom;
     private final Validator validator;
     private final DeviceSignatureVerifier signatures;
+    private final VaultDeviceRevocationService vaultRevocations;
 
     IdentityService(
             @NonNull UserRepository users,
@@ -43,7 +45,8 @@ class IdentityService {
             @NonNull PasswordEncoder passwordEncoder,
             @NonNull Clock clock,
             @NonNull Validator validator,
-            @NonNull DeviceSignatureVerifier signatures) {
+            @NonNull DeviceSignatureVerifier signatures,
+            @NonNull VaultDeviceRevocationService vaultRevocations) {
         this.users = users;
         this.devices = devices;
         this.challenges = challenges;
@@ -53,6 +56,7 @@ class IdentityService {
         this.secureRandom = new SecureRandom();
         this.validator = validator;
         this.signatures = signatures;
+        this.vaultRevocations = vaultRevocations;
     }
 
     @Transactional
@@ -156,6 +160,7 @@ class IdentityService {
                 .orElseThrow(() -> new DeviceNotFoundException("Device does not exist"));
         Instant now = clock.instant();
         if (devices.revokeActive(ownerId, deviceId, now) == 1) {
+            vaultRevocations.revokePackages(ownerId, deviceId, now);
             audit.deviceRevoked(ownerId, ownerId, deviceId);
         }
     }

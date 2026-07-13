@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.vault.VaultAccessGuard;
+import top.focess.keystead.server.vault.VaultAutomationRevocationService;
 import top.focess.keystead.server.vault.VaultKeyRotationService;
 
 class AutomationServiceTest {
@@ -67,6 +68,7 @@ class AutomationServiceTest {
                 mock(AutomationVaultKeyPackageRepository.class),
                 mock(VaultAccessGuard.class),
                 mock(VaultKeyRotationService.class),
+                mock(VaultAutomationRevocationService.class),
                 mock(AuditService.class),
                 CLOCK,
                 mock(Validator.class));

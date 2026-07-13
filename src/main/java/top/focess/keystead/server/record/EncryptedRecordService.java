@@ -45,6 +45,7 @@ public class EncryptedRecordService {
             @NonNull EncryptedRecordRequest request) {
         String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
         accessGuard.requireWritableMember(ownerId, vaultId);
+        accessGuard.requireStableForWrite(vaultOwnerId, vaultId);
         validate(request);
         request.validateShape();
         Optional<StoredEncryptedRecord> existing = records.find(vaultOwnerId, vaultId, secretId);
@@ -105,6 +106,7 @@ public class EncryptedRecordService {
         requirePositiveRevision(revision);
         String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
         accessGuard.requireWritableMember(ownerId, vaultId);
+        accessGuard.requireStableForWrite(vaultOwnerId, vaultId);
         StoredEncryptedRecord existing =
                 records.find(vaultOwnerId, vaultId, secretId)
                         .orElseThrow(() -> new RecordNotFoundException("Record does not exist"));

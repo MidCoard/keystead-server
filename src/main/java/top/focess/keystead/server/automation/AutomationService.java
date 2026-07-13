@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.vault.VaultAccessGuard;
+import top.focess.keystead.server.vault.VaultAutomationRevocationService;
 import top.focess.keystead.server.vault.VaultKeyRotationService;
 
 @Service
@@ -28,6 +29,7 @@ class AutomationService {
     private final AutomationVaultKeyPackageRepository keyPackages;
     private final VaultAccessGuard accessGuard;
     private final VaultKeyRotationService rotations;
+    private final VaultAutomationRevocationService vaultRevocations;
     private final AuditService audit;
     private final Clock clock;
     private final Validator validator;
@@ -39,6 +41,7 @@ class AutomationService {
             @NonNull AutomationVaultKeyPackageRepository keyPackages,
             @NonNull VaultAccessGuard accessGuard,
             @NonNull VaultKeyRotationService rotations,
+            @NonNull VaultAutomationRevocationService vaultRevocations,
             @NonNull AuditService audit,
             @NonNull Clock clock,
             @NonNull Validator validator) {
@@ -47,6 +50,7 @@ class AutomationService {
         this.keyPackages = keyPackages;
         this.accessGuard = accessGuard;
         this.rotations = rotations;
+        this.vaultRevocations = vaultRevocations;
         this.audit = audit;
         this.clock = clock;
         this.validator = validator;
@@ -145,6 +149,7 @@ class AutomationService {
             return;
         }
         Instant now = clock.instant();
+        var affectedVaultIds = keyPackages.listCurrentVaultIds(ownerId, principalId);
         principals.persist(
                 new AutomationPrincipal(
                         principal.ownerId(),
@@ -156,6 +161,7 @@ class AutomationService {
                         now));
         tokens.revokeActiveForPrincipal(ownerId, principalId, now);
         keyPackages.deleteForPrincipal(ownerId, principalId);
+        vaultRevocations.requireRotation(ownerId, principalId, affectedVaultIds, now);
         audit.automationPrincipalRevoked(ownerId, principalId, vaultId);
     }
 

@@ -32,6 +32,7 @@ public record StoredAuditEvent(
                     "device",
                     "key_package",
                     "record",
+                    "vault_lifecycle",
                     "recovery_enrollment",
                     "recovery_session",
                     "automation_principal",
@@ -148,6 +149,10 @@ public record StoredAuditEvent(
             case DEVICE_REVOKED -> {
                 requireShape(targetType, "device", outcome, "SUCCESS");
                 requireNoVaultOrRevision(vaultId, revision);
+            }
+            case VAULT_ROTATION_REQUIRED -> {
+                requireShape(targetType, "vault_lifecycle", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
             }
             case LOGIN_FAILED -> {
                 requireShape(targetType, "auth", outcome, "FAILURE");

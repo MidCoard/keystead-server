@@ -13,16 +13,22 @@ class VaultMemberService {
     private final VaultAccessGuard access;
     private final VaultMemberRepository members;
     private final UserRepository users;
+    private final VaultKeyPackageRepository keyPackages;
+    private final VaultKeyLifecycleService lifecycle;
     private final Clock clock;
 
     VaultMemberService(
             @NonNull VaultAccessGuard access,
             @NonNull VaultMemberRepository members,
             @NonNull UserRepository users,
+            @NonNull VaultKeyPackageRepository keyPackages,
+            @NonNull VaultKeyLifecycleService lifecycle,
             @NonNull Clock clock) {
         this.access = access;
         this.members = members;
         this.users = users;
+        this.keyPackages = keyPackages;
+        this.lifecycle = lifecycle;
         this.clock = clock;
     }
 
@@ -145,11 +151,17 @@ class VaultMemberService {
     @Transactional
     void remove(@NonNull String actor, @NonNull String vaultId, @NonNull String userId) {
         access.requireMemberManager(actor, vaultId);
+        String ownerId = access.requireActiveMemberAndResolveOwner(actor, vaultId);
         StoredVaultMember member =
                 members.find(vaultId, userId)
                         .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
         if (member.role() == VaultMemberRole.OWNER)
             throw new VaultNotFoundException("Vault does not exist");
+        boolean requiresRotation =
+                member.state() == VaultMemberState.ACTIVE
+                        || keyPackages.countCurrentForRecipient(ownerId, vaultId, userId) > 0;
+        keyPackages.deleteForRecipient(ownerId, vaultId, userId);
+        Instant now = clock.instant();
         members.saveAndFlush(
                 VaultMemberEntity.from(
                         new StoredVaultMember(
@@ -158,6 +170,9 @@ class VaultMemberService {
                                 member.role(),
                                 VaultMemberState.REMOVED,
                                 member.createdAt(),
-                                clock.instant())));
+                                now)));
+        if (requiresRotation) {
+            lifecycle.requireRotation(ownerId, actor, vaultId, "MEMBER_REMOVED", userId, now);
+        }
     }
 }
