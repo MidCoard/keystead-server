@@ -173,15 +173,6 @@ constraints, JPA-only architecture checks, auth and device lifecycle tests,
 sync races, membership roles, rotation, automation isolation, and audit
 redaction sentinels.
 
-## How it compares
-
-| Product | Server model | Practical difference |
-| --- | --- | --- |
-| [Bitwarden](https://contributing.bitwarden.com/architecture/security/principles/servers-are-zero-knowledge/) | Mature zero-knowledge hosted and self-hosted synchronization. | Keystead also keeps decryption client-side, but has a much smaller deployment ecosystem and no comparable operational history. |
-| [1Password](https://1password.com/files/1Password-White-Paper.pdf) | Managed multi-platform service using an account password and locally created Secret Key. | Keystead favors direct self-hosting and inspectable JPA state; it lacks the managed operations, recovery, and administration experience. |
-| [KeePassXC](https://keepassxc.org/docs/) | No first-party sync server; users synchronize the encrypted KDBX file through another provider. | Keystead syncs encrypted rows, revisions, and tombstones through a purpose-built server rather than synchronizing one database file. |
-| [Proton Pass](https://proton.me/pass/security) | Hosted end-to-end encrypted service with encrypted metadata and broad client coverage. | Keystead is self-hostable and protocol-focused, but lacks Proton's aliases, mobile/browser reach, audits, and consumer operations. |
-
 ## Current limitations
 
 - The access-token HMAC key is generated at server startup. Restarting the
@@ -198,6 +189,6 @@ redaction sentinels.
 - H2 is for local use; PostgreSQL deployments still need operator-managed
   backups, upgrades, monitoring, and secrets.
 
-Keystead Server should currently be treated as a self-hosted experimental
-service for technically capable users, not as a turnkey substitute for a
-mature commercial password-manager backend.
+Keystead Server is currently intended for technically capable self-hosters who
+can operate its database, TLS boundary, backups, monitoring, and signing-key
+lifecycle. It is not yet a turnkey production service.
