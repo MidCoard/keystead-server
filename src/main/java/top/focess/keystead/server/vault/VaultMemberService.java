@@ -2,6 +2,7 @@ package top.focess.keystead.server.vault;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,15 @@ class VaultMemberService {
         this.members = members;
         this.users = users;
         this.clock = clock;
+    }
+
+    @Transactional(readOnly = true)
+    @NonNull List<VaultMemberResponse> list(@NonNull String actor, @NonNull String vaultId) {
+        access.requireActiveMember(actor, vaultId);
+        return members.findAllForVault(vaultId).stream()
+                .map(VaultMemberEntity::toStored)
+                .map(VaultMemberResponse::from)
+                .toList();
     }
 
     @Transactional

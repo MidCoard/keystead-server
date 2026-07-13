@@ -37,6 +37,26 @@ class VaultKeyPackageApiTest {
     @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
+    void activeMemberCanListVaultMembershipWithoutOpaqueKeyMaterial() throws Exception {
+        registerUser("members-owner");
+        registerUser("members-viewer");
+        createVault("members-owner", "members-vault");
+        inviteAndAcceptMember("members-owner", "members-viewer", "members-vault");
+
+        mvc.perform(
+                        get("/api/v1/vaults/{vaultId}/members", "members-vault")
+                                .with(httpBasic("members-viewer", "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].vaultId").value("members-vault"))
+                .andExpect(jsonPath("$[0].userId").value("members-owner"))
+                .andExpect(jsonPath("$[0].role").value("OWNER"))
+                .andExpect(jsonPath("$[1].userId").value("members-viewer"))
+                .andExpect(jsonPath("$[1].role").value("VIEWER"))
+                .andExpect(jsonPath("$[1].state").value("ACTIVE"))
+                .andExpect(jsonPath("$[0].encryptedVaultKey").doesNotExist());
+    }
+
+    @Test
     void authenticatedUserCanStoreAndListDeviceVaultKeyPackages() throws Exception {
         registerUser("package-alice");
         registerVerifiedDevice("package-alice", "laptop-1");

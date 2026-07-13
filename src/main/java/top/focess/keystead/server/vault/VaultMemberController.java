@@ -5,6 +5,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/vaults/{vaultId}/members")
@@ -13,6 +14,12 @@ class VaultMemberController {
 
     VaultMemberController(@NonNull VaultMemberService service) {
         this.service = service;
+    }
+
+    @GetMapping
+    @NonNull List<VaultMemberResponse> list(
+            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
+        return service.list(principal.getName(), vaultId);
     }
 
     @PutMapping("/{userId}")
