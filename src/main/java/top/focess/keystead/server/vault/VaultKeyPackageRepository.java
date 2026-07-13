@@ -3,6 +3,7 @@ package top.focess.keystead.server.vault;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -82,5 +83,53 @@ interface VaultKeyPackageRepository
                 .stream()
                 .map(VaultKeyPackageEntity::toStored)
                 .toList();
+    }
+
+    @Query(
+            """
+            select new top.focess.keystead.server.vault.VaultPackageRecipientDeviceResponse(
+                m.id.userId,
+                m.role,
+                m.state,
+                d.id.deviceId,
+                d.wrappingKeyAlgorithm,
+                d.wrappingPublicKey,
+                case
+                    when :currentVaultKeyId is not null
+                     and k.vaultKeyId = :currentVaultKeyId then true
+                    else false
+                end)
+              from VaultMemberEntity m
+              join DeviceEntity d on d.id.ownerId = m.id.userId
+              left join VaultKeyPackageEntity k
+                on k.id.ownerId = :ownerId
+               and k.id.vaultId = :vaultId
+               and k.id.recipientId = m.id.userId
+               and k.id.deviceId = d.id.deviceId
+             where m.id.vaultId = :vaultId
+               and m.state in (
+                   top.focess.keystead.server.vault.VaultMemberState.ACCEPTED_PENDING_KEY,
+                   top.focess.keystead.server.vault.VaultMemberState.ACTIVE)
+               and d.verifiedAt is not null
+               and d.revokedAt is null
+               and d.wrappingKeyAlgorithm is not null
+               and d.wrappingPublicKey is not null
+               and d.wrappingKeyAlgorithm in :approvedWrappingKeyAlgorithms
+             order by m.id.userId, d.id.deviceId
+            """)
+    @NonNull List<VaultPackageRecipientDeviceResponse> listRecipientDevices(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("currentVaultKeyId") @Nullable String currentVaultKeyId,
+            @Param("approvedWrappingKeyAlgorithms")
+                    @NonNull List<String> approvedWrappingKeyAlgorithms);
+
+    default @NonNull List<VaultPackageRecipientDeviceResponse> listRecipientDevices(
+            @NonNull String ownerId, @NonNull String vaultId, @Nullable String currentVaultKeyId) {
+        return listRecipientDevices(
+                ownerId,
+                vaultId,
+                currentVaultKeyId,
+                ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms());
     }
 }

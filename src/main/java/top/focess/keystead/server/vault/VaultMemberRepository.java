@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -45,4 +46,19 @@ interface VaultMemberRepository extends JpaRepository<VaultMemberEntity, VaultMe
             @NonNull String vaultId, @NonNull String userId) {
         return find(vaultId, userId).filter(member -> member.state() == VaultMemberState.ACTIVE);
     }
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            update VaultMemberEntity m
+               set m.state = top.focess.keystead.server.vault.VaultMemberState.ACTIVE,
+                   m.updatedAt = :updatedAt
+             where m.id.vaultId = :vaultId
+               and m.id.userId = :userId
+               and m.state = top.focess.keystead.server.vault.VaultMemberState.ACCEPTED_PENDING_KEY
+            """)
+    int activatePending(
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("userId") @NonNull String userId,
+            @Param("updatedAt") @NonNull Instant updatedAt);
 }

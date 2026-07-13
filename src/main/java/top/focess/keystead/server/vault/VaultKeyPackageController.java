@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/vaults/{vaultId}/key-packages")
+@RequestMapping("/api/v1/vaults/{vaultId}")
 class VaultKeyPackageController {
 
     private final VaultKeyPackageService service;
@@ -22,7 +22,7 @@ class VaultKeyPackageController {
         this.service = service;
     }
 
-    @PutMapping("/{deviceId}")
+    @PutMapping("/key-packages/{deviceId}")
     @NonNull ResponseEntity<Void> put(
             @NonNull Principal principal,
             @PathVariable @NonNull String vaultId,
@@ -32,7 +32,7 @@ class VaultKeyPackageController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PutMapping("/recipients/{recipientId}/devices/{deviceId}")
+    @PutMapping("/key-packages/recipients/{recipientId}/devices/{deviceId}")
     @NonNull ResponseEntity<Void> putForRecipient(
             @NonNull Principal principal,
             @PathVariable @NonNull String vaultId,
@@ -43,9 +43,15 @@ class VaultKeyPackageController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @GetMapping
+    @GetMapping("/key-packages")
     @NonNull List<VaultKeyPackageResponse> list(
             @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
         return service.list(principal.getName(), vaultId);
+    }
+
+    @GetMapping("/package-recipients")
+    @NonNull VaultPackageCoverageResponse recipients(
+            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
+        return service.recipients(principal.getName(), vaultId);
     }
 }
