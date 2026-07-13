@@ -237,10 +237,17 @@ class AuditEventApiTest {
     }
 
     @Test
-    void deviceRevocationCreatesRedactedAuditEvent() throws Exception {
+    void repeatedDeviceRevocationCreatesExactlyOneRedactedAuditEvent() throws Exception {
         registerUser("audit-revoke-alice");
         registerVerifiedDevice("audit-revoke-alice", "audit-revoke-laptop");
 
+        mvc.perform(
+                        delete("/api/v1/devices/audit-revoke-laptop")
+                                .with(
+                                        httpBasic(
+                                                "audit-revoke-alice",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
         mvc.perform(
                         delete("/api/v1/devices/audit-revoke-laptop")
                                 .with(
@@ -378,10 +385,12 @@ class AuditEventApiTest {
                                         {
                                           "deviceId": "%s",
                                           "keyAlgorithm": "RSA_OAEP_SHA256",
-                                          "publicKey": "%s"
+                                          "publicKey": "%s",
+                                          "wrappingKeyAlgorithm": "RSA_OAEP_SHA256",
+                                          "wrappingPublicKey": "wrapping-public-key-material-%s"
                                         }
                                         """
-                                                .formatted(deviceId, publicKey)))
+                                                .formatted(deviceId, publicKey, deviceId)))
                 .andExpect(status().isCreated());
     }
 

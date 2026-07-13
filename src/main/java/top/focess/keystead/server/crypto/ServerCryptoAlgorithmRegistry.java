@@ -40,6 +40,9 @@ public final class ServerCryptoAlgorithmRegistry {
                     DEVICE_ECDSA_P521_SHA512,
                     DEVICE_ED25519);
 
+    private static final List<String> DEVICE_WRAPPING_PUBLIC_KEY_ALGORITHMS =
+            List.of(DEVICE_RSA_OAEP_SHA256, DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM);
+
     private static final List<String> VAULT_KEY_PACKAGE_ALGORITHMS = vaultKeyPackageAlgorithms();
 
     private ServerCryptoAlgorithmRegistry() {}
@@ -52,6 +55,10 @@ public final class ServerCryptoAlgorithmRegistry {
         return VAULT_KEY_PACKAGE_ALGORITHMS.contains(algorithm);
     }
 
+    public static boolean isApprovedDeviceWrappingPublicKeyAlgorithm(@NonNull String algorithm) {
+        return DEVICE_WRAPPING_PUBLIC_KEY_ALGORITHMS.contains(algorithm);
+    }
+
     public static @NonNull List<String> approvedPayloadAeadAlgorithms() {
         return PAYLOAD_AEAD_ALGORITHMS;
     }
@@ -62,6 +69,10 @@ public final class ServerCryptoAlgorithmRegistry {
 
     public static @NonNull List<String> approvedDeviceProofAlgorithms() {
         return DEVICE_PROOF_ALGORITHMS;
+    }
+
+    public static @NonNull List<String> approvedDeviceWrappingPublicKeyAlgorithms() {
+        return DEVICE_WRAPPING_PUBLIC_KEY_ALGORITHMS;
     }
 
     public static @NonNull List<String> approvedVaultKeyPackageAlgorithms() {

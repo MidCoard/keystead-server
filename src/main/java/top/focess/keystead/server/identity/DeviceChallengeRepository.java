@@ -26,8 +26,10 @@ interface DeviceChallengeRepository
              where c.id.ownerId = :ownerId
                and c.id.deviceId = :deviceId
                and c.id.challengeId = :challengeId
+               and c.usedAt is null
+               and c.expiresAt > :when
             """)
-    void markUsed(
+    int consumeActive(
             @Param("ownerId") @NonNull String ownerId,
             @Param("deviceId") @NonNull String deviceId,
             @Param("challengeId") @NonNull String challengeId,

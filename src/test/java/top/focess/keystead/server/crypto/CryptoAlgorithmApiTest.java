@@ -37,6 +37,12 @@ class CryptoAlgorithmApiTest {
                 .andExpect(jsonPath("$.deviceProofAlgorithms[3]").value("ECDSA_P384_SHA384"))
                 .andExpect(jsonPath("$.deviceProofAlgorithms[4]").value("ECDSA_P521_SHA512"))
                 .andExpect(jsonPath("$.deviceProofAlgorithms[5]").value("ED25519"))
+                .andExpect(
+                        jsonPath("$.deviceWrappingPublicKeyAlgorithms[0]").value("RSA_OAEP_SHA256"))
+                .andExpect(
+                        jsonPath("$.deviceWrappingPublicKeyAlgorithms[1]")
+                                .value("TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM"))
+                .andExpect(jsonPath("$.deviceWrappingPublicKeyAlgorithms[2]").doesNotExist())
                 .andExpect(jsonPath("$.vaultKeyPackageAlgorithms[0]").value("RSA_OAEP_SHA256"))
                 .andExpect(
                         jsonPath("$.vaultKeyPackageAlgorithms[1]")

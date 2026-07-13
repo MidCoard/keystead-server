@@ -29,9 +29,25 @@ interface DeviceRepository
             """
             update DeviceEntity d
                set d.verifiedAt = :when, d.lastSeenAt = :when
-             where d.id.ownerId = :ownerId and d.id.deviceId = :deviceId
+             where d.id.ownerId = :ownerId
+               and d.id.deviceId = :deviceId
+               and d.revokedAt is null
             """)
-    void markVerified(
+    int markVerifiedActive(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("deviceId") @NonNull String deviceId,
+            @Param("when") @NonNull Instant when);
+
+    @Modifying
+    @Query(
+            """
+            update DeviceEntity d
+               set d.revokedAt = :when
+             where d.id.ownerId = :ownerId
+               and d.id.deviceId = :deviceId
+               and d.revokedAt is null
+            """)
+    int revokeActive(
             @Param("ownerId") @NonNull String ownerId,
             @Param("deviceId") @NonNull String deviceId,
             @Param("when") @NonNull Instant when);

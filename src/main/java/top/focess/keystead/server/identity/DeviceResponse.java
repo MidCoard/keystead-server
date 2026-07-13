@@ -12,6 +12,8 @@ public record DeviceResponse(
         @NonNull String deviceId,
         @NonNull String keyAlgorithm,
         @NonNull String publicKey,
+        @Nullable String wrappingKeyAlgorithm,
+        @Nullable String wrappingPublicKey,
         @NonNull Instant createdAt,
         @Nullable Instant verifiedAt,
         @Nullable Instant lastSeenAt,
@@ -25,9 +27,42 @@ public record DeviceResponse(
         if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(keyAlgorithm)) {
             throw new IllegalArgumentException("Device key algorithm is unsupported");
         }
+        if ((wrappingKeyAlgorithm == null) != (wrappingPublicKey == null)) {
+            throw new IllegalArgumentException(
+                    "Wrapping key algorithm and public key must be supplied together");
+        }
+        if (wrappingKeyAlgorithm != null) {
+            requireNotBlank(wrappingKeyAlgorithm, "wrappingKeyAlgorithm");
+            requireNotBlank(wrappingPublicKey, "wrappingPublicKey");
+            if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceWrappingPublicKeyAlgorithm(
+                    wrappingKeyAlgorithm)) {
+                throw new IllegalArgumentException(
+                        "Device wrapping public key algorithm is unsupported");
+            }
+        }
         requireNotBeforeCreated("verifiedAt", createdAt, verifiedAt);
         requireNotBeforeCreated("lastSeenAt", createdAt, lastSeenAt);
         requireNotBeforeCreated("revokedAt", createdAt, revokedAt);
+    }
+
+    public DeviceResponse(
+            @NonNull String deviceId,
+            @NonNull String keyAlgorithm,
+            @NonNull String publicKey,
+            @NonNull Instant createdAt,
+            @Nullable Instant verifiedAt,
+            @Nullable Instant lastSeenAt,
+            @Nullable Instant revokedAt) {
+        this(
+                deviceId,
+                keyAlgorithm,
+                publicKey,
+                null,
+                null,
+                createdAt,
+                verifiedAt,
+                lastSeenAt,
+                revokedAt);
     }
 
     static @NonNull DeviceResponse from(@NonNull StoredDevice device) {
@@ -35,6 +70,8 @@ public record DeviceResponse(
                 device.deviceId(),
                 device.keyAlgorithm(),
                 device.publicKey(),
+                device.wrappingKeyAlgorithm(),
+                device.wrappingPublicKey(),
                 device.createdAt(),
                 device.verifiedAt(),
                 device.lastSeenAt(),

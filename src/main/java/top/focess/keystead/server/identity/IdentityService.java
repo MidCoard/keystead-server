@@ -85,6 +85,7 @@ class IdentityService {
                             throw new DeviceAlreadyExistsException("Device already exists");
                         });
         validate(request);
+        request.validateShape();
         if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(request.keyAlgorithm())) {
             throw new UnsupportedCryptoAlgorithmException("Unsupported device key algorithm");
         }
@@ -94,6 +95,8 @@ class IdentityService {
                         request.deviceId(),
                         request.keyAlgorithm(),
                         request.publicKey(),
+                        request.wrappingKeyAlgorithm(),
+                        request.wrappingPublicKey(),
                         clock.instant(),
                         null,
                         null,
@@ -143,36 +146,23 @@ class IdentityService {
                 challenges
                         .find(ownerId, deviceId, request.challengeId())
                         .orElseThrow(() -> new DeviceProofFailedException("Device proof failed"));
-        if (device.revokedAt() != null
-                || challenge.usedAt() != null
-                || !challenge.expiresAt().isAfter(now)
-                || !verifySignature(device, challenge, request.signature())) {
+        if (!verifySignature(device, challenge, request.signature())) {
             throw new DeviceProofFailedException("Device proof failed");
         }
-        challenges.markUsed(ownerId, deviceId, challenge.challengeId(), now);
-        devices.markVerified(ownerId, deviceId, now);
+        if (challenges.consumeActive(ownerId, deviceId, challenge.challengeId(), now) != 1
+                || devices.markVerifiedActive(ownerId, deviceId, now) != 1) {
+            throw new DeviceProofFailedException("Device proof failed");
+        }
     }
 
     @Transactional
     void revokeDevice(@NonNull String ownerId, @NonNull String deviceId) {
-        StoredDevice device =
-                devices.find(ownerId, deviceId)
-                        .orElseThrow(() -> new DeviceNotFoundException("Device does not exist"));
-        if (device.revokedAt() != null) {
-            return;
-        }
+        devices.find(ownerId, deviceId)
+                .orElseThrow(() -> new DeviceNotFoundException("Device does not exist"));
         Instant now = clock.instant();
-        devices.update(
-                new StoredDevice(
-                        device.ownerId(),
-                        device.deviceId(),
-                        device.keyAlgorithm(),
-                        device.publicKey(),
-                        device.createdAt(),
-                        device.verifiedAt(),
-                        device.lastSeenAt(),
-                        now));
-        audit.deviceRevoked(ownerId, ownerId, deviceId);
+        if (devices.revokeActive(ownerId, deviceId, now) == 1) {
+            audit.deviceRevoked(ownerId, ownerId, deviceId);
+        }
     }
 
     private boolean verifySignature(

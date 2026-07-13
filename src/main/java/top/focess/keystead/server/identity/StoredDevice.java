@@ -11,6 +11,8 @@ record StoredDevice(
         @NonNull String deviceId,
         @NonNull String keyAlgorithm,
         @NonNull String publicKey,
+        @Nullable String wrappingKeyAlgorithm,
+        @Nullable String wrappingPublicKey,
         @NonNull Instant createdAt,
         @Nullable Instant verifiedAt,
         @Nullable Instant lastSeenAt,
@@ -31,9 +33,53 @@ record StoredDevice(
         if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceProofAlgorithm(keyAlgorithm)) {
             throw new IllegalArgumentException("Device key algorithm is unsupported");
         }
+        if ((wrappingKeyAlgorithm == null) != (wrappingPublicKey == null)) {
+            throw new IllegalArgumentException(
+                    "Wrapping key algorithm and public key must be supplied together");
+        }
+        if (wrappingKeyAlgorithm != null) {
+            if (wrappingKeyAlgorithm.isBlank()) {
+                throw new IllegalArgumentException("Wrapping key algorithm must not be blank");
+            }
+            if (wrappingPublicKey.isBlank()) {
+                throw new IllegalArgumentException("Wrapping public key must not be blank");
+            }
+            if (!ServerCryptoAlgorithmRegistry.isApprovedDeviceWrappingPublicKeyAlgorithm(
+                    wrappingKeyAlgorithm)) {
+                throw new IllegalArgumentException(
+                        "Device wrapping public key algorithm is unsupported");
+            }
+            if (DeviceKeyMaterial.cannotProveSeparation(
+                    keyAlgorithm, publicKey, wrappingKeyAlgorithm, wrappingPublicKey)) {
+                throw new IllegalArgumentException(
+                        "Device proof and wrapping public keys must be distinct");
+            }
+        }
         requireNotBeforeCreated("verifiedAt", createdAt, verifiedAt);
         requireNotBeforeCreated("lastSeenAt", createdAt, lastSeenAt);
         requireNotBeforeCreated("revokedAt", createdAt, revokedAt);
+    }
+
+    StoredDevice(
+            @NonNull String ownerId,
+            @NonNull String deviceId,
+            @NonNull String keyAlgorithm,
+            @NonNull String publicKey,
+            @NonNull Instant createdAt,
+            @Nullable Instant verifiedAt,
+            @Nullable Instant lastSeenAt,
+            @Nullable Instant revokedAt) {
+        this(
+                ownerId,
+                deviceId,
+                keyAlgorithm,
+                publicKey,
+                null,
+                null,
+                createdAt,
+                verifiedAt,
+                lastSeenAt,
+                revokedAt);
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {

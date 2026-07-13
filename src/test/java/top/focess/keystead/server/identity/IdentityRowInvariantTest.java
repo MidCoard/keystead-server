@@ -1,5 +1,6 @@
 package top.focess.keystead.server.identity;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -63,6 +64,82 @@ class IdentityRowInvariantTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> device("alice", "device-a", "RAW_RSA", "public-key"));
+    }
+
+    @Test
+    void storedDeviceAcceptsApprovedWrappingPublicKeyAlgorithms() {
+        assertDoesNotThrow(
+                () ->
+                        deviceWithWrapping(
+                                "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
+                                "tink-wrapping-public-key"));
+        assertDoesNotThrow(() -> deviceWithWrapping("RSA_OAEP_SHA256", "rsa-wrapping-public-key"));
+    }
+
+    @Test
+    void storedDeviceRejectsHalfPresentWrappingPublicKeyPair() {
+        assertThrows(
+                IllegalArgumentException.class, () -> deviceWithWrapping("RSA_OAEP_SHA256", null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> deviceWithWrapping(null, "rsa-wrapping-public-key"));
+    }
+
+    @Test
+    void storedDeviceRejectsNonPublicWrappingAlgorithm() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> deviceWithWrapping("TINK_DEVICE_KEY_PACKAGE", "not-a-public-key-algorithm"));
+    }
+
+    @Test
+    void storedDeviceRejectsReusedProofAndWrappingPublicKey() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredDevice(
+                                "alice",
+                                "device-a",
+                                "RSA_OAEP_SHA256",
+                                "same-public-key",
+                                "RSA_OAEP_SHA256",
+                                "same-public-key",
+                                CREATED_AT,
+                                null,
+                                null,
+                                null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredDevice(
+                                "alice",
+                                "device-a",
+                                "ED25519",
+                                "AQI=",
+                                "RSA_OAEP_SHA256",
+                                "AQI",
+                                CREATED_AT,
+                                null,
+                                null,
+                                null));
+    }
+
+    @Test
+    void storedDeviceRejectsAmbiguousP256ProofAndWrappingKeyPairing() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredDevice(
+                                "alice",
+                                "device-p256-ambiguous",
+                                "ECDSA_P256_SHA256",
+                                "x509-p256-proof-public-key",
+                                "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
+                                "tink-p256-wrapping-public-key",
+                                CREATED_AT,
+                                null,
+                                null,
+                                null));
     }
 
     @Test
@@ -168,6 +245,21 @@ class IdentityRowInvariantTest {
                 verifiedAt,
                 lastSeenAt,
                 revokedAt);
+    }
+
+    private static StoredDevice deviceWithWrapping(
+            String wrappingKeyAlgorithm, String wrappingPublicKey) {
+        return new StoredDevice(
+                "alice",
+                "device-a",
+                "ED25519",
+                "proof-public-key",
+                wrappingKeyAlgorithm,
+                wrappingPublicKey,
+                CREATED_AT,
+                null,
+                null,
+                null);
     }
 
     private static StoredDeviceChallenge challenge(

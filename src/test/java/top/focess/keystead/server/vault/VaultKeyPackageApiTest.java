@@ -1,5 +1,6 @@
 package top.focess.keystead.server.vault;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -22,6 +24,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -29,6 +33,8 @@ import org.springframework.test.web.servlet.MockMvc;
 class VaultKeyPackageApiTest {
 
     @Autowired private MockMvc mvc;
+    @Autowired private EntityManager entityManager;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
     void authenticatedUserCanStoreAndListDeviceVaultKeyPackages() throws Exception {
@@ -187,6 +193,89 @@ class VaultKeyPackageApiTest {
                                         httpBasic(
                                                 "package-unverified",
                                                 "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void ownerCannotPublishVaultKeyPackageForVerifiedProofOnlyDevice() throws Exception {
+        String username = "package-proof-only-owner";
+        String deviceId = "proof-only-owner-device";
+        String vaultId = "package-proof-only-owner-vault";
+        registerUser(username);
+        registerVerifiedProofOnlyDevice(username, deviceId);
+        createVault(username, vaultId);
+
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(packageBody()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void ownerCannotPublishVaultKeyPackageForRecipientsVerifiedProofOnlyDevice() throws Exception {
+        String owner = "package-proof-only-recipient-owner";
+        String recipient = "package-proof-only-recipient";
+        String deviceId = "proof-only-recipient-device";
+        String vaultId = "package-proof-only-recipient-vault";
+        registerUser(owner);
+        registerUser(recipient);
+        registerVerifiedProofOnlyDevice(recipient, deviceId);
+        createVault(owner, vaultId);
+        inviteAndAcceptMember(owner, recipient, vaultId);
+
+        mvc.perform(
+                        put(
+                                        "/api/v1/vaults/{vaultId}/key-packages/recipients/{recipientId}/devices/{deviceId}",
+                                        vaultId,
+                                        recipient,
+                                        deviceId)
+                                .with(httpBasic(owner, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(packageBody()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void ownerCannotPublishVaultKeyPackageForPairedUnapprovedWrappingAlgorithm() throws Exception {
+        String username = "package-unapproved-wrapping-owner";
+        String deviceId = "unapproved-wrapping-owner-device";
+        String vaultId = "package-unapproved-wrapping-owner-vault";
+        registerUser(username);
+        registerVerifiedDevice(username, deviceId);
+        replaceWrappingAlgorithm(username, deviceId, "UNAPPROVED_WRAPPING");
+        createVault(username, vaultId);
+
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(packageBody()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void listOmitsExistingPackageForPairedUnapprovedWrappingAlgorithm() throws Exception {
+        String username = "package-list-unapproved-wrapping";
+        String deviceId = "unapproved-wrapping-list-device";
+        String vaultId = "package-list-unapproved-wrapping-vault";
+        registerUser(username);
+        registerVerifiedDevice(username, deviceId);
+        createVault(username, vaultId);
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(packageBody()))
+                .andExpect(status().isCreated());
+
+        replaceWrappingAlgorithm(username, deviceId, "UNAPPROVED_WRAPPING");
+
+        mvc.perform(
+                        get("/api/v1/vaults/{vaultId}/key-packages", vaultId)
+                                .with(httpBasic(username, "correct horse battery staple")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
@@ -364,11 +453,23 @@ class VaultKeyPackageApiTest {
     }
 
     private void registerVerifiedDevice(String username, String deviceId) throws Exception {
+        registerVerifiedDevice(username, deviceId, true);
+    }
+
+    private void registerVerifiedProofOnlyDevice(String username, String deviceId)
+            throws Exception {
+        registerVerifiedDevice(username, deviceId, false);
+    }
+
+    private void registerVerifiedDevice(String username, String deviceId, boolean wrappingKey)
+            throws Exception {
         KeyPair keyPair = rsaKeyPair();
-        registerDevice(
-                username,
-                deviceId,
-                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        String publicKey = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
+        if (wrappingKey) {
+            registerDevice(username, deviceId, publicKey);
+        } else {
+            registerProofOnlyDevice(username, deviceId, publicKey);
+        }
         String challengeJson =
                 mvc.perform(
                                 post("/api/v1/devices/{deviceId}/challenges", deviceId)
@@ -406,6 +507,26 @@ class VaultKeyPackageApiTest {
                                         {
                                           "deviceId": "%s",
                                           "keyAlgorithm": "RSA_OAEP_SHA256",
+                                          "publicKey": "%s",
+                                          "wrappingKeyAlgorithm": "RSA_OAEP_SHA256",
+                                          "wrappingPublicKey": "wrapping-public-key-material-%s"
+                                        }
+                                        """
+                                                .formatted(deviceId, publicKey, deviceId)))
+                .andExpect(status().isCreated());
+    }
+
+    private void registerProofOnlyDevice(String username, String deviceId, String publicKey)
+            throws Exception {
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(httpBasic(username, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "%s",
+                                          "keyAlgorithm": "RSA_OAEP_SHA256",
                                           "publicKey": "%s"
                                         }
                                         """
@@ -425,6 +546,41 @@ class VaultKeyPackageApiTest {
                                         }
                                         """))
                 .andExpect(status().isCreated());
+    }
+
+    private void inviteAndAcceptMember(String owner, String recipient, String vaultId)
+            throws Exception {
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, recipient)
+                                .with(httpBasic(owner, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"role\":\"VIEWER\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(
+                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                                .with(httpBasic(recipient, "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+    }
+
+    private void replaceWrappingAlgorithm(String ownerId, String deviceId, String algorithm) {
+        new TransactionTemplate(transactionManager)
+                .executeWithoutResult(
+                        ignored -> {
+                            int updated =
+                                    entityManager
+                                            .createQuery(
+                                                    """
+                                                    update DeviceEntity d
+                                                       set d.wrappingKeyAlgorithm = :algorithm
+                                                     where d.id.ownerId = :ownerId
+                                                       and d.id.deviceId = :deviceId
+                                                    """)
+                                            .setParameter("algorithm", algorithm)
+                                            .setParameter("ownerId", ownerId)
+                                            .setParameter("deviceId", deviceId)
+                                            .executeUpdate();
+                            assertEquals(1, updated);
+                        });
     }
 
     private String packageBody() {

@@ -10,6 +10,7 @@ record CryptoAlgorithmCatalogResponse(
         @NonNull List<String> payloadAeadAlgorithms,
         @NonNull List<String> vaultKeyKdfAlgorithms,
         @NonNull List<String> deviceProofAlgorithms,
+        @NonNull List<String> deviceWrappingPublicKeyAlgorithms,
         @NonNull List<String> vaultKeyPackageAlgorithms) {
 
     CryptoAlgorithmCatalogResponse {
@@ -17,6 +18,9 @@ record CryptoAlgorithmCatalogResponse(
         payloadAeadAlgorithms = validateAlgorithms(payloadAeadAlgorithms, "payloadAeadAlgorithms");
         vaultKeyKdfAlgorithms = validateAlgorithms(vaultKeyKdfAlgorithms, "vaultKeyKdfAlgorithms");
         deviceProofAlgorithms = validateAlgorithms(deviceProofAlgorithms, "deviceProofAlgorithms");
+        deviceWrappingPublicKeyAlgorithms =
+                validateAlgorithms(
+                        deviceWrappingPublicKeyAlgorithms, "deviceWrappingPublicKeyAlgorithms");
         vaultKeyPackageAlgorithms =
                 validateAlgorithms(vaultKeyPackageAlgorithms, "vaultKeyPackageAlgorithms");
         requireDefault(payloadAeadAlgorithms, defaults.payloadAead(), "defaults.payloadAead");
@@ -35,6 +39,7 @@ record CryptoAlgorithmCatalogResponse(
                 ServerCryptoAlgorithmRegistry.approvedPayloadAeadAlgorithms(),
                 ServerCryptoAlgorithmRegistry.approvedVaultKeyKdfAlgorithms(),
                 ServerCryptoAlgorithmRegistry.approvedDeviceProofAlgorithms(),
+                ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms(),
                 ServerCryptoAlgorithmRegistry.approvedVaultKeyPackageAlgorithms());
     }
 

@@ -36,6 +36,17 @@ class CryptoAlgorithmCatalogResponseTest {
                                 List.of("PBKDF2WithHmacSHA256"),
                                 List.of("RSA_PSS_SHA256"),
                                 List.of("RSA_OAEP_SHA256"),
+                                List.of("RSA_OAEP_SHA256"),
+                                defaults()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        catalog(
+                                List.of("AES-256-GCM"),
+                                List.of("PBKDF2WithHmacSHA256"),
+                                List.of("RSA_PSS_SHA256"),
+                                List.of(),
+                                List.of("RSA_OAEP_SHA256"),
                                 defaults()));
     }
 
@@ -49,6 +60,7 @@ class CryptoAlgorithmCatalogResponseTest {
                                 List.of("PBKDF2WithHmacSHA256"),
                                 List.of("RSA_PSS_SHA256"),
                                 List.of("RSA_OAEP_SHA256"),
+                                List.of("RSA_OAEP_SHA256"),
                                 defaults()));
         assertThrows(
                 IllegalArgumentException.class,
@@ -57,6 +69,7 @@ class CryptoAlgorithmCatalogResponseTest {
                                 List.of("AES-256-GCM", "AES-256-GCM"),
                                 List.of("PBKDF2WithHmacSHA256"),
                                 List.of("RSA_PSS_SHA256"),
+                                List.of("RSA_OAEP_SHA256"),
                                 List.of("RSA_OAEP_SHA256"),
                                 defaults()));
     }
@@ -71,6 +84,7 @@ class CryptoAlgorithmCatalogResponseTest {
                                 List.of("PBKDF2WithHmacSHA256"),
                                 List.of("RSA_PSS_SHA256"),
                                 List.of("RSA_OAEP_SHA256"),
+                                List.of("RSA_OAEP_SHA256"),
                                 defaults()));
     }
 
@@ -82,6 +96,7 @@ class CryptoAlgorithmCatalogResponseTest {
                         payloadAlgorithms,
                         List.of("PBKDF2WithHmacSHA256"),
                         List.of("RSA_PSS_SHA256"),
+                        List.of("RSA_OAEP_SHA256"),
                         List.of("RSA_OAEP_SHA256"),
                         defaults());
 
@@ -97,6 +112,7 @@ class CryptoAlgorithmCatalogResponseTest {
             List<String> payloadAeadAlgorithms,
             List<String> vaultKeyKdfAlgorithms,
             List<String> deviceProofAlgorithms,
+            List<String> deviceWrappingPublicKeyAlgorithms,
             List<String> vaultKeyPackageAlgorithms,
             CryptoAlgorithmDefaultsResponse defaults) {
         return new CryptoAlgorithmCatalogResponse(
@@ -104,6 +120,7 @@ class CryptoAlgorithmCatalogResponseTest {
                 payloadAeadAlgorithms,
                 vaultKeyKdfAlgorithms,
                 deviceProofAlgorithms,
+                deviceWrappingPublicKeyAlgorithms,
                 vaultKeyPackageAlgorithms);
     }
 

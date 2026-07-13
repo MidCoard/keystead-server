@@ -21,6 +21,12 @@ public class DeviceEntity {
     @Column(name = "public_key", nullable = false, columnDefinition = "text")
     @NonNull String publicKey = "";
 
+    @Column(name = "wrapping_key_algorithm")
+    @Nullable String wrappingKeyAlgorithm;
+
+    @Column(name = "wrapping_public_key", columnDefinition = "text")
+    @Nullable String wrappingPublicKey;
+
     @Column(name = "created_at", nullable = false)
     @NonNull Instant createdAt = Instant.EPOCH;
 
@@ -39,6 +45,8 @@ public class DeviceEntity {
         this.id = new DeviceEntityId(device.ownerId(), device.deviceId());
         this.keyAlgorithm = device.keyAlgorithm();
         this.publicKey = device.publicKey();
+        this.wrappingKeyAlgorithm = device.wrappingKeyAlgorithm();
+        this.wrappingPublicKey = device.wrappingPublicKey();
         this.createdAt = device.createdAt();
         this.verifiedAt = device.verifiedAt();
         this.lastSeenAt = device.lastSeenAt();
@@ -55,6 +63,8 @@ public class DeviceEntity {
                 id.deviceId,
                 keyAlgorithm,
                 publicKey,
+                wrappingKeyAlgorithm,
+                wrappingPublicKey,
                 createdAt,
                 verifiedAt,
                 lastSeenAt,

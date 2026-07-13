@@ -6,6 +6,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 
 interface VaultKeyPackageRepository
         extends JpaRepository<VaultKeyPackageEntity, VaultKeyPackageEntityId>,
@@ -33,12 +34,22 @@ interface VaultKeyPackageRepository
                and d.id.deviceId = :deviceId
                and d.verifiedAt is not null
                and d.revokedAt is null
+               and d.wrappingKeyAlgorithm is not null
+               and d.wrappingPublicKey is not null
+               and d.wrappingKeyAlgorithm in :approvedWrappingKeyAlgorithms
             """)
     long countVerifiedDevice(
-            @Param("ownerId") @NonNull String ownerId, @Param("deviceId") @NonNull String deviceId);
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("deviceId") @NonNull String deviceId,
+            @Param("approvedWrappingKeyAlgorithms")
+                    @NonNull List<String> approvedWrappingKeyAlgorithms);
 
     default boolean verifiedDeviceExists(@NonNull String ownerId, @NonNull String deviceId) {
-        return countVerifiedDevice(ownerId, deviceId) > 0;
+        return countVerifiedDevice(
+                        ownerId,
+                        deviceId,
+                        ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms())
+                > 0;
     }
 
     @Query(
@@ -51,14 +62,24 @@ interface VaultKeyPackageRepository
              where k.id.ownerId = :ownerId and k.id.vaultId = :vaultId
                and d.verifiedAt is not null
                and d.revokedAt is null
+               and d.wrappingKeyAlgorithm is not null
+               and d.wrappingPublicKey is not null
+               and d.wrappingKeyAlgorithm in :approvedWrappingKeyAlgorithms
              order by k.id.deviceId
             """)
     @NonNull List<VaultKeyPackageEntity> listEntities(
-            @Param("ownerId") @NonNull String ownerId, @Param("vaultId") @NonNull String vaultId);
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("approvedWrappingKeyAlgorithms")
+                    @NonNull List<String> approvedWrappingKeyAlgorithms);
 
     default @NonNull List<StoredVaultKeyPackage> list(
             @NonNull String ownerId, @NonNull String vaultId) {
-        return listEntities(ownerId, vaultId).stream()
+        return listEntities(
+                        ownerId,
+                        vaultId,
+                        ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms())
+                .stream()
                 .map(VaultKeyPackageEntity::toStored)
                 .toList();
     }

@@ -1,5 +1,6 @@
 package top.focess.keystead.server.identity;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -28,6 +29,26 @@ class DeviceResponseTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> response("device-a", "RAW_RSA", "public-key", null, null, null));
+    }
+
+    @Test
+    void validatesPairedWrappingPublicKeyFields() {
+        assertDoesNotThrow(
+                () ->
+                        responseWithWrapping(
+                                "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
+                                "tink-wrapping-public-key"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> responseWithWrapping("RSA_OAEP_SHA256", null));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> responseWithWrapping(null, "rsa-wrapping-public-key"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        responseWithWrapping(
+                                "TINK_DEVICE_KEY_PACKAGE", "not-a-public-key-algorithm"));
     }
 
     @Test
@@ -73,5 +94,19 @@ class DeviceResponseTest {
             Instant revokedAt) {
         return new DeviceResponse(
                 deviceId, keyAlgorithm, publicKey, CREATED_AT, verifiedAt, lastSeenAt, revokedAt);
+    }
+
+    private static DeviceResponse responseWithWrapping(
+            String wrappingKeyAlgorithm, String wrappingPublicKey) {
+        return new DeviceResponse(
+                "device-a",
+                "ED25519",
+                "proof-public-key",
+                wrappingKeyAlgorithm,
+                wrappingPublicKey,
+                CREATED_AT,
+                null,
+                null,
+                null);
     }
 }

@@ -2,6 +2,7 @@ package top.focess.keystead.server.identity;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -20,6 +21,7 @@ import java.security.Signature;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.MGF1ParameterSpec;
 import java.security.spec.PSSParameterSpec;
+import java.time.Instant;
 import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +38,7 @@ class UserDeviceApiTest {
 
     @Autowired private MockMvc mvc;
     @Autowired private TombstoneCompactionEligibilityService compactionEligibility;
+    @Autowired private DeviceChallengeRepository challenges;
 
     @Test
     void userRegistrationCreatesBasicAuthIdentity() throws Exception {
@@ -248,7 +251,113 @@ class UserDeviceApiTest {
                 .andExpect(jsonPath("$[0].deviceId").value("phone-1"))
                 .andExpect(jsonPath("$[0].keyAlgorithm").value("RSA_OAEP_SHA256"))
                 .andExpect(jsonPath("$[0].publicKey").value("public-key-material"))
+                .andExpect(jsonPath("$[0].wrappingKeyAlgorithm").doesNotExist())
+                .andExpect(jsonPath("$[0].wrappingPublicKey").doesNotExist())
                 .andExpect(jsonPath("$[0].verifiedAt").doesNotExist());
+    }
+
+    @Test
+    void authenticatedUserCanRegisterAndListSeparateProofAndWrappingPublicKeys() throws Exception {
+        registerUser("device-dual-key-user");
+
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-dual-key-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-dual-key",
+                                          "keyAlgorithm": "ED25519",
+                                          "publicKey": "proof-public-key",
+                                          "wrappingKeyAlgorithm": "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
+                                          "wrappingPublicKey": "wrapping-public-key"
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-dual-key-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].deviceId").value("phone-dual-key"))
+                .andExpect(jsonPath("$[0].keyAlgorithm").value("ED25519"))
+                .andExpect(jsonPath("$[0].publicKey").value("proof-public-key"))
+                .andExpect(
+                        jsonPath("$[0].wrappingKeyAlgorithm")
+                                .value("TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM"))
+                .andExpect(jsonPath("$[0].wrappingPublicKey").value("wrapping-public-key"));
+    }
+
+    @Test
+    void deviceRegistrationRejectsHalfPresentWrappingPublicKeyPair() throws Exception {
+        registerUser("device-wrapping-pair-user");
+
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-wrapping-pair-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-wrapping-algorithm-only",
+                                          "keyAlgorithm": "ED25519",
+                                          "publicKey": "proof-public-key",
+                                          "wrappingKeyAlgorithm": "RSA_OAEP_SHA256"
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-wrapping-pair-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-wrapping-key-only",
+                                          "keyAlgorithm": "ED25519",
+                                          "publicKey": "proof-public-key",
+                                          "wrappingPublicKey": "rsa-wrapping-public-key"
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deviceRegistrationRejectsWrappedPackageFormatAsPublicKeyAlgorithm() throws Exception {
+        registerUser("device-wrapping-algorithm-user");
+
+        mvc.perform(
+                        post("/api/v1/devices")
+                                .with(
+                                        httpBasic(
+                                                "device-wrapping-algorithm-user",
+                                                "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "deviceId": "phone-wrapped-package-format",
+                                          "keyAlgorithm": "ED25519",
+                                          "publicKey": "proof-public-key",
+                                          "wrappingKeyAlgorithm": "TINK_DEVICE_KEY_PACKAGE",
+                                          "wrappingPublicKey": "not-a-public-key"
+                                        }
+                                        """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -392,6 +501,116 @@ class UserDeviceApiTest {
     }
 
     @Test
+    void replayingSuccessfulDeviceProofReturnsGenericFailure() throws Exception {
+        String username = "device-proof-replay-user";
+        String deviceId = "phone-proof-replay";
+        registerUser(username);
+        KeyPair keyPair = rsaKeyPair();
+        registerDevice(
+                username,
+                deviceId,
+                "RSA_OAEP_SHA256",
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        String challengeJson = createChallenge(username, deviceId);
+        String challengeId = JsonPath.read(challengeJson, "$.challengeId");
+        String nonce = JsonPath.read(challengeJson, "$.nonce");
+        String encodedSignature = signature(keyPair.getPrivate(), challengeId, nonce);
+
+        submitProof(username, deviceId, challengeId, encodedSignature)
+                .andExpect(status().isNoContent());
+        submitProof(username, deviceId, challengeId, encodedSignature)
+                .andExpect(status().isUnauthorized())
+                .andExpect(
+                        result -> {
+                            String body = result.getResponse().getContentAsString();
+                            assertFalse(body.contains(challengeId));
+                            assertFalse(body.contains(encodedSignature));
+                        });
+    }
+
+    @Test
+    void expiredDeviceProofReturnsGenericFailureWithoutVerification() throws Exception {
+        String username = "device-proof-expired-user";
+        String deviceId = "phone-proof-expired";
+        String challengeId = "expired-challenge";
+        String nonce = "expired-nonce";
+        KeyPair keyPair = rsaKeyPair();
+        registerUser(username);
+        registerDevice(
+                username,
+                deviceId,
+                "RSA_OAEP_SHA256",
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        Instant createdAt = Instant.parse("2020-01-01T00:00:00Z");
+        challenges.insert(
+                new StoredDeviceChallenge(
+                        username,
+                        deviceId,
+                        challengeId,
+                        nonce,
+                        createdAt.plusSeconds(300),
+                        null,
+                        createdAt));
+        String encodedSignature = signature(keyPair.getPrivate(), challengeId, nonce);
+
+        submitProof(username, deviceId, challengeId, encodedSignature)
+                .andExpect(status().isUnauthorized())
+                .andExpect(
+                        result -> {
+                            String body = result.getResponse().getContentAsString();
+                            assertFalse(body.contains(challengeId));
+                            assertFalse(body.contains(encodedSignature));
+                        });
+
+        assertNull(challenges.find(username, deviceId, challengeId).orElseThrow().usedAt());
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(httpBasic(username, "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].verifiedAt").doesNotExist());
+    }
+
+    @Test
+    void revokedDeviceVerificationRollsBackClaimedChallenge() throws Exception {
+        String username = "device-proof-revoked-rollback-user";
+        String deviceId = "phone-proof-revoked-rollback";
+        KeyPair keyPair = rsaKeyPair();
+        registerUser(username);
+        registerDevice(
+                username,
+                deviceId,
+                "RSA_OAEP_SHA256",
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+        String challengeJson = createChallenge(username, deviceId);
+        String challengeId = JsonPath.read(challengeJson, "$.challengeId");
+        String nonce = JsonPath.read(challengeJson, "$.nonce");
+        String encodedSignature = signature(keyPair.getPrivate(), challengeId, nonce);
+        mvc.perform(
+                        delete("/api/v1/devices/{deviceId}", deviceId)
+                                .with(httpBasic(username, "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+
+        submitProof(username, deviceId, challengeId, encodedSignature)
+                .andExpect(status().isUnauthorized())
+                .andExpect(
+                        result -> {
+                            String body = result.getResponse().getContentAsString();
+                            assertFalse(body.contains(challengeId));
+                            assertFalse(body.contains(encodedSignature));
+                        });
+
+        assertNull(
+                challenges.find(username, deviceId, challengeId).orElseThrow().usedAt(),
+                "failed active-device verification must roll back the challenge claim");
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(httpBasic(username, "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].verifiedAt").doesNotExist())
+                .andExpect(jsonPath("$[0].revokedAt").isNotEmpty());
+    }
+
+    @Test
     void wrongDeviceChallengeSignatureIsRejected() throws Exception {
         registerUser("device-proof-reject-user");
         KeyPair registeredKeyPair = rsaKeyPair();
@@ -467,7 +686,7 @@ class UserDeviceApiTest {
     }
 
     @Test
-    void revokedDeviceIsListedAsRevokedAndCannotStartNewChallenge() throws Exception {
+    void repeatedDeviceRevocationIsIdempotentAndCannotStartNewChallenge() throws Exception {
         registerUser("device-revoke-user");
         proveDeviceWithAlgorithm(
                 "device-revoke-user",
@@ -476,6 +695,13 @@ class UserDeviceApiTest {
                 rsaKeyPair(),
                 "SHA256withRSA");
 
+        mvc.perform(
+                        delete("/api/v1/devices/phone-revoke")
+                                .with(
+                                        httpBasic(
+                                                "device-revoke-user",
+                                                "correct horse battery staple")))
+                .andExpect(status().isNoContent());
         mvc.perform(
                         delete("/api/v1/devices/phone-revoke")
                                 .with(
@@ -684,6 +910,33 @@ class UserDeviceApiTest {
                                         """
                                                 .formatted(deviceId, keyAlgorithm, publicKey)))
                 .andExpect(status().isCreated());
+    }
+
+    private String createChallenge(String username, String deviceId) throws Exception {
+        return mvc.perform(
+                        post("/api/v1/devices/{deviceId}/challenges", deviceId)
+                                .with(httpBasic(username, "correct horse battery staple")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+    }
+
+    private org.springframework.test.web.servlet.ResultActions submitProof(
+            String username, String deviceId, String challengeId, String encodedSignature)
+            throws Exception {
+        return mvc.perform(
+                post("/api/v1/devices/{deviceId}/proof", deviceId)
+                        .with(httpBasic(username, "correct horse battery staple"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {
+                                  "challengeId": "%s",
+                                  "signature": "%s"
+                                }
+                                """
+                                        .formatted(challengeId, encodedSignature)));
     }
 
     private void proveDeviceWithAlgorithm(
