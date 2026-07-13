@@ -17,6 +17,7 @@ class VaultService {
 
     private final VaultRepository vaults;
     private final VaultMemberRepository members;
+    private final VaultKeyStateRepository keyStates;
     private final VaultAccessGuard accessGuard;
     private final Clock clock;
     private final Validator validator;
@@ -24,11 +25,13 @@ class VaultService {
     VaultService(
             @NonNull VaultRepository vaults,
             @NonNull VaultMemberRepository members,
+            @NonNull VaultKeyStateRepository keyStates,
             @NonNull VaultAccessGuard accessGuard,
             @NonNull Clock clock,
             @NonNull Validator validator) {
         this.vaults = vaults;
         this.members = members;
+        this.keyStates = keyStates;
         this.accessGuard = accessGuard;
         this.clock = clock;
         this.validator = validator;
@@ -56,8 +59,26 @@ class VaultService {
     }
 
     @Transactional(readOnly = true)
-    @NonNull List<VaultResponse> list(@NonNull String ownerId) {
-        return vaults.list(ownerId).stream().map(VaultResponse::from).toList();
+    @NonNull List<VaultMembershipResponse> list(@NonNull String userId) {
+        return members.findAllForUser(userId).stream().map(this::membership).toList();
+    }
+
+    private @NonNull VaultMembershipResponse membership(@NonNull VaultMemberEntity entity) {
+        StoredVaultMember member = entity.toStored();
+        StoredVault vault =
+                vaults.findGlobally(member.vaultId())
+                        .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
+        Optional<VaultKeyStateEntity> keyState =
+                keyStates.findById(new VaultEntityId(vault.ownerId(), vault.vaultId()));
+        return new VaultMembershipResponse(
+                vault.vaultId(),
+                vault.ownerId(),
+                vault.encryptedMetadata(),
+                member.role(),
+                member.state(),
+                keyState.map(state -> state.currentVaultKeyId).orElse(null),
+                keyState.map(state -> state.lifecycleState).orElse(VaultKeyLifecycleState.STABLE),
+                keyState.map(state -> state.lifecycleVersion).orElse(0L));
     }
 
     private void validate(@NonNull VaultRequest request) {

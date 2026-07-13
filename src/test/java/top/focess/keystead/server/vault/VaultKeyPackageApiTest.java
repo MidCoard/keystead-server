@@ -37,7 +37,7 @@ class VaultKeyPackageApiTest {
     @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
-    void activeMemberCanListVaultMembershipWithoutOpaqueKeyMaterial() throws Exception {
+    void ownerCanListAcceptedPendingMembershipWithoutOpaqueKeyMaterial() throws Exception {
         registerUser("members-owner");
         registerUser("members-viewer");
         createVault("members-owner", "members-vault");
@@ -45,14 +45,14 @@ class VaultKeyPackageApiTest {
 
         mvc.perform(
                         get("/api/v1/vaults/{vaultId}/members", "members-vault")
-                                .with(httpBasic("members-viewer", "correct horse battery staple")))
+                                .with(httpBasic("members-owner", "correct horse battery staple")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].vaultId").value("members-vault"))
                 .andExpect(jsonPath("$[0].userId").value("members-owner"))
                 .andExpect(jsonPath("$[0].role").value("OWNER"))
                 .andExpect(jsonPath("$[1].userId").value("members-viewer"))
                 .andExpect(jsonPath("$[1].role").value("VIEWER"))
-                .andExpect(jsonPath("$[1].state").value("ACTIVE"))
+                .andExpect(jsonPath("$[1].state").value("ACCEPTED_PENDING_KEY"))
                 .andExpect(jsonPath("$[0].encryptedVaultKey").doesNotExist());
     }
 

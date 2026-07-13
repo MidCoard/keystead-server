@@ -39,6 +39,13 @@ class VaultMemberController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/decline")
+    @NonNull ResponseEntity<Void> decline(
+            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
+        service.decline(principal.getName(), vaultId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{userId}/role")
     @NonNull ResponseEntity<Void> role(
             @NonNull Principal principal,

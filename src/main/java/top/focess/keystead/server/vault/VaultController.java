@@ -32,7 +32,7 @@ class VaultController {
     }
 
     @GetMapping
-    @NonNull List<VaultResponse> list(@NonNull Principal principal) {
+    @NonNull List<VaultMembershipResponse> list(@NonNull Principal principal) {
         return service.list(principal.getName());
     }
 }
