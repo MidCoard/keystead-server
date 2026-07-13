@@ -34,6 +34,7 @@ create table vault_rotation_generations (
     state varchar(32) not null,
     initiator_id varchar(255) not null,
     lifecycle_version bigint not null,
+    prior_lifecycle_state varchar(32) not null,
     pending_marker char(1),
     created_at timestamp not null,
     updated_at timestamp not null,
@@ -47,6 +48,9 @@ create table vault_rotation_generations (
         state in ('OPEN', 'PACKAGING', 'READY', 'COMMITTED')
     ),
     constraint ck_vault_rotation_generation_version check (lifecycle_version > 0),
+    constraint ck_vault_rotation_generation_prior_state check (
+        prior_lifecycle_state in ('STABLE', 'ROTATION_REQUIRED')
+    ),
     constraint ck_vault_rotation_generation_pending check (
         (state in ('OPEN', 'PACKAGING', 'READY') and pending_marker = 'P')
         or (state = 'COMMITTED' and pending_marker is null)

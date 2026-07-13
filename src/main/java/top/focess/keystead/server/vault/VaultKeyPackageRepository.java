@@ -187,4 +187,14 @@ interface VaultKeyPackageRepository
     int deleteForDevice(
             @Param("recipientId") @NonNull String recipientId,
             @Param("deviceId") @NonNull String deviceId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            delete from VaultKeyPackageEntity k
+             where k.id.ownerId = :ownerId
+               and k.id.vaultId = :vaultId
+            """)
+    int deleteForVault(
+            @Param("ownerId") @NonNull String ownerId, @Param("vaultId") @NonNull String vaultId);
 }

@@ -24,6 +24,16 @@ public class VaultAccessGuard {
         activeMemberOrThrow(userId, vaultId);
     }
 
+    public void requireAcceptedOrActiveMember(@NonNull String userId, @NonNull String vaultId) {
+        StoredVaultMember member =
+                members.find(vaultId, userId)
+                        .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
+        if (member.state() != VaultMemberState.ACCEPTED_PENDING_KEY
+                && member.state() != VaultMemberState.ACTIVE) {
+            throw new VaultNotFoundException("Vault does not exist");
+        }
+    }
+
     public @NonNull String requireActiveMemberAndResolveOwner(
             @NonNull String userId, @NonNull String vaultId) {
         activeMemberOrThrow(userId, vaultId);

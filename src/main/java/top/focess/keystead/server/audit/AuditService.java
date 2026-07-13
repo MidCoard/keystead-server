@@ -130,6 +130,35 @@ public class AuditService {
                         clock.instant()));
     }
 
+    public void vaultRotationCommitted(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String generationId,
+            @NonNull String sourceVaultKeyId,
+            @NonNull String targetVaultKeyId,
+            long targetCount) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_ROTATION_COMMITTED.name(),
+                        TARGET_VAULT_LIFECYCLE,
+                        generationId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"sourceVaultKeyId\":\""
+                                + escapeJson(sourceVaultKeyId)
+                                + "\",\"targetVaultKeyId\":\""
+                                + escapeJson(targetVaultKeyId)
+                                + "\",\"targetCount\":"
+                                + targetCount
+                                + "}",
+                        clock.instant()));
+    }
+
     public void automationPrincipalStored(
             @NonNull String ownerId,
             @NonNull String principalId,

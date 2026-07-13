@@ -150,7 +150,7 @@ public record StoredAuditEvent(
                 requireShape(targetType, "device", outcome, "SUCCESS");
                 requireNoVaultOrRevision(vaultId, revision);
             }
-            case VAULT_ROTATION_REQUIRED -> {
+            case VAULT_ROTATION_REQUIRED, VAULT_ROTATION_COMMITTED -> {
                 requireShape(targetType, "vault_lifecycle", outcome, "SUCCESS");
                 requireVaultWithoutRevision(vaultId, revision);
             }

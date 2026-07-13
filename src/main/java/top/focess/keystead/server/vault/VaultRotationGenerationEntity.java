@@ -50,6 +50,10 @@ public class VaultRotationGenerationEntity {
     @Column(name = "lifecycle_version", nullable = false)
     long lifecycleVersion = 1L;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "prior_lifecycle_state", nullable = false)
+    @NonNull VaultKeyLifecycleState priorLifecycleState = VaultKeyLifecycleState.STABLE;
+
     @Column(name = "pending_marker")
     @Nullable String pendingMarker = "P";
 

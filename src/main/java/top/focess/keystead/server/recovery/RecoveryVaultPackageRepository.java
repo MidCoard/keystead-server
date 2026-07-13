@@ -3,6 +3,7 @@ package top.focess.keystead.server.recovery;
 import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,4 +22,14 @@ interface RecoveryVaultPackageRepository
             @Param("username") @NonNull String username,
             @Param("enrollmentId") @NonNull String enrollmentId,
             @Param("generation") long generation);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            delete from RecoveryVaultPackageEntity p
+             where p.id.username = :username
+               and p.id.vaultId = :vaultId
+            """)
+    int deleteForVault(
+            @Param("username") @NonNull String username, @Param("vaultId") @NonNull String vaultId);
 }

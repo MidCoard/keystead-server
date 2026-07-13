@@ -188,6 +188,7 @@ class CollaborativeLifecyclePersistenceTest {
         generation.state = VaultRotationGenerationState.OPEN;
         generation.initiatorId = ownerId;
         generation.lifecycleVersion = lifecycleVersion;
+        generation.priorLifecycleState = VaultKeyLifecycleState.STABLE;
         generation.pendingMarker = "P";
         generation.createdAt = NOW;
         generation.updatedAt = NOW;

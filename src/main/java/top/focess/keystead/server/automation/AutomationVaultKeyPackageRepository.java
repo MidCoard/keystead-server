@@ -46,4 +46,14 @@ interface AutomationVaultKeyPackageRepository
     @NonNull List<String> listCurrentVaultIds(
             @Param("ownerId") @NonNull String ownerId,
             @Param("principalId") @NonNull String principalId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            delete from AutomationVaultKeyPackageEntity k
+             where k.id.ownerId = :ownerId
+               and k.id.vaultId = :vaultId
+            """)
+    int deleteForVault(
+            @Param("ownerId") @NonNull String ownerId, @Param("vaultId") @NonNull String vaultId);
 }

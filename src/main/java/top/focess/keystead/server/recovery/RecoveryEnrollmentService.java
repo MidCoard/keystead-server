@@ -132,7 +132,7 @@ class RecoveryEnrollmentService {
             @NonNull RecoveryVaultPackageRequest request) {
         vaultAccess.requireMemberManager(actorId, vaultId);
         String ownerId = vaultAccess.requireActiveMemberAndResolveOwner(actorId, vaultId);
-        vaultAccess.requireActiveMember(username, vaultId);
+        vaultAccess.requireAcceptedOrActiveMember(username, vaultId);
         validate(request);
         requireRecoveryAlgorithm(request.keyAlgorithm());
         RecoveryEnrollmentEntity enrollment =

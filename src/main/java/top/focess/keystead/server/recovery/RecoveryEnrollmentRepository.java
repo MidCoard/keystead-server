@@ -69,4 +69,22 @@ interface RecoveryEnrollmentRepository
             @Param("enrollmentId") @NonNull String enrollmentId,
             @Param("generation") long generation,
             @Param("now") @NonNull Instant now);
+
+    @Query(
+            """
+            select e from RecoveryEnrollmentEntity e
+              join RecoveryVaultPackageEntity p
+                on p.id.username = e.id.username
+               and p.id.enrollmentId = e.id.enrollmentId
+               and p.id.generation = e.id.generation
+             where e.id.username = :username
+               and e.state = top.focess.keystead.server.recovery.RecoveryEnrollmentState.ACTIVE
+               and p.id.vaultId = :vaultId
+               and p.vaultKeyId = :currentVaultKeyId
+             order by e.id.enrollmentId, e.id.generation
+            """)
+    @NonNull List<RecoveryEnrollmentEntity> listRotationTargets(
+            @Param("username") @NonNull String username,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("currentVaultKeyId") @NonNull String currentVaultKeyId);
 }
