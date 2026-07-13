@@ -54,6 +54,8 @@ public class SecurityConfig {
                                                 "/api/v1/auth/refresh",
                                                 "/api/v1/auth/revoke")
                                         .permitAll()
+                                        .requestMatchers("/api/v1/auth/recovery/**")
+                                        .permitAll()
                                         .requestMatchers("/api/v1/automation/**")
                                         .hasRole("AUTOMATION")
                                         .anyRequest()
