@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public record RecoveryEnrollmentRequest(
         @Positive long generation,
@@ -13,15 +14,32 @@ public record RecoveryEnrollmentRequest(
         @NotBlank @Size(max = RecoveryLimits.PUBLIC_KEY_MAX_LENGTH)
                 @NonNull String wrappingPublicKey,
         @NotBlank @Size(max = RecoveryLimits.CIPHERTEXT_MAX_LENGTH)
-                @NonNull String encryptedPrivateKey) {
+                @NonNull String encryptedPrivateKey,
+        @Size(max = 128) @Nullable String enrollmentId) {
+
+    public RecoveryEnrollmentRequest(
+            long generation,
+            @NonNull String accountCredential,
+            @NonNull String wrappingAlgorithm,
+            @NonNull String wrappingPublicKey,
+            @NonNull String encryptedPrivateKey) {
+        this(
+                generation,
+                accountCredential,
+                wrappingAlgorithm,
+                wrappingPublicKey,
+                encryptedPrivateKey,
+                null);
+    }
 
     @Override
     public @NonNull String toString() {
-        return "RecoveryEnrollmentRequest[generation=%d, accountCredential=[REDACTED], wrappingAlgorithm=%s, wrappingPublicKey=[PUBLIC %d chars], encryptedPrivateKey=[REDACTED %d chars]]"
+        return "RecoveryEnrollmentRequest[generation=%d, accountCredential=[REDACTED], wrappingAlgorithm=%s, wrappingPublicKey=[PUBLIC %d chars], encryptedPrivateKey=[REDACTED %d chars], enrollmentId=%s]"
                 .formatted(
                         generation,
                         wrappingAlgorithm,
                         wrappingPublicKey.length(),
-                        encryptedPrivateKey.length());
+                        encryptedPrivateKey.length(),
+                        enrollmentId);
     }
 }

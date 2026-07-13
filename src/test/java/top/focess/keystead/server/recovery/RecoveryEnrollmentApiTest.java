@@ -38,6 +38,30 @@ class RecoveryEnrollmentApiTest {
     @Autowired private PlatformTransactionManager transactionManager;
 
     @Test
+    void clientChosenEnrollmentIdBindsOfflineCryptographicMaterial() throws Exception {
+        String username = "recovery-bound-id-alice";
+        registerUser(username);
+        mvc.perform(
+                        post("/api/v1/recovery/enrollments")
+                                .with(httpBasic(username, PASSWORD))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "generation": 1,
+                                          "accountCredential": "%s",
+                                          "wrappingAlgorithm": "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
+                                          "wrappingPublicKey": "recovery-public-key",
+                                          "encryptedPrivateKey": "opaque-encrypted-recovery-private-key",
+                                          "enrollmentId": "client-bound-enrollment"
+                                        }
+                                        """
+                                                .formatted(CREDENTIAL)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.enrollmentId").value("client-bound-enrollment"));
+    }
+
+    @Test
     void recoveryRequestAndPackageTextRedactsCredentialsAndCiphertexts() {
         RecoveryEnrollmentRequest enrollment =
                 new RecoveryEnrollmentRequest(

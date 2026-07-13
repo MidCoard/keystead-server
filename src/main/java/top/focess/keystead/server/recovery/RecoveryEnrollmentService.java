@@ -53,6 +53,11 @@ class RecoveryEnrollmentService {
             @NonNull String username, @NonNull RecoveryEnrollmentRequest request) {
         validate(request);
         requireRecoveryAlgorithm(request.wrappingAlgorithm());
+        if (request.enrollmentId() != null
+                && (request.enrollmentId().isBlank()
+                        || request.enrollmentId().chars().anyMatch(Character::isISOControl))) {
+            throw new InvalidRecoveryRequestException("enrollmentId is invalid");
+        }
         if (enrollments.findPending(username).isPresent()) {
             throw new RecoveryConflictException("A recovery enrollment is already pending");
         }
@@ -65,7 +70,11 @@ class RecoveryEnrollmentService {
         RecoveryEnrollmentEntity entity = new RecoveryEnrollmentEntity();
         entity.id =
                 new RecoveryEnrollmentId(
-                        username, UUID.randomUUID().toString(), request.generation());
+                        username,
+                        request.enrollmentId() == null
+                                ? UUID.randomUUID().toString()
+                                : request.enrollmentId(),
+                        request.generation());
         entity.credentialHash = passwordEncoder.encode(request.accountCredential());
         entity.wrappingAlgorithm = request.wrappingAlgorithm();
         entity.wrappingPublicKey = request.wrappingPublicKey();
