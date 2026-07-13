@@ -17,9 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 final class RecoveryAuthController {
 
     private final RecoverySessionService sessions;
+    private final RecoveryCompletionService completion;
 
-    RecoveryAuthController(@NonNull RecoverySessionService sessions) {
+    RecoveryAuthController(
+            @NonNull RecoverySessionService sessions,
+            @NonNull RecoveryCompletionService completion) {
         this.sessions = sessions;
+        this.completion = completion;
     }
 
     @PostMapping("/challenges")
@@ -39,5 +43,16 @@ final class RecoveryAuthController {
             @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
                     @Nullable String authorization) {
         return sessions.material(authorization);
+    }
+
+    @PostMapping("/complete")
+    @NonNull RecoveryCompletionResponse complete(
+            @RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false)
+                    @Nullable String authorization,
+            @RequestBody @NonNull RecoveryCompletionRequest request) {
+        if (authorization == null) {
+            throw new RecoveryAuthenticationFailedException();
+        }
+        return completion.complete(authorization, request);
     }
 }

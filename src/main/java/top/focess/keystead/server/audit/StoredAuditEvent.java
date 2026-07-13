@@ -33,6 +33,7 @@ public record StoredAuditEvent(
                     "key_package",
                     "record",
                     "recovery_enrollment",
+                    "recovery_session",
                     "automation_principal",
                     "automation_token");
     private static final Set<String> FORBIDDEN_DETAIL_KEYS =
@@ -171,6 +172,10 @@ public record StoredAuditEvent(
             case RECOVERY_KEY_PACKAGE_STORED -> {
                 requireShape(targetType, "key_package", outcome, "SUCCESS");
                 requireVaultWithoutRevision(vaultId, revision);
+            }
+            case RECOVERY_COMPLETED -> {
+                requireShape(targetType, "recovery_session", outcome, "SUCCESS");
+                requireNoVaultOrRevision(vaultId, revision);
             }
         }
     }

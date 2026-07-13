@@ -21,6 +21,7 @@ public class AuditService {
     private static final String TARGET_AUTOMATION_TOKEN = "automation_token";
     private static final String TARGET_RECORD = "record";
     private static final String TARGET_RECOVERY_ENROLLMENT = "recovery_enrollment";
+    private static final String TARGET_RECOVERY_SESSION = "recovery_session";
 
     private final AuditEventRepository auditEvents;
     private final Clock clock;
@@ -221,6 +222,33 @@ public class AuditService {
                                 + "\",\"keyAlgorithm\":\""
                                 + escapeJson(keyAlgorithm)
                                 + "\"}",
+                        clock.instant()));
+    }
+
+    public void recoveryCompleted(
+            @NonNull String username,
+            @NonNull String deviceId,
+            @NonNull String authority,
+            int recoveredVaults,
+            int pendingVaults) {
+        auditEvents.append(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        username,
+                        username,
+                        AuditEventType.RECOVERY_COMPLETED.name(),
+                        TARGET_RECOVERY_SESSION,
+                        deviceId,
+                        null,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"authority\":\""
+                                + escapeJson(authority)
+                                + "\",\"recoveredVaults\":"
+                                + recoveredVaults
+                                + ",\"pendingVaults\":"
+                                + pendingVaults
+                                + "}",
                         clock.instant()));
     }
 

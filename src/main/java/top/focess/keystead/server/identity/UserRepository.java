@@ -1,5 +1,6 @@
 package top.focess.keystead.server.identity;
 
+import java.time.Instant;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,4 +22,18 @@ public interface UserRepository extends JpaRepository<UserEntity, String>, UserR
     @Query(
             "update UserEntity u set u.tokenVersion = u.tokenVersion + 1 where u.username = :username")
     void incrementTokenVersion(@Param("username") @NonNull String username);
+
+    @Modifying
+    @Query(
+            """
+            update UserEntity u
+               set u.passwordHash = :passwordHash,
+                   u.updatedAt = :updatedAt,
+                   u.tokenVersion = u.tokenVersion + 1
+             where u.username = :username
+            """)
+    int resetCredentials(
+            @Param("username") @NonNull String username,
+            @Param("passwordHash") @NonNull String passwordHash,
+            @Param("updatedAt") @NonNull Instant updatedAt);
 }
