@@ -136,7 +136,7 @@ class CollaborativeVaultEndToEndTest {
                                             ownerVault.vaultKeyId(),
                                             DEVICE_ALGORITHM,
                                             encryptedMemberKey),
-                                    memberKeys.privateKey(),
+                                    privateKeyBytes(memberKeys),
                                     memberContext)) {
                 opened.withLogin(
                         secretId,
@@ -443,5 +443,11 @@ class CollaborativeVaultEndToEndTest {
         return "keystead-vault-key-package-v1|vault:%s|device:%s"
                 .formatted(vaultId, deviceId)
                 .getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static byte[] privateKeyBytes(DeviceKeyPair device) {
+        final byte[][] output = new byte[1][];
+        device.copyPrivateKey(bytes -> output[0] = bytes.clone());
+        return output[0];
     }
 }
