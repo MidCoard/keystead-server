@@ -10,7 +10,8 @@ version = "0.1.0-SNAPSHOT"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
+        vendor = JvmVendorSpec.ADOPTIUM
     }
     withSourcesJar()
 }
@@ -34,6 +35,9 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // keystead-core runs on the classpath here; its fail-closed native locked memory
+    // requires native access to be granted to the unnamed module.
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 spotless {

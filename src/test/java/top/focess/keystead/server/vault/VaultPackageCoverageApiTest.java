@@ -286,16 +286,10 @@ class VaultPackageCoverageApiTest {
                                                  where d.id.ownerId = :username
                                                    and d.id.deviceId = :deviceId
                                                 """)
-                                        .setParameter(
-                                                "verifiedAt",
-                                                verified
-                                                        ? Instant.parse("2026-07-14T00:00:00Z")
-                                                        : null)
+                                        .setParameter("verifiedAt", verified ? Instant.now() : null)
                                         .setParameter(
                                                 "revokedAt",
-                                                revoked
-                                                        ? Instant.parse("2026-07-14T00:00:01Z")
-                                                        : null)
+                                                revoked ? Instant.now().plusSeconds(1) : null)
                                         .setParameter("username", username)
                                         .setParameter("deviceId", deviceId)
                                         .executeUpdate());

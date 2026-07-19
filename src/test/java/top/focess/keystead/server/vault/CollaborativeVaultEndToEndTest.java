@@ -326,7 +326,7 @@ class CollaborativeVaultEndToEndTest {
                                                 update DeviceEntity d set d.verifiedAt = :now, d.lastSeenAt = :now
                                                  where d.id.ownerId = :username and d.id.deviceId = :deviceId
                                                 """)
-                                        .setParameter("now", Instant.parse("2026-07-14T00:00:00Z"))
+                                        .setParameter("now", Instant.now())
                                         .setParameter("username", username)
                                         .setParameter("deviceId", deviceId)
                                         .executeUpdate());
