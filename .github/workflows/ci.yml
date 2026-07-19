@@ -9,6 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: keystead-server
+      - uses: actions/checkout@v4
+        with:
+          repository: MidCoard/keystead
+          path: keystead
+          token: ${{ secrets.CORE_REPO_PAT }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -16,4 +23,6 @@ jobs:
           cache: gradle
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew spotlessCheck test --no-daemon --rerun-tasks
+        working-directory: keystead-server
       - run: git diff --check
+        working-directory: keystead-server
