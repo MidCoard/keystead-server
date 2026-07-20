@@ -63,6 +63,32 @@ class AutomationServiceTest {
         verify(tokens, never()).persist(any(AutomationToken.class));
     }
 
+    @Test
+    void authenticateReturnsEmptyWhenTokenExpired() {
+        AutomationPrincipalRepository principals = mock(AutomationPrincipalRepository.class);
+        AutomationTokenRepository tokens = mock(AutomationTokenRepository.class);
+        AutomationService service = newService(principals, tokens);
+        AutomationToken token =
+                new AutomationToken(
+                        "stored-token-hash",
+                        "owner",
+                        "principal",
+                        "vault",
+                        AutomationScope.READ_VAULT_KEY_PACKAGE.name(),
+                        NOW.minusSeconds(1),
+                        NOW.minusSeconds(60),
+                        null,
+                        null,
+                        "stored-token-id",
+                        "");
+        when(tokens.find(anyString())).thenReturn(Optional.of(token));
+
+        Optional<AutomationTokenSubject> subject = service.authenticate("raw-token");
+
+        assertTrue(subject.isEmpty());
+        verify(tokens, never()).touchActive(anyString(), any());
+    }
+
     private static AutomationService newService(
             AutomationPrincipalRepository principals, AutomationTokenRepository tokens) {
         return new AutomationService(

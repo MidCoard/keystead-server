@@ -158,6 +158,105 @@ class AutomationHardeningTest {
                 .andExpect(jsonPath("$.length()").value(2));
     }
 
+    @Test
+    void crossPrincipalIsolationHidesTokensAcrossPrincipals() throws Exception {
+        String user = "hardening-xprinc";
+        String vault = "vault-xprinc";
+        registerUser(user);
+        createVault(user, vault);
+        putPrincipal(user, vault, "agent-a");
+        putPrincipal(user, vault, "agent-b");
+        IssuedToken issuedA = issueToken(user, vault, "agent-a", "READ_ENCRYPTED_RECORDS", null);
+        IssuedToken issuedB = issueToken(user, vault, "agent-b", "READ_ENCRYPTED_RECORDS", null);
+
+        // agent-a's listing must not leak agent-b's token id, and vice versa.
+        mvc.perform(
+                        get(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens",
+                                        vault,
+                                        "agent-a")
+                                .with(httpBasic(user, "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].tokenId").value(issuedA.tokenId()));
+        mvc.perform(
+                        get(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens",
+                                        vault,
+                                        "agent-b")
+                                .with(httpBasic(user, "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].tokenId").value(issuedB.tokenId()));
+
+        // revoking agent-b's token via agent-a's path (and vice versa) must 404, not revoke.
+        mvc.perform(
+                        delete(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens/{tokenId}",
+                                        vault,
+                                        "agent-a",
+                                        issuedB.tokenId())
+                                .with(httpBasic(user, "correct horse battery staple")))
+                .andExpect(status().isNotFound());
+        mvc.perform(
+                        delete(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens/{tokenId}",
+                                        vault,
+                                        "agent-b",
+                                        issuedA.tokenId())
+                                .with(httpBasic(user, "correct horse battery staple")))
+                .andExpect(status().isNotFound());
+
+        // the cross-principal revoke attempts must not have revoked either bearer.
+        mvc.perform(
+                        get("/api/v1/automation/records")
+                                .header("Authorization", "Automation " + issuedA.rawToken()))
+                .andExpect(status().isOk());
+        mvc.perform(
+                        get("/api/v1/automation/records")
+                                .header("Authorization", "Automation " + issuedB.rawToken()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void crossOwnerIsolationDeniesAccessToOtherOwnersVault() throws Exception {
+        String ownerA = "hardening-xowner-a";
+        String ownerB = "hardening-xowner-b";
+        String vault = "vault-xowner";
+        registerUser(ownerA);
+        registerUser(ownerB);
+        createVault(ownerA, vault);
+        putPrincipal(ownerA, vault, "agent");
+        IssuedToken issued = issueToken(ownerA, vault, "agent", "READ_VAULT_KEY_PACKAGE", null);
+
+        // ownerB does not own the vault, so listing/revoke must 404 without leaking existence.
+        mvc.perform(
+                        get(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens",
+                                        vault,
+                                        "agent")
+                                .with(httpBasic(ownerB, "correct horse battery staple")))
+                .andExpect(status().isNotFound());
+        mvc.perform(
+                        delete(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens/{tokenId}",
+                                        vault,
+                                        "agent",
+                                        issued.tokenId())
+                                .with(httpBasic(ownerB, "correct horse battery staple")))
+                .andExpect(status().isNotFound());
+
+        // ownerA still owns the resource and can list it.
+        mvc.perform(
+                        get(
+                                        "/api/v1/vaults/{vault}/automation-principals/{principal}/tokens",
+                                        vault,
+                                        "agent")
+                                .with(httpBasic(ownerA, "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].tokenId").value(issued.tokenId()));
+    }
+
     private void registerUser(String user) throws Exception {
         mvc.perform(
                         post("/api/v1/users")
