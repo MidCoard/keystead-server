@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 
 import jakarta.validation.Validator;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -39,7 +40,9 @@ class AutomationServiceTest {
                         NOW.plusSeconds(60),
                         NOW.minusSeconds(60),
                         null,
-                        null);
+                        null,
+                        "stored-token-id",
+                        "");
         AutomationPrincipal principal =
                 new AutomationPrincipal(
                         "owner",
@@ -71,6 +74,7 @@ class AutomationServiceTest {
                 mock(VaultAutomationRevocationService.class),
                 mock(AuditService.class),
                 CLOCK,
-                mock(Validator.class));
+                mock(Validator.class),
+                new AutomationProperties(Duration.ofDays(90), 120));
     }
 }

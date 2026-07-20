@@ -6,12 +6,17 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
@@ -33,6 +38,7 @@ class AutomationService {
     private final AuditService audit;
     private final Clock clock;
     private final Validator validator;
+    private final AutomationProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
 
     AutomationService(
@@ -44,7 +50,8 @@ class AutomationService {
             @NonNull VaultAutomationRevocationService vaultRevocations,
             @NonNull AuditService audit,
             @NonNull Clock clock,
-            @NonNull Validator validator) {
+            @NonNull Validator validator,
+            @NonNull AutomationProperties properties) {
         this.principals = principals;
         this.tokens = tokens;
         this.keyPackages = keyPackages;
@@ -54,6 +61,7 @@ class AutomationService {
         this.audit = audit;
         this.clock = clock;
         this.validator = validator;
+        this.properties = properties;
     }
 
     @Transactional
@@ -103,8 +111,14 @@ class AutomationService {
         if (!request.expiresAt().isAfter(now)) {
             throw new InvalidAutomationRequestException("Token expiry must be in the future");
         }
+        Duration maxTtl = properties.tokenMaxTtl();
+        if (request.expiresAt().isAfter(now.plus(maxTtl))) {
+            throw new InvalidAutomationRequestException("Token expiry exceeds the maximum TTL");
+        }
         Set<AutomationScope> scopes = EnumSet.copyOf(request.scopes());
+        Set<String> grantedSecretIds = normalizeGrantedSecretIds(request.grantedSecretIds());
         String rawToken = newToken();
+        String tokenId = newToken();
         tokens.persist(
                 new AutomationToken(
                         hash(rawToken),
@@ -115,10 +129,12 @@ class AutomationService {
                         request.expiresAt(),
                         now,
                         null,
-                        null));
+                        null,
+                        tokenId,
+                        encodeSecretIds(grantedSecretIds)));
         audit.automationTokenIssued(ownerId, principalId, vaultId, encodeScopes(scopes));
         return new AutomationTokenResponse(
-                rawToken, principalId, vaultId, Set.copyOf(scopes), request.expiresAt());
+                rawToken, tokenId, principalId, vaultId, Set.copyOf(scopes), request.expiresAt());
     }
 
     @Transactional
@@ -132,6 +148,40 @@ class AutomationService {
                 .filter(token -> token.ownerId().equals(ownerId))
                 .filter(token -> token.vaultId().equals(vaultId))
                 .ifPresent(token -> revokeStoredToken(token));
+    }
+
+    @Transactional(readOnly = true)
+    @NonNull List<AutomationTokenSummary> listTokens(
+            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
+        accessGuard.requireOwnedVault(ownerId, vaultId);
+        principals
+                .find(ownerId, principalId)
+                .orElseThrow(
+                        () ->
+                                new AutomationNotFoundException(
+                                        "Automation principal does not exist"));
+        return tokens.list(ownerId, vaultId, principalId).stream()
+                .map(AutomationService::toSummary)
+                .toList();
+    }
+
+    @Transactional
+    void revokeTokenById(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String principalId,
+            @NonNull String tokenId) {
+        accessGuard.requireOwnedVault(ownerId, vaultId);
+        AutomationToken token =
+                tokens.findByTokenId(ownerId, vaultId, principalId, tokenId)
+                        .orElseThrow(
+                                () ->
+                                        new AutomationNotFoundException(
+                                                "Automation token does not exist"));
+        if (token.revokedAt() != null) {
+            return;
+        }
+        revokeStoredToken(token);
     }
 
     @Transactional
@@ -219,7 +269,11 @@ class AutomationService {
                                                                 token.ownerId(),
                                                                 token.principalId(),
                                                                 token.vaultId(),
-                                                                decodeScopes(token.scopes()))));
+                                                                decodeScopes(token.scopes()),
+                                                                token.tokenId(),
+                                                                decodeSecretIds(
+                                                                        token
+                                                                                .grantedSecretIds()))));
     }
 
     @Transactional(readOnly = true)
@@ -257,8 +311,22 @@ class AutomationService {
                         token.expiresAt(),
                         token.createdAt(),
                         clock.instant(),
-                        token.lastUsedAt()));
+                        token.lastUsedAt(),
+                        token.tokenId(),
+                        token.grantedSecretIds()));
         audit.automationTokenRevoked(token.ownerId(), token.principalId(), token.vaultId());
+    }
+
+    private static @NonNull AutomationTokenSummary toSummary(@NonNull AutomationToken token) {
+        return new AutomationTokenSummary(
+                token.tokenId(),
+                token.principalId(),
+                decodeScopes(token.scopes()),
+                decodeSecretIds(token.grantedSecretIds()),
+                token.expiresAt(),
+                token.createdAt(),
+                token.revokedAt(),
+                token.lastUsedAt());
     }
 
     private @NonNull String newToken() {
@@ -293,5 +361,35 @@ class AutomationService {
             scopes.add(AutomationScope.valueOf(scope));
         }
         return Set.copyOf(scopes);
+    }
+
+    private static @NonNull Set<String> normalizeGrantedSecretIds(@Nullable Set<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Set.of();
+        }
+        for (String id : ids) {
+            if (id == null || id.strip().isEmpty()) {
+                throw new InvalidAutomationRequestException(
+                        "grantedSecretIds must not contain blank entries");
+            }
+        }
+        return ids.stream().map(String::strip).collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static @NonNull String encodeSecretIds(@NonNull Set<String> ids) {
+        if (ids.isEmpty()) {
+            return "";
+        }
+        return ids.stream().sorted().distinct().collect(Collectors.joining(","));
+    }
+
+    private static @NonNull Set<String> decodeSecretIds(@NonNull String encoded) {
+        if (encoded.isEmpty()) {
+            return Set.of();
+        }
+        return Arrays.stream(encoded.split(","))
+                .map(String::strip)
+                .filter(value -> !value.isEmpty())
+                .collect(Collectors.toUnmodifiableSet());
     }
 }

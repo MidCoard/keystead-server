@@ -28,6 +28,12 @@ public class AutomationTokenEntity {
     @Column(name = "scopes", nullable = false)
     @NonNull String scopes = "";
 
+    @Column(name = "token_id", nullable = false, unique = true)
+    @NonNull String tokenId = "";
+
+    @Column(name = "granted_secret_ids", nullable = false)
+    @NonNull String grantedSecretIds = "";
+
     @Column(name = "expires_at", nullable = false)
     @NonNull Instant expiresAt = Instant.EPOCH;
 
@@ -48,6 +54,8 @@ public class AutomationTokenEntity {
         principalId = token.principalId();
         vaultId = token.vaultId();
         scopes = token.scopes();
+        tokenId = token.tokenId();
+        grantedSecretIds = token.grantedSecretIds();
         expiresAt = token.expiresAt();
         createdAt = token.createdAt();
         revokedAt = token.revokedAt();
@@ -68,6 +76,8 @@ public class AutomationTokenEntity {
                 expiresAt,
                 createdAt,
                 revokedAt,
-                lastUsedAt);
+                lastUsedAt,
+                tokenId,
+                grantedSecretIds);
     }
 }

@@ -13,3 +13,5 @@ spring:
 keystead:
   security:
     basic-auth-enabled: true
+  automation:
+    token-max-ttl: P3650D

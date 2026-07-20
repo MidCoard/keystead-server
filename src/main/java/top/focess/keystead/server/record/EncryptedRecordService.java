@@ -201,11 +201,17 @@ public class EncryptedRecordService {
 
     @Transactional(readOnly = true)
     public @NonNull List<EncryptedRecordResponse> listForAutomation(
-            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            long sinceRevision,
+            @NonNull Set<String> secretIdFilter) {
         requireNonNegativeSinceRevision(sinceRevision);
-        return records.listSince(ownerId, vaultId, sinceRevision).stream()
-                .map(EncryptedRecordResponse::from)
-                .toList();
+        List<StoredEncryptedRecord> fetched =
+                secretIdFilter.isEmpty()
+                        ? records.listSince(ownerId, vaultId, sinceRevision)
+                        : records.listSinceFiltered(
+                                ownerId, vaultId, sinceRevision, secretIdFilter);
+        return fetched.stream().map(EncryptedRecordResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
@@ -233,13 +239,20 @@ public class EncryptedRecordService {
 
     @Transactional(readOnly = true)
     public @NonNull EncryptedRecordPageResponse pageForAutomation(
-            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            long sinceRevision,
+            int limit,
+            @NonNull Set<String> secretIdFilter) {
         requireNonNegativeSinceRevision(sinceRevision);
         if (limit <= 0 || limit > MAX_PAGE_LIMIT) {
             throw new InvalidRecordRequestException("Record page limit is out of range");
         }
         List<StoredEncryptedRecord> fetched =
-                records.pageSince(ownerId, vaultId, sinceRevision, limit + 1);
+                secretIdFilter.isEmpty()
+                        ? records.pageSince(ownerId, vaultId, sinceRevision, limit + 1)
+                        : records.pageSinceFiltered(
+                                ownerId, vaultId, sinceRevision, limit + 1, secretIdFilter);
         boolean hasMore = fetched.size() > limit;
         List<EncryptedRecordResponse> page =
                 fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();

@@ -14,7 +14,9 @@ public record AutomationToken(
         @NonNull Instant expiresAt,
         @NonNull Instant createdAt,
         @Nullable Instant revokedAt,
-        @Nullable Instant lastUsedAt) {
+        @Nullable Instant lastUsedAt,
+        @NonNull String tokenId,
+        @NonNull String grantedSecretIds) {
 
     public AutomationToken {
         requireNotBlank(tokenHash, "tokenHash");
@@ -22,6 +24,8 @@ public record AutomationToken(
         requireNotBlank(principalId, "principalId");
         requireNotBlank(vaultId, "vaultId");
         requireNotBlank(scopes, "scopes");
+        requireNotBlank(tokenId, "tokenId");
+        Objects.requireNonNull(grantedSecretIds, "grantedSecretIds");
         Objects.requireNonNull(expiresAt, "expiresAt");
         Objects.requireNonNull(createdAt, "createdAt");
         if (!expiresAt.isAfter(createdAt))

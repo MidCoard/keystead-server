@@ -5,6 +5,9 @@ import jakarta.validation.constraints.NotEmpty;
 import java.time.Instant;
 import java.util.Set;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 record IssueAutomationTokenRequest(
-        @NonNull @Future Instant expiresAt, @NonNull @NotEmpty Set<AutomationScope> scopes) {}
+        @NonNull @Future Instant expiresAt,
+        @NonNull @NotEmpty Set<AutomationScope> scopes,
+        @Nullable Set<String> grantedSecretIds) {}

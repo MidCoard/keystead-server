@@ -7,7 +7,9 @@ public record AutomationTokenSubject(
         @NonNull String ownerId,
         @NonNull String principalId,
         @NonNull String vaultId,
-        @NonNull Set<AutomationScope> scopes) {
+        @NonNull Set<AutomationScope> scopes,
+        @NonNull String tokenId,
+        @NonNull Set<String> grantedSecretIds) {
 
     public boolean hasScope(@NonNull AutomationScope scope) {
         return scopes.contains(scope);

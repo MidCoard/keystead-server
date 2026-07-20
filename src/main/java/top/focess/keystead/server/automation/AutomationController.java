@@ -1,11 +1,13 @@
 package top.focess.keystead.server.automation;
 
 import java.security.Principal;
+import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -52,12 +54,30 @@ class AutomationController {
         return automation.issueToken(principal.getName(), vaultId, principalId, request);
     }
 
+    @GetMapping("/{principalId}/tokens")
+    @NonNull List<AutomationTokenSummary> listTokens(
+            @NonNull Principal principal,
+            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String principalId) {
+        return automation.listTokens(principal.getName(), vaultId, principalId);
+    }
+
     @DeleteMapping("/tokens")
     @NonNull ResponseEntity<Void> revokeToken(
             @NonNull Principal principal,
             @PathVariable @NonNull String vaultId,
             @RequestBody @NonNull RevokeAutomationTokenRequest request) {
         automation.revokeToken(principal.getName(), vaultId, request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{principalId}/tokens/{tokenId}")
+    @NonNull ResponseEntity<Void> revokeTokenById(
+            @NonNull Principal principal,
+            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String principalId,
+            @PathVariable @NonNull String tokenId) {
+        automation.revokeTokenById(principal.getName(), vaultId, principalId, tokenId);
         return ResponseEntity.noContent().build();
     }
 

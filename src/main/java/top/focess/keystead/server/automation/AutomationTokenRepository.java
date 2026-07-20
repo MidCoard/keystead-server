@@ -1,6 +1,7 @@
 package top.focess.keystead.server.automation;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +18,34 @@ interface AutomationTokenRepository extends JpaRepository<AutomationTokenEntity,
     default void persist(@NonNull AutomationToken token) {
         save(AutomationTokenEntity.from(token));
     }
+
+    default @NonNull List<AutomationToken> list(
+            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
+        return findByOwnerIdAndVaultIdAndPrincipalIdOrderByCreatedAtDesc(
+                        ownerId, vaultId, principalId)
+                .stream()
+                .map(AutomationTokenEntity::toStored)
+                .toList();
+    }
+
+    default @NonNull Optional<AutomationToken> findByTokenId(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String principalId,
+            @NonNull String tokenId) {
+        return findByOwnerIdAndVaultIdAndPrincipalIdAndTokenId(
+                        ownerId, vaultId, principalId, tokenId)
+                .map(AutomationTokenEntity::toStored);
+    }
+
+    List<AutomationTokenEntity> findByOwnerIdAndVaultIdAndPrincipalIdOrderByCreatedAtDesc(
+            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId);
+
+    Optional<AutomationTokenEntity> findByOwnerIdAndVaultIdAndPrincipalIdAndTokenId(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            @NonNull String principalId,
+            @NonNull String tokenId);
 
     @Modifying
     @Query(

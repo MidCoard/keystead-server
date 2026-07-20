@@ -29,7 +29,8 @@ class AutomationAccessController {
             @AuthenticationPrincipal @NonNull AutomationTokenSubject subject,
             @RequestParam(defaultValue = "0") long sinceRevision) {
         automation.requireScope(subject, AutomationScope.READ_ENCRYPTED_RECORDS);
-        return records.listForAutomation(subject.ownerId(), subject.vaultId(), sinceRevision);
+        return records.listForAutomation(
+                subject.ownerId(), subject.vaultId(), sinceRevision, subject.grantedSecretIds());
     }
 
     @GetMapping("/records/page")
@@ -39,7 +40,11 @@ class AutomationAccessController {
             @RequestParam(defaultValue = "100") int limit) {
         automation.requireScope(subject, AutomationScope.READ_ENCRYPTED_RECORDS);
         return records.pageForAutomation(
-                subject.ownerId(), subject.vaultId(), sinceRevision, limit);
+                subject.ownerId(),
+                subject.vaultId(),
+                sinceRevision,
+                limit,
+                subject.grantedSecretIds());
     }
 
     @GetMapping("/key-package")

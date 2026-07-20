@@ -1,5 +1,6 @@
 package top.focess.keystead.server.record;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
@@ -66,6 +67,32 @@ interface EncryptedRecordRepository
              where r.id.ownerId = :ownerId
                and r.id.vaultId = :vaultId
                and r.revision > :sinceRevision
+               and r.id.secretId in :secretIds
+             order by r.revision, r.id.secretId
+            """)
+    @NonNull List<EncryptedRecordEntity> listSinceEntitiesFiltered(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("sinceRevision") long sinceRevision,
+            @Param("secretIds") @NonNull Collection<String> secretIds);
+
+    default @NonNull List<StoredEncryptedRecord> listSinceFiltered(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            long sinceRevision,
+            @NonNull Collection<String> secretIds) {
+        return listSinceEntitiesFiltered(ownerId, vaultId, sinceRevision, secretIds).stream()
+                .map(EncryptedRecordEntity::toStored)
+                .toList();
+    }
+
+    @Query(
+            """
+            select r
+              from EncryptedRecordEntity r
+             where r.id.ownerId = :ownerId
+               and r.id.vaultId = :vaultId
+               and r.revision > :sinceRevision
              order by r.revision, r.id.secretId
             """)
     @NonNull List<EncryptedRecordEntity> pageSinceEntities(
@@ -78,6 +105,40 @@ interface EncryptedRecordRepository
             @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
         return pageSinceEntities(
                         ownerId, vaultId, sinceRevision, Pageable.ofSize(Math.max(1, limit)))
+                .stream()
+                .map(EncryptedRecordEntity::toStored)
+                .toList();
+    }
+
+    @Query(
+            """
+            select r
+              from EncryptedRecordEntity r
+             where r.id.ownerId = :ownerId
+               and r.id.vaultId = :vaultId
+               and r.revision > :sinceRevision
+               and r.id.secretId in :secretIds
+             order by r.revision, r.id.secretId
+            """)
+    @NonNull List<EncryptedRecordEntity> pageSinceEntitiesFiltered(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @NonNull String vaultId,
+            @Param("sinceRevision") long sinceRevision,
+            @Param("secretIds") @NonNull Collection<String> secretIds,
+            @NonNull Pageable pageable);
+
+    default @NonNull List<StoredEncryptedRecord> pageSinceFiltered(
+            @NonNull String ownerId,
+            @NonNull String vaultId,
+            long sinceRevision,
+            int limit,
+            @NonNull Collection<String> secretIds) {
+        return pageSinceEntitiesFiltered(
+                        ownerId,
+                        vaultId,
+                        sinceRevision,
+                        secretIds,
+                        Pageable.ofSize(Math.max(1, limit)))
                 .stream()
                 .map(EncryptedRecordEntity::toStored)
                 .toList();

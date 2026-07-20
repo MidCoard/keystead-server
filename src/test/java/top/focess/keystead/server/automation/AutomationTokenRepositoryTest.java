@@ -134,7 +134,9 @@ class AutomationTokenRepositoryTest {
                                         current.expiresAt(),
                                         current.createdAt(),
                                         REVOKED_AT,
-                                        current.lastUsedAt()));
+                                        current.lastUsedAt(),
+                                        current.tokenId(),
+                                        current.grantedSecretIds()));
                     });
             revokeCommitted.countDown();
 
@@ -179,7 +181,9 @@ class AutomationTokenRepositoryTest {
                 expiresAt,
                 CREATED_AT,
                 revokedAt,
-                null);
+                null,
+                tokenHash + "-id",
+                "");
     }
 
     private static void await(@NonNull CountDownLatch latch, @NonNull String event) {
