@@ -6,6 +6,7 @@ on:
 
 jobs:
   test:
+    name: Test (H2)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,4 +25,43 @@ jobs:
       - run: ./gradlew spotlessCheck test --no-daemon --rerun-tasks
         working-directory: keystead-server
       - run: git diff --check
+        working-directory: keystead-server
+
+  test-postgres:
+    name: Test (PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: keystead
+          POSTGRES_PASSWORD: keystead
+          POSTGRES_DB: keystead
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U keystead -d keystead"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/keystead
+      SPRING_DATASOURCE_USERNAME: keystead
+      SPRING_DATASOURCE_PASSWORD: keystead
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: keystead-server
+      - uses: actions/checkout@v4
+        with:
+          repository: MidCoard/keystead
+          path: keystead
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew test --no-daemon --rerun-tasks
         working-directory: keystead-server
