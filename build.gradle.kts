@@ -39,6 +39,15 @@ tasks.withType<Test>().configureEach {
     // keystead-core runs on the classpath here; its fail-closed native locked memory
     // requires native access to be granted to the unnamed module.
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+    // Surface the full cause chain (e.g. Flyway -> PSQLException messages) so a
+    // migration failure on a given database lane is self-diagnosing in CI logs
+    // instead of showing only "class at File:line".
+    testLogging {
+        events(org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED)
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
+    }
 }
 
 spotless {
