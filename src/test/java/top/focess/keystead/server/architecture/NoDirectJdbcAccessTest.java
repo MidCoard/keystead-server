@@ -76,7 +76,7 @@ class NoDirectJdbcAccessTest {
         assertEquals(
                 true,
                 writes.contains(
-                        "entityManager.persist(AuditEventEntity.from(event, correlationId))"));
+                        "entityManager.persist(AuditEventEntity.from(event, correlationId, signature))"));
         assertEquals(true, writes.contains("entityManager.flush()"));
     }
 

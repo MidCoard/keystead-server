@@ -46,16 +46,16 @@ class AuditEventApiTest {
 
     @Test
     void databaseAppendRejectsDuplicateAuditEventId() {
-        auditEvents.append(auditEvent("duplicate-audit-event"), null);
+        auditEvents.append(auditEvent("duplicate-audit-event"), null, null);
 
         assertThrows(
                 DataIntegrityViolationException.class,
-                () -> auditEvents.append(auditEvent("duplicate-audit-event"), null));
+                () -> auditEvents.append(auditEvent("duplicate-audit-event"), null, null));
     }
 
     @Test
     void auditEventsAreQueryableByOwnerAndVaultWithoutCrossOwnerLeakage() {
-        auditEvents.append(auditEvent("vault-query-a"), null);
+        auditEvents.append(auditEvent("vault-query-a"), null, null);
         auditEvents.append(
                 new StoredAuditEvent(
                         "vault-query-b",
@@ -69,6 +69,7 @@ class AuditEventApiTest {
                         "SUCCESS",
                         "{}",
                         java.time.Instant.parse("2026-07-09T00:00:01Z")),
+                null,
                 null);
 
         assertThat(auditEvents.listForOwnerAndVault("audit-db-owner", "vault-a"))

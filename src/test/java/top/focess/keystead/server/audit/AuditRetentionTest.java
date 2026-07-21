@@ -46,7 +46,7 @@ class AuditRetentionTest {
                         "FAILURE",
                         "{\"reason\":\"BAD_CREDENTIALS\"}",
                         Instant.parse("2020-01-01T00:00:00Z"));
-        auditEvents.append(oldEvent, null);
+        auditEvents.append(oldEvent, null, null);
         assertThat(auditEvents.listForOwner("retention-alice"))
                 .extracting(StoredAuditEvent::eventId)
                 .contains("retention-old-event");

@@ -27,3 +27,5 @@ keystead:
   audit:
     retention: P365D
     query-max-limit: 200
+    signing:
+      key: ${KESTEAD_AUDIT_SIGNING_KEY:}

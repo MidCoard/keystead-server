@@ -24,7 +24,8 @@ public record AuditEventResponse(
         @NonNull String outcome,
         @NonNull String details,
         @NonNull Instant createdAt,
-        @Nullable String correlationId) {
+        @Nullable String correlationId,
+        @Nullable String signature) {
 
     public AuditEventResponse {
         requireNotBlank(eventId, "eventId");
@@ -51,7 +52,8 @@ public record AuditEventResponse(
                 entity.outcome,
                 entity.details,
                 entity.createdAt,
-                entity.correlationId);
+                entity.correlationId,
+                entity.signature);
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {

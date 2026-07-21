@@ -55,9 +55,15 @@ public class AuditEventEntity {
     @Column(name = "correlation_id")
     @Nullable String correlationId;
 
+    @Column(name = "signature")
+    @Nullable String signature;
+
     protected AuditEventEntity() {}
 
-    private AuditEventEntity(@NonNull StoredAuditEvent event, @Nullable String correlationId) {
+    private AuditEventEntity(
+            @NonNull StoredAuditEvent event,
+            @Nullable String correlationId,
+            @Nullable String signature) {
         this.eventId = event.eventId();
         this.ownerId = event.ownerId();
         this.actorId = event.actorId();
@@ -70,11 +76,14 @@ public class AuditEventEntity {
         this.details = event.details();
         this.createdAt = event.createdAt();
         this.correlationId = correlationId;
+        this.signature = signature;
     }
 
     static @NonNull AuditEventEntity from(
-            @NonNull StoredAuditEvent event, @Nullable String correlationId) {
-        return new AuditEventEntity(event, correlationId);
+            @NonNull StoredAuditEvent event,
+            @Nullable String correlationId,
+            @Nullable String signature) {
+        return new AuditEventEntity(event, correlationId, signature);
     }
 
     @NonNull StoredAuditEvent toStored() {

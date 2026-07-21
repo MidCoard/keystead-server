@@ -6,7 +6,10 @@ import org.jspecify.annotations.Nullable;
 
 interface AuditEventRepositoryWrites {
 
-    void append(@NonNull StoredAuditEvent event, @Nullable String correlationId);
+    void append(
+            @NonNull StoredAuditEvent event,
+            @Nullable String correlationId,
+            @Nullable String signature);
 
     /**
      * Bulk-deletes audit events for one owner older than {@code cutoff}. Routed through the write

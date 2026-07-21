@@ -18,8 +18,11 @@ class AuditEventRepositoryWritesImpl implements AuditEventRepositoryWrites {
     }
 
     @Override
-    public void append(@NonNull StoredAuditEvent event, @Nullable String correlationId) {
-        entityManager.persist(AuditEventEntity.from(event, correlationId));
+    public void append(
+            @NonNull StoredAuditEvent event,
+            @Nullable String correlationId,
+            @Nullable String signature) {
+        entityManager.persist(AuditEventEntity.from(event, correlationId, signature));
         entityManager.flush();
     }
 

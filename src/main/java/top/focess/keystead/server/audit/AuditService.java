@@ -3,6 +3,7 @@ package top.focess.keystead.server.audit;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
@@ -32,26 +33,57 @@ public class AuditService {
     private final Clock clock;
     private final CorrelationIdHolder correlationIds;
     private final AuditProperties auditProperties;
+    private final AuditSigner signer;
 
     public AuditService(
             @NonNull AuditEventRepository auditEvents,
             @NonNull Clock clock,
             @NonNull CorrelationIdHolder correlationIds,
-            @NonNull AuditProperties auditProperties) {
+            @NonNull AuditProperties auditProperties,
+            @NonNull AuditSigner signer) {
         this.auditEvents = auditEvents;
         this.clock = clock;
         this.correlationIds = correlationIds;
         this.auditProperties = auditProperties;
+        this.signer = signer;
     }
 
     /**
-     * Persists an audit event stamped with the current request's correlation id (if any). Routing
-     * every append through here keeps correlation-id threading out of the individual recording
-     * methods and lets events recorded outside a request context carry a {@code null} id.
+     * Persists an audit event stamped with the current request's correlation id (if any) and a
+     * tamper-evident signature (when signing is configured). Routing every append through here
+     * keeps correlation-id threading and signing out of the individual recording methods and lets
+     * events recorded outside a request context carry a {@code null} id.
+     *
+     * <p>The event's {@code createdAt} is truncated to millisecond precision before signing and
+     * storage. A signature is only reproducible by a verifier if the bytes it covers are
+     * byte-identical to what was stored; PostgreSQL {@code timestamp} keeps microsecond (not
+     * nanosecond) precision, so an untruncated {@link java.time.Clock#instant} could round-trip to
+     * a different value and make every legitimate signature unverifiable. Milliseconds are
+     * preserved exactly by both H2 and PostgreSQL.
      */
     private void persist(@NonNull StoredAuditEvent event) {
-        auditEvents.append(event, correlationIds.current());
-        pruneRetained(event.ownerId());
+        StoredAuditEvent stored = withStoragePrecision(event);
+        auditEvents.append(stored, correlationIds.current(), signer.sign(stored));
+        pruneRetained(stored.ownerId());
+    }
+
+    private static @NonNull StoredAuditEvent withStoragePrecision(@NonNull StoredAuditEvent event) {
+        Instant truncated = event.createdAt().truncatedTo(ChronoUnit.MILLIS);
+        if (truncated.equals(event.createdAt())) {
+            return event;
+        }
+        return new StoredAuditEvent(
+                event.eventId(),
+                event.ownerId(),
+                event.actorId(),
+                event.eventType(),
+                event.targetType(),
+                event.targetId(),
+                event.vaultId(),
+                event.revision(),
+                event.outcome(),
+                event.details(),
+                truncated);
     }
 
     /**
