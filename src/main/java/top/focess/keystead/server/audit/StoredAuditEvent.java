@@ -33,6 +33,7 @@ public record StoredAuditEvent(
                     "key_package",
                     "record",
                     "vault_lifecycle",
+                    "vault_member",
                     "recovery_enrollment",
                     "recovery_session",
                     "automation_principal",
@@ -152,6 +153,14 @@ public record StoredAuditEvent(
             }
             case VAULT_ROTATION_REQUIRED, VAULT_ROTATION_COMMITTED -> {
                 requireShape(targetType, "vault_lifecycle", outcome, "SUCCESS");
+                requireVaultWithoutRevision(vaultId, revision);
+            }
+            case VAULT_MEMBER_INVITED,
+                    VAULT_MEMBER_ACCEPTED,
+                    VAULT_MEMBER_DECLINED,
+                    VAULT_MEMBER_ROLE_CHANGED,
+                    VAULT_MEMBER_REMOVED -> {
+                requireShape(targetType, "vault_member", outcome, "SUCCESS");
                 requireVaultWithoutRevision(vaultId, revision);
             }
             case LOGIN_FAILED -> {

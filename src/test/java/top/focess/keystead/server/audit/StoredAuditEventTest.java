@@ -1,5 +1,6 @@
 package top.focess.keystead.server.audit;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
@@ -166,6 +167,90 @@ class StoredAuditEventTest {
                                 "alice",
                                 "SUCCESS",
                                 "{\"nested\":{\"device_private_key\":\"leak\"}}"));
+    }
+
+    @Test
+    void acceptsAndRejectsVaultMemberEventShapes() {
+        assertNotNull(
+                event(
+                        AuditEventType.VAULT_MEMBER_INVITED,
+                        "vault_member",
+                        "member-a",
+                        "vault-a",
+                        null,
+                        "SUCCESS"));
+        assertNotNull(
+                event(
+                        AuditEventType.VAULT_MEMBER_ACCEPTED,
+                        "vault_member",
+                        "member-a",
+                        "vault-a",
+                        null,
+                        "SUCCESS"));
+        assertNotNull(
+                event(
+                        AuditEventType.VAULT_MEMBER_DECLINED,
+                        "vault_member",
+                        "member-a",
+                        "vault-a",
+                        null,
+                        "SUCCESS"));
+        assertNotNull(
+                event(
+                        AuditEventType.VAULT_MEMBER_ROLE_CHANGED,
+                        "vault_member",
+                        "member-a",
+                        "vault-a",
+                        null,
+                        "SUCCESS"));
+        assertNotNull(
+                event(
+                        AuditEventType.VAULT_MEMBER_REMOVED,
+                        "vault_member",
+                        "member-a",
+                        "vault-a",
+                        null,
+                        "SUCCESS"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.VAULT_MEMBER_INVITED,
+                                "record",
+                                "member-a",
+                                "vault-a",
+                                null,
+                                "SUCCESS"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.VAULT_MEMBER_ACCEPTED,
+                                "vault_member",
+                                "member-a",
+                                null,
+                                null,
+                                "SUCCESS"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.VAULT_MEMBER_REMOVED,
+                                "vault_member",
+                                "member-a",
+                                "vault-a",
+                                1L,
+                                "SUCCESS"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.VAULT_MEMBER_ROLE_CHANGED,
+                                "vault_member",
+                                "member-a",
+                                "vault-a",
+                                null,
+                                "FAILURE"));
     }
 
     private static StoredAuditEvent event(

@@ -400,6 +400,147 @@ class AuditEventApiTest {
         assertThat(entities.getFirst().correlationId).isEqualTo("corr-login-1");
     }
 
+    @Test
+    void membershipLifecycleCreatesRedactedAuditEvents() throws Exception {
+        String suffix = Long.toUnsignedString(System.nanoTime());
+        String owner = "member-audit-owner-" + suffix;
+        String invitee = "member-audit-invitee-" + suffix;
+        String vaultId = "member-audit-vault-" + suffix;
+        registerUser(owner);
+        registerUser(invitee);
+        createVaultWithPasswordUser(owner, vaultId);
+
+        invite(owner, invitee, vaultId, "VIEWER");
+        accept(invitee, vaultId);
+        changeRole(owner, invitee, vaultId, "EDITOR");
+        removeMember(owner, invitee, vaultId);
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner(owner);
+        assertThat(events).hasSize(4);
+
+        StoredAuditEvent invited = singleEvent(events, AuditEventType.VAULT_MEMBER_INVITED);
+        assertThat(invited.ownerId()).isEqualTo(owner);
+        assertThat(invited.actorId()).isEqualTo(owner);
+        assertThat(invited.targetType()).isEqualTo("vault_member");
+        assertThat(invited.targetId()).isEqualTo(invitee);
+        assertThat(invited.vaultId()).isEqualTo(vaultId);
+        assertThat(invited.revision()).isNull();
+        assertThat(invited.outcome()).isEqualTo("SUCCESS");
+        assertThat(invited.details()).contains("\"role\":\"VIEWER\"");
+
+        StoredAuditEvent accepted = singleEvent(events, AuditEventType.VAULT_MEMBER_ACCEPTED);
+        assertThat(accepted.ownerId()).isEqualTo(owner);
+        assertThat(accepted.actorId()).isEqualTo(invitee);
+        assertThat(accepted.targetId()).isEqualTo(invitee);
+        assertThat(accepted.details()).contains("\"accepted\":true");
+
+        StoredAuditEvent roleChanged =
+                singleEvent(events, AuditEventType.VAULT_MEMBER_ROLE_CHANGED);
+        assertThat(roleChanged.actorId()).isEqualTo(owner);
+        assertThat(roleChanged.details()).contains("\"fromRole\":\"VIEWER\"");
+        assertThat(roleChanged.details()).contains("\"toRole\":\"EDITOR\"");
+
+        StoredAuditEvent removed = singleEvent(events, AuditEventType.VAULT_MEMBER_REMOVED);
+        assertThat(removed.actorId()).isEqualTo(owner);
+        assertThat(removed.details()).contains("\"removed\":true");
+    }
+
+    @Test
+    void membershipDeclineCreatesRedactedAuditEvent() throws Exception {
+        String suffix = Long.toUnsignedString(System.nanoTime());
+        String owner = "decline-audit-owner-" + suffix;
+        String invitee = "decline-audit-invitee-" + suffix;
+        String vaultId = "decline-audit-vault-" + suffix;
+        registerUser(owner);
+        registerUser(invitee);
+        createVaultWithPasswordUser(owner, vaultId);
+
+        invite(owner, invitee, vaultId, "VIEWER");
+        decline(invitee, vaultId);
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner(owner);
+        assertThat(events).hasSize(2);
+
+        StoredAuditEvent invited = singleEvent(events, AuditEventType.VAULT_MEMBER_INVITED);
+        assertThat(invited.actorId()).isEqualTo(owner);
+
+        StoredAuditEvent declined = singleEvent(events, AuditEventType.VAULT_MEMBER_DECLINED);
+        assertThat(declined.ownerId()).isEqualTo(owner);
+        assertThat(declined.actorId()).isEqualTo(invitee);
+        assertThat(declined.targetType()).isEqualTo("vault_member");
+        assertThat(declined.targetId()).isEqualTo(invitee);
+        assertThat(declined.vaultId()).isEqualTo(vaultId);
+        assertThat(declined.outcome()).isEqualTo("SUCCESS");
+        assertThat(declined.details()).contains("\"declined\":true");
+    }
+
+    @Test
+    void idempotentReinviteDoesNotDuplicateAuditEvent() throws Exception {
+        String suffix = Long.toUnsignedString(System.nanoTime());
+        String owner = "reinvite-audit-owner-" + suffix;
+        String invitee = "reinvite-audit-invitee-" + suffix;
+        String vaultId = "reinvite-audit-vault-" + suffix;
+        registerUser(owner);
+        registerUser(invitee);
+        createVaultWithPasswordUser(owner, vaultId);
+
+        invite(owner, invitee, vaultId, "VIEWER");
+        invite(owner, invitee, vaultId, "VIEWER");
+
+        List<StoredAuditEvent> events = auditEvents.listForOwner(owner);
+        assertThat(events).hasSize(1);
+        assertThat(events.getFirst().eventType())
+                .isEqualTo(AuditEventType.VAULT_MEMBER_INVITED.name());
+    }
+
+    private StoredAuditEvent singleEvent(List<StoredAuditEvent> events, AuditEventType type) {
+        List<StoredAuditEvent> matches =
+                events.stream().filter(e -> e.eventType().equals(type.name())).toList();
+        assertThat(matches).hasSize(1);
+        return matches.getFirst();
+    }
+
+    private void invite(String owner, String invitee, String vaultId, String role)
+            throws Exception {
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, invitee)
+                                .with(httpBasic(owner, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"role\":\"%s\"}".formatted(role)))
+                .andExpect(status().isCreated());
+    }
+
+    private void accept(String invitee, String vaultId) throws Exception {
+        mvc.perform(
+                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                                .with(httpBasic(invitee, "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+    }
+
+    private void decline(String invitee, String vaultId) throws Exception {
+        mvc.perform(
+                        post("/api/v1/vaults/{vaultId}/members/decline", vaultId)
+                                .with(httpBasic(invitee, "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+    }
+
+    private void changeRole(String owner, String invitee, String vaultId, String role)
+            throws Exception {
+        mvc.perform(
+                        put("/api/v1/vaults/{vaultId}/members/{userId}/role", vaultId, invitee)
+                                .with(httpBasic(owner, "correct horse battery staple"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"role\":\"%s\"}".formatted(role)))
+                .andExpect(status().isNoContent());
+    }
+
+    private void removeMember(String owner, String invitee, String vaultId) throws Exception {
+        mvc.perform(
+                        delete("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, invitee)
+                                .with(httpBasic(owner, "correct horse battery staple")))
+                .andExpect(status().isNoContent());
+    }
+
     private void putRecord(
             String username,
             String vaultId,

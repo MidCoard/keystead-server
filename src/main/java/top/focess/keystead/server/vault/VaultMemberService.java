@@ -6,6 +6,7 @@ import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.server.audit.AuditService;
 import top.focess.keystead.server.identity.UserRepository;
 
 @Service
@@ -15,6 +16,7 @@ class VaultMemberService {
     private final UserRepository users;
     private final VaultKeyPackageRepository keyPackages;
     private final VaultKeyLifecycleService lifecycle;
+    private final AuditService audit;
     private final Clock clock;
 
     VaultMemberService(
@@ -23,12 +25,14 @@ class VaultMemberService {
             @NonNull UserRepository users,
             @NonNull VaultKeyPackageRepository keyPackages,
             @NonNull VaultKeyLifecycleService lifecycle,
+            @NonNull AuditService audit,
             @NonNull Clock clock) {
         this.access = access;
         this.members = members;
         this.users = users;
         this.keyPackages = keyPackages;
         this.lifecycle = lifecycle;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -47,7 +51,7 @@ class VaultMemberService {
             @NonNull String vaultId,
             @NonNull String userId,
             @NonNull VaultMemberRequest request) {
-        access.requireMemberManager(actor, vaultId);
+        String ownerId = access.requireMemberManagerAndResolveOwner(actor, vaultId);
         if (request.role() == VaultMemberRole.OWNER || !users.exists(userId))
             throw new VaultNotFoundException("Vault does not exist");
         Instant now = clock.instant();
@@ -76,6 +80,7 @@ class VaultMemberService {
                                 VaultMemberState.INVITED,
                                 created,
                                 now)));
+        audit.vaultMemberInvited(ownerId, actor, vaultId, userId, request.role().name());
     }
 
     @Transactional
@@ -101,6 +106,7 @@ class VaultMemberService {
                                 VaultMemberState.ACCEPTED_PENDING_KEY,
                                 member.createdAt(),
                                 clock.instant())));
+        audit.vaultMemberAccepted(access.resolveOwner(vaultId), userId, vaultId, userId);
     }
 
     @Transactional
@@ -123,6 +129,7 @@ class VaultMemberService {
                                 VaultMemberState.REMOVED,
                                 member.createdAt(),
                                 clock.instant())));
+        audit.vaultMemberDeclined(access.resolveOwner(vaultId), userId, vaultId, userId);
     }
 
     @Transactional
@@ -131,12 +138,13 @@ class VaultMemberService {
             @NonNull String vaultId,
             @NonNull String userId,
             @NonNull VaultMemberRequest request) {
-        access.requireMemberManager(actor, vaultId);
+        String ownerId = access.requireMemberManagerAndResolveOwner(actor, vaultId);
         StoredVaultMember member =
                 members.find(vaultId, userId)
                         .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
         if (member.role() == VaultMemberRole.OWNER || request.role() == VaultMemberRole.OWNER)
             throw new VaultNotFoundException("Vault does not exist");
+        VaultMemberRole fromRole = member.role();
         members.saveAndFlush(
                 VaultMemberEntity.from(
                         new StoredVaultMember(
@@ -146,12 +154,13 @@ class VaultMemberService {
                                 member.state(),
                                 member.createdAt(),
                                 clock.instant())));
+        audit.vaultMemberRoleChanged(
+                ownerId, actor, vaultId, userId, fromRole.name(), request.role().name());
     }
 
     @Transactional
     void remove(@NonNull String actor, @NonNull String vaultId, @NonNull String userId) {
-        access.requireMemberManager(actor, vaultId);
-        String ownerId = access.requireActiveMemberAndResolveOwner(actor, vaultId);
+        String ownerId = access.requireMemberManagerAndResolveOwner(actor, vaultId);
         StoredVaultMember member =
                 members.find(vaultId, userId)
                         .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
@@ -171,6 +180,7 @@ class VaultMemberService {
                                 VaultMemberState.REMOVED,
                                 member.createdAt(),
                                 now)));
+        audit.vaultMemberRemoved(ownerId, actor, vaultId, userId);
         if (requiresRotation) {
             lifecycle.requireRotation(ownerId, actor, vaultId, "MEMBER_REMOVED", userId, now);
         }

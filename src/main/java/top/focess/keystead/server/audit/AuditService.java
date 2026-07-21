@@ -21,6 +21,7 @@ public class AuditService {
     private static final String TARGET_AUTOMATION_TOKEN = "automation_token";
     private static final String TARGET_RECORD = "record";
     private static final String TARGET_VAULT_LIFECYCLE = "vault_lifecycle";
+    private static final String TARGET_VAULT_MEMBER = "vault_member";
     private static final String TARGET_RECOVERY_ENROLLMENT = "recovery_enrollment";
     private static final String TARGET_RECOVERY_SESSION = "recovery_session";
 
@@ -170,6 +171,113 @@ public class AuditService {
                                 + "\",\"targetCount\":"
                                 + targetCount
                                 + "}",
+                        clock.instant()));
+    }
+
+    public void vaultMemberInvited(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String memberId,
+            @NonNull String role) {
+        persist(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_MEMBER_INVITED.name(),
+                        TARGET_VAULT_MEMBER,
+                        memberId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"role\":\"" + escapeJson(role) + "\"}",
+                        clock.instant()));
+    }
+
+    public void vaultMemberAccepted(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String memberId) {
+        persist(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_MEMBER_ACCEPTED.name(),
+                        TARGET_VAULT_MEMBER,
+                        memberId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"accepted\":true}",
+                        clock.instant()));
+    }
+
+    public void vaultMemberDeclined(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String memberId) {
+        persist(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_MEMBER_DECLINED.name(),
+                        TARGET_VAULT_MEMBER,
+                        memberId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"declined\":true}",
+                        clock.instant()));
+    }
+
+    public void vaultMemberRoleChanged(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String memberId,
+            @NonNull String fromRole,
+            @NonNull String toRole) {
+        persist(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_MEMBER_ROLE_CHANGED.name(),
+                        TARGET_VAULT_MEMBER,
+                        memberId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"fromRole\":\""
+                                + escapeJson(fromRole)
+                                + "\",\"toRole\":\""
+                                + escapeJson(toRole)
+                                + "\"}",
+                        clock.instant()));
+    }
+
+    public void vaultMemberRemoved(
+            @NonNull String ownerId,
+            @NonNull String actorId,
+            @NonNull String vaultId,
+            @NonNull String memberId) {
+        persist(
+                new StoredAuditEvent(
+                        UUID.randomUUID().toString(),
+                        ownerId,
+                        actorId,
+                        AuditEventType.VAULT_MEMBER_REMOVED.name(),
+                        TARGET_VAULT_MEMBER,
+                        memberId,
+                        vaultId,
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"removed\":true}",
                         clock.instant()));
     }
 

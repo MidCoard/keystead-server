@@ -54,6 +54,21 @@ public class VaultAccessGuard {
         }
     }
 
+    public @NonNull String requireMemberManagerAndResolveOwner(
+            @NonNull String userId, @NonNull String vaultId) {
+        StoredVaultMember member = activeMemberOrThrow(userId, vaultId);
+        if (!member.role().canManageMembers()) {
+            throw new VaultNotFoundException("Vault does not exist");
+        }
+        return resolveOwner(vaultId);
+    }
+
+    public @NonNull String resolveOwner(@NonNull String vaultId) {
+        return vaults.findGlobally(vaultId)
+                .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"))
+                .ownerId();
+    }
+
     public void requireOwnedVault(@NonNull String ownerId, @NonNull String vaultId) {
         if (!vaults.exists(ownerId, vaultId)) {
             throw new VaultNotFoundException("Vault does not exist");
