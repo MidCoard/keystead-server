@@ -1,6 +1,9 @@
 package top.focess.keystead.server.audit;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -28,14 +31,17 @@ public class AuditService {
     private final AuditEventRepository auditEvents;
     private final Clock clock;
     private final CorrelationIdHolder correlationIds;
+    private final AuditProperties auditProperties;
 
     public AuditService(
             @NonNull AuditEventRepository auditEvents,
             @NonNull Clock clock,
-            @NonNull CorrelationIdHolder correlationIds) {
+            @NonNull CorrelationIdHolder correlationIds,
+            @NonNull AuditProperties auditProperties) {
         this.auditEvents = auditEvents;
         this.clock = clock;
         this.correlationIds = correlationIds;
+        this.auditProperties = auditProperties;
     }
 
     /**
@@ -45,6 +51,55 @@ public class AuditService {
      */
     private void persist(@NonNull StoredAuditEvent event) {
         auditEvents.append(event, correlationIds.current());
+        pruneRetained(event.ownerId());
+    }
+
+    /**
+     * Pages one owner's audit trail newest-first. The page is bounded by {@link AuditProperties}'s
+     * {@code queryMaxLimit}; the {@code (before, beforeId)} cursor is the oldest row of the prior
+     * page, so callers can chain requests without skipping or repeating rows that share a
+     * timestamp.
+     */
+    @Transactional(readOnly = true)
+    public @NonNull AuditEventPageResponse pageForOwner(
+            @NonNull String ownerId,
+            int limit,
+            @Nullable String vaultId,
+            @Nullable Instant before,
+            @Nullable String beforeId) {
+        if (limit <= 0 || limit > auditProperties.queryMaxLimit()) {
+            throw new InvalidAuditRequestException("Audit page limit is out of range");
+        }
+        if ((before == null) != (beforeId == null)) {
+            throw new InvalidAuditRequestException(
+                    "Audit cursor must specify both before and beforeId");
+        }
+        List<AuditEventEntity> fetched =
+                auditEvents.pageBefore(ownerId, vaultId, before, beforeId, limit + 1);
+        boolean hasMore = fetched.size() > limit;
+        List<AuditEventResponse> page =
+                fetched.stream().limit(limit).map(AuditEventResponse::from).toList();
+        Instant nextBefore = null;
+        String nextBeforeId = null;
+        if (hasMore && !page.isEmpty()) {
+            AuditEventResponse oldest = page.get(page.size() - 1);
+            nextBefore = oldest.createdAt();
+            nextBeforeId = oldest.eventId();
+        }
+        return new AuditEventPageResponse(page, limit, hasMore, nextBefore, nextBeforeId);
+    }
+
+    /**
+     * Prunes audit events for one owner that have aged out of the configured retention window. Runs
+     * lazily on each append so retention stays deterministic and testable without a background
+     * scheduler; when retention is disabled (the default test profile) this is a no-op.
+     */
+    private void pruneRetained(@NonNull String ownerId) {
+        Duration retention = auditProperties.retention();
+        if (retention == null) {
+            return;
+        }
+        auditEvents.deleteOlderThan(ownerId, clock.instant().minus(retention));
     }
 
     public void recordStored(

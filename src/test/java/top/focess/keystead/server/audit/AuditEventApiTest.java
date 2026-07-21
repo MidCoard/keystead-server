@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -18,7 +19,9 @@ import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.Signature;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -491,6 +494,172 @@ class AuditEventApiTest {
         assertThat(events).hasSize(1);
         assertThat(events.getFirst().eventType())
                 .isEqualTo(AuditEventType.VAULT_MEMBER_INVITED.name());
+    }
+
+    @Test
+    void auditQueryPaginatesNewestFirstWithCompositeCursor() throws Exception {
+        registerUser("page-alice");
+        createVaultWithPasswordUser("page-alice", "vault-page");
+        putRecord("page-alice", "vault-page", "secret-page-1", 1, "API_TOKEN", "p", "e");
+        putRecord("page-alice", "vault-page", "secret-page-2", 2, "API_TOKEN", "p", "e");
+        putRecord("page-alice", "vault-page", "secret-page-3", 3, "API_TOKEN", "p", "e");
+
+        String firstPage =
+                mvc.perform(
+                                get("/api/v1/audit/events")
+                                        .with(
+                                                httpBasic(
+                                                        "page-alice",
+                                                        "correct horse battery staple"))
+                                        .param("limit", "2"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.events.length()").value(2))
+                        .andExpect(jsonPath("$.hasMore").value(true))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        List<String> firstPageIds = JsonPath.read(firstPage, "$.events[*].eventId");
+        String nextBefore = JsonPath.read(firstPage, "$.nextBefore");
+        String nextBeforeId = JsonPath.read(firstPage, "$.nextBeforeId");
+
+        String secondPage =
+                mvc.perform(
+                                get("/api/v1/audit/events")
+                                        .with(
+                                                httpBasic(
+                                                        "page-alice",
+                                                        "correct horse battery staple"))
+                                        .param("limit", "2")
+                                        .param("before", nextBefore)
+                                        .param("beforeId", nextBeforeId))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.events.length()").value(1))
+                        .andExpect(jsonPath("$.hasMore").value(false))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        List<String> secondPageIds = JsonPath.read(secondPage, "$.events[*].eventId");
+
+        Set<String> allIds = new HashSet<>(firstPageIds);
+        allIds.addAll(secondPageIds);
+        assertThat(allIds).hasSize(3);
+    }
+
+    @Test
+    void auditQueryFiltersByVault() throws Exception {
+        registerUser("filter-alice");
+        createVaultWithPasswordUser("filter-alice", "vault-filter-a");
+        createVaultWithPasswordUser("filter-alice", "vault-filter-b");
+        putRecord("filter-alice", "vault-filter-a", "secret-filter-a", 1, "API_TOKEN", "p", "e");
+        putRecord("filter-alice", "vault-filter-b", "secret-filter-b", 1, "API_TOKEN", "p", "e");
+
+        String json =
+                mvc.perform(
+                                get("/api/v1/audit/events")
+                                        .with(
+                                                httpBasic(
+                                                        "filter-alice",
+                                                        "correct horse battery staple"))
+                                        .param("vaultId", "vault-filter-a"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.events.length()").value(1))
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        List<String> vaultIds = JsonPath.read(json, "$.events[*].vaultId");
+        assertThat(vaultIds).containsOnly("vault-filter-a");
+    }
+
+    @Test
+    void auditQueryDoesNotLeakAcrossOwners() throws Exception {
+        registerUser("scope-alice");
+        registerUser("scope-bob");
+        createVaultWithPasswordUser("scope-alice", "vault-scope-a");
+        createVaultWithPasswordUser("scope-bob", "vault-scope-b");
+        putRecord("scope-alice", "vault-scope-a", "secret-scope-a", 1, "API_TOKEN", "p", "e");
+        putRecord("scope-bob", "vault-scope-b", "secret-scope-b", 1, "API_TOKEN", "p", "e");
+
+        String aliceJson =
+                mvc.perform(
+                                get("/api/v1/audit/events")
+                                        .with(
+                                                httpBasic(
+                                                        "scope-alice",
+                                                        "correct horse battery staple")))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        List<String> aliceVaults = JsonPath.read(aliceJson, "$.events[*].vaultId");
+        assertThat(aliceVaults).containsOnly("vault-scope-a");
+
+        String bobJson =
+                mvc.perform(
+                                get("/api/v1/audit/events")
+                                        .with(
+                                                httpBasic(
+                                                        "scope-bob",
+                                                        "correct horse battery staple")))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        List<String> bobVaults = JsonPath.read(bobJson, "$.events[*].vaultId");
+        assertThat(bobVaults).containsOnly("vault-scope-b");
+    }
+
+    @Test
+    void auditQueryExposesCorrelationId() throws Exception {
+        registerUser("corr-query-alice");
+        createVaultWithPasswordUser("corr-query-alice", "vault-corr-query");
+        mvc.perform(
+                        put("/api/v1/vaults/vault-corr-query/records/secret-corr-query")
+                                .with(httpBasic("corr-query-alice", "correct horse battery staple"))
+                                .header(CorrelationIdFilter.CORRELATION_ID_HEADER, "corr-query-xyz")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "API_TOKEN",
+                                          "encryptedProfile": "p",
+                                          "envelope": "e",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated());
+
+        mvc.perform(
+                        get("/api/v1/audit/events")
+                                .with(
+                                        httpBasic(
+                                                "corr-query-alice",
+                                                "correct horse battery staple")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.events[0].correlationId").value("corr-query-xyz"))
+                .andExpect(jsonPath("$.events[0].eventType").value("RECORD_STORED"));
+    }
+
+    @Test
+    void auditQueryRejectsLimitAboveMax() throws Exception {
+        registerUser("limit-alice");
+
+        mvc.perform(
+                        get("/api/v1/audit/events")
+                                .with(httpBasic("limit-alice", "correct horse battery staple"))
+                                .param("limit", "500"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void auditQueryRejectsPartialCursor() throws Exception {
+        registerUser("cursor-alice");
+
+        mvc.perform(
+                        get("/api/v1/audit/events")
+                                .with(httpBasic("cursor-alice", "correct horse battery staple"))
+                                .param("before", "2026-07-21T00:00:00Z"))
+                .andExpect(status().isBadRequest());
     }
 
     private StoredAuditEvent singleEvent(List<StoredAuditEvent> events, AuditEventType type) {
