@@ -75,7 +75,9 @@ public class AuditService {
                     "Audit cursor must specify both before and beforeId");
         }
         List<AuditEventEntity> fetched =
-                auditEvents.pageBefore(ownerId, vaultId, before, beforeId, limit + 1);
+                before == null
+                        ? auditEvents.pageFirst(ownerId, vaultId, limit + 1)
+                        : auditEvents.pageCursor(ownerId, vaultId, before, beforeId, limit + 1);
         boolean hasMore = fetched.size() > limit;
         List<AuditEventResponse> page =
                 fetched.stream().limit(limit).map(AuditEventResponse::from).toList();

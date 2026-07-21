@@ -49,10 +49,9 @@ interface AuditEventRepository
     }
 
     /**
-     * Pages one owner's trail newest-first. The optional {@code (before, beforeId)} cursor excludes
-     * rows at or after that {@code (createdAt, eventId)} tuple; because {@code createdAt} is not
-     * unique, {@code eventId} breaks ties so pages never skip or repeat rows sharing a timestamp.
-     * The owner predicate is always applied so callers cannot page through another user's trail.
+     * First page of one owner's trail, newest-first. The optional {@code vaultId} filters to a
+     * single vault; {@code null} returns events across all of the owner's vaults. The owner
+     * predicate is always applied so callers cannot page through another user's trail.
      */
     @Query(
             """
@@ -60,25 +59,50 @@ interface AuditEventRepository
               from AuditEventEntity e
              where e.ownerId = :ownerId
                and (:vaultId is null or e.vaultId = :vaultId)
-               and (:before is null
-                    or e.createdAt < :before
+             order by e.createdAt desc, e.eventId desc
+            """)
+    @NonNull List<AuditEventEntity> pageFirstEntities(
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("vaultId") @Nullable String vaultId,
+            @NonNull Pageable pageable);
+
+    default @NonNull List<AuditEventEntity> pageFirst(
+            @NonNull String ownerId, @Nullable String vaultId, int limit) {
+        return pageFirstEntities(ownerId, vaultId, Pageable.ofSize(Math.max(1, limit)));
+    }
+
+    /**
+     * Subsequent page of one owner's trail, newest-first, continuing after the {@code (before,
+     * beforeId)} cursor (the oldest row of the prior page). {@code before} is always non-null here;
+     * because {@code createdAt} is not unique, {@code eventId} breaks ties so pages never skip or
+     * repeat rows sharing a timestamp. The first page is split out into {@link #pageFirstEntities}
+     * so this query never carries an untyped {@code :before is null} parameter, which PostgreSQL
+     * cannot resolve (it has no comparison column to infer the timestamp type from).
+     */
+    @Query(
+            """
+            select e
+              from AuditEventEntity e
+             where e.ownerId = :ownerId
+               and (:vaultId is null or e.vaultId = :vaultId)
+               and (e.createdAt < :before
                     or (e.createdAt = :before and e.eventId < :beforeId))
              order by e.createdAt desc, e.eventId desc
             """)
-    @NonNull List<AuditEventEntity> pageBeforeEntities(
+    @NonNull List<AuditEventEntity> pageCursorEntities(
             @Param("ownerId") @NonNull String ownerId,
             @Param("vaultId") @Nullable String vaultId,
-            @Param("before") @Nullable Instant before,
-            @Param("beforeId") @Nullable String beforeId,
+            @Param("before") @NonNull Instant before,
+            @Param("beforeId") @NonNull String beforeId,
             @NonNull Pageable pageable);
 
-    default @NonNull List<AuditEventEntity> pageBefore(
+    default @NonNull List<AuditEventEntity> pageCursor(
             @NonNull String ownerId,
             @Nullable String vaultId,
-            @Nullable Instant before,
-            @Nullable String beforeId,
+            @NonNull Instant before,
+            @NonNull String beforeId,
             int limit) {
-        return pageBeforeEntities(
+        return pageCursorEntities(
                 ownerId, vaultId, before, beforeId, Pageable.ofSize(Math.max(1, limit)));
     }
 }
