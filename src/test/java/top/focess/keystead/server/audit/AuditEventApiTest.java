@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
@@ -18,6 +19,7 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -36,18 +38,21 @@ class AuditEventApiTest {
 
     @Autowired private AuditEventRepository auditEvents;
 
+    private static final Pattern GENERATED_CORRELATION_ID =
+            Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
+
     @Test
     void databaseAppendRejectsDuplicateAuditEventId() {
-        auditEvents.append(auditEvent("duplicate-audit-event"));
+        auditEvents.append(auditEvent("duplicate-audit-event"), null);
 
         assertThrows(
                 DataIntegrityViolationException.class,
-                () -> auditEvents.append(auditEvent("duplicate-audit-event")));
+                () -> auditEvents.append(auditEvent("duplicate-audit-event"), null));
     }
 
     @Test
     void auditEventsAreQueryableByOwnerAndVaultWithoutCrossOwnerLeakage() {
-        auditEvents.append(auditEvent("vault-query-a"));
+        auditEvents.append(auditEvent("vault-query-a"), null);
         auditEvents.append(
                 new StoredAuditEvent(
                         "vault-query-b",
@@ -60,7 +65,8 @@ class AuditEventApiTest {
                         1L,
                         "SUCCESS",
                         "{}",
-                        java.time.Instant.parse("2026-07-09T00:00:01Z")));
+                        java.time.Instant.parse("2026-07-09T00:00:01Z")),
+                null);
 
         assertThat(auditEvents.listForOwnerAndVault("audit-db-owner", "vault-a"))
                 .extracting(StoredAuditEvent::eventId)
@@ -321,6 +327,77 @@ class AuditEventApiTest {
         assertThat(event.revision()).isNull();
         assertThat(event.details()).contains("\"reason\":\"BAD_CREDENTIALS\"");
         assertThat(event.details()).doesNotContain("wrong-password-sentinel");
+    }
+
+    @Test
+    void auditEventCarriesInboundCorrelationIdHeader() throws Exception {
+        createVault("corr-header-alice", "vault-corr-header");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-corr-header/records/secret-corr-header")
+                                .with(user("corr-header-alice"))
+                                .header(CorrelationIdFilter.CORRELATION_ID_HEADER, "corr-abc-123")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "API_TOKEN",
+                                          "encryptedProfile": "encrypted-profile-corr-sentinel",
+                                          "envelope": "encrypted-envelope-corr-sentinel",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated())
+                .andExpect(
+                        header().string(CorrelationIdFilter.CORRELATION_ID_HEADER, "corr-abc-123"));
+
+        List<AuditEventEntity> entities = auditEvents.listEntitiesForOwner("corr-header-alice");
+        assertThat(entities).hasSize(1);
+        assertThat(entities.getFirst().correlationId).isEqualTo("corr-abc-123");
+    }
+
+    @Test
+    void auditEventGeneratesCorrelationIdWhenHeaderAbsent() throws Exception {
+        createVault("corr-gen-alice", "vault-corr-gen");
+
+        mvc.perform(
+                        put("/api/v1/vaults/vault-corr-gen/records/secret-corr-gen")
+                                .with(user("corr-gen-alice"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {
+                                          "revision": 1,
+                                          "secretType": "API_TOKEN",
+                                          "encryptedProfile": "encrypted-profile-gen-sentinel",
+                                          "envelope": "encrypted-envelope-gen-sentinel",
+                                          "deleted": false
+                                        }
+                                        """))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists(CorrelationIdFilter.CORRELATION_ID_HEADER));
+
+        List<AuditEventEntity> entities = auditEvents.listEntitiesForOwner("corr-gen-alice");
+        assertThat(entities).hasSize(1);
+        assertThat(entities.getFirst().correlationId).matches(GENERATED_CORRELATION_ID);
+    }
+
+    @Test
+    void loginFailureAuditCarriesInboundCorrelationIdHeader() throws Exception {
+        registerUser("corr-login-alice");
+
+        mvc.perform(
+                        get("/api/v1/devices")
+                                .with(httpBasic("corr-login-alice", "wrong-password-corr-sentinel"))
+                                .header(CorrelationIdFilter.CORRELATION_ID_HEADER, "corr-login-1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(
+                        header().string(CorrelationIdFilter.CORRELATION_ID_HEADER, "corr-login-1"));
+
+        List<AuditEventEntity> entities = auditEvents.listEntitiesForOwner("corr-login-alice");
+        assertThat(entities).hasSize(1);
+        assertThat(entities.getFirst().correlationId).isEqualTo("corr-login-1");
     }
 
     private void putRecord(

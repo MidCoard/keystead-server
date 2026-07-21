@@ -73,7 +73,10 @@ class NoDirectJdbcAccessTest {
                                 "src/main/java/top/focess/keystead/server/audit/AuditEventRepositoryWritesImpl.java"));
 
         assertEquals(false, repository.contains("save(AuditEventEntity.from(event))"));
-        assertEquals(true, writes.contains("entityManager.persist(AuditEventEntity.from(event))"));
+        assertEquals(
+                true,
+                writes.contains(
+                        "entityManager.persist(AuditEventEntity.from(event, correlationId))"));
         assertEquals(true, writes.contains("entityManager.flush()"));
     }
 

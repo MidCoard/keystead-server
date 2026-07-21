@@ -26,10 +26,24 @@ public class AuditService {
 
     private final AuditEventRepository auditEvents;
     private final Clock clock;
+    private final CorrelationIdHolder correlationIds;
 
-    public AuditService(@NonNull AuditEventRepository auditEvents, @NonNull Clock clock) {
+    public AuditService(
+            @NonNull AuditEventRepository auditEvents,
+            @NonNull Clock clock,
+            @NonNull CorrelationIdHolder correlationIds) {
         this.auditEvents = auditEvents;
         this.clock = clock;
+        this.correlationIds = correlationIds;
+    }
+
+    /**
+     * Persists an audit event stamped with the current request's correlation id (if any). Routing
+     * every append through here keeps correlation-id threading out of the individual recording
+     * methods and lets events recorded outside a request context carry a {@code null} id.
+     */
+    private void persist(@NonNull StoredAuditEvent event) {
+        auditEvents.append(event, correlationIds.current());
     }
 
     public void recordStored(
@@ -73,7 +87,7 @@ public class AuditService {
             @NonNull String deviceId,
             @NonNull String vaultKeyId,
             @NonNull String keyAlgorithm) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -90,7 +104,7 @@ public class AuditService {
 
     public void deviceRevoked(
             @NonNull String ownerId, @NonNull String actorId, @NonNull String deviceId) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -111,7 +125,7 @@ public class AuditService {
             @NonNull String vaultId,
             @NonNull String reason,
             @NonNull String subjectId) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -138,7 +152,7 @@ public class AuditService {
             @NonNull String sourceVaultKeyId,
             @NonNull String targetVaultKeyId,
             long targetCount) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -259,7 +273,7 @@ public class AuditService {
             long generation,
             @NonNull String vaultKeyId,
             @NonNull String keyAlgorithm) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         username,
@@ -286,7 +300,7 @@ public class AuditService {
             @NonNull String authority,
             int recoveredVaults,
             int pendingVaults) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         username,
@@ -315,7 +329,7 @@ public class AuditService {
             @NonNull String secretId,
             long latestRevision,
             long rejectedRevision) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -332,7 +346,7 @@ public class AuditService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void loginFailed(@NonNull String username) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         username,
@@ -355,7 +369,7 @@ public class AuditService {
             @NonNull String targetId,
             long revision,
             @NonNull String details) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -378,7 +392,7 @@ public class AuditService {
             @NonNull String targetId,
             @Nullable String vaultId,
             @NonNull String details) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
@@ -400,7 +414,7 @@ public class AuditService {
             @NonNull String enrollmentId,
             long generation,
             @NonNull String state) {
-        auditEvents.append(
+        persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,

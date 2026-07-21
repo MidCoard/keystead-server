@@ -52,9 +52,12 @@ public class AuditEventEntity {
     @Column(name = "created_at", nullable = false)
     @NonNull Instant createdAt = Instant.EPOCH;
 
+    @Column(name = "correlation_id")
+    @Nullable String correlationId;
+
     protected AuditEventEntity() {}
 
-    private AuditEventEntity(@NonNull StoredAuditEvent event) {
+    private AuditEventEntity(@NonNull StoredAuditEvent event, @Nullable String correlationId) {
         this.eventId = event.eventId();
         this.ownerId = event.ownerId();
         this.actorId = event.actorId();
@@ -66,10 +69,12 @@ public class AuditEventEntity {
         this.outcome = event.outcome();
         this.details = event.details();
         this.createdAt = event.createdAt();
+        this.correlationId = correlationId;
     }
 
-    static @NonNull AuditEventEntity from(@NonNull StoredAuditEvent event) {
-        return new AuditEventEntity(event);
+    static @NonNull AuditEventEntity from(
+            @NonNull StoredAuditEvent event, @Nullable String correlationId) {
+        return new AuditEventEntity(event, correlationId);
     }
 
     @NonNull StoredAuditEvent toStored() {
