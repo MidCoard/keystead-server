@@ -130,6 +130,29 @@ class StoredAuditEventTest {
     }
 
     @Test
+    void rejectsDetailsThatAreValidJsonButNotObjects() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> event("event-a", "alice", "SUCCESS", "[1, 2, 3]"));
+        assertThrows(
+                IllegalArgumentException.class, () -> event("event-a", "alice", "SUCCESS", "42"));
+    }
+
+    @Test
+    void rejectsBlankVaultIdWhenPresent() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        event(
+                                AuditEventType.RECORD_STORED,
+                                "record",
+                                "secret-a",
+                                " ",
+                                1L,
+                                "SUCCESS"));
+    }
+
+    @Test
     void rejectsForbiddenSensitiveDetailKeys() {
         assertThrows(
                 IllegalArgumentException.class,
