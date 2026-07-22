@@ -7,24 +7,25 @@ import top.focess.keystead.crypto.CryptoAlgorithmRegistry;
 
 public final class ServerCryptoAlgorithmRegistry {
 
-    public static final String PAYLOAD_AEAD_AES_256_GCM = CryptoAlgorithmRegistry.AEAD_AES_256_GCM;
-    public static final String PAYLOAD_AEAD_CHACHA20_POLY1305 =
+    public static final @NonNull String PAYLOAD_AEAD_AES_256_GCM =
+            CryptoAlgorithmRegistry.AEAD_AES_256_GCM;
+    public static final @NonNull String PAYLOAD_AEAD_CHACHA20_POLY1305 =
             CryptoAlgorithmRegistry.AEAD_CHACHA20_POLY1305;
 
-    public static final String KDF_PBKDF2_HMAC_SHA256 =
+    public static final @NonNull String KDF_PBKDF2_HMAC_SHA256 =
             CryptoAlgorithmRegistry.KDF_PBKDF2_HMAC_SHA256;
-    public static final String KDF_PBKDF2_HMAC_SHA512 =
+    public static final @NonNull String KDF_PBKDF2_HMAC_SHA512 =
             CryptoAlgorithmRegistry.KDF_PBKDF2_HMAC_SHA512;
 
-    public static final String DEVICE_RSA_OAEP_SHA256 = "RSA_OAEP_SHA256";
-    public static final String DEVICE_RSA_PSS_SHA256 = "RSA_PSS_SHA256";
-    public static final String DEVICE_ECDSA_P256_SHA256 = "ECDSA_P256_SHA256";
-    public static final String DEVICE_ECDSA_P384_SHA384 = "ECDSA_P384_SHA384";
-    public static final String DEVICE_ECDSA_P521_SHA512 = "ECDSA_P521_SHA512";
-    public static final String DEVICE_ED25519 = "ED25519";
-    public static final String DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM =
+    public static final @NonNull String DEVICE_RSA_OAEP_SHA256 = "RSA_OAEP_SHA256";
+    public static final @NonNull String DEVICE_RSA_PSS_SHA256 = "RSA_PSS_SHA256";
+    public static final @NonNull String DEVICE_ECDSA_P256_SHA256 = "ECDSA_P256_SHA256";
+    public static final @NonNull String DEVICE_ECDSA_P384_SHA384 = "ECDSA_P384_SHA384";
+    public static final @NonNull String DEVICE_ECDSA_P521_SHA512 = "ECDSA_P521_SHA512";
+    public static final @NonNull String DEVICE_ED25519 = "ED25519";
+    public static final @NonNull String DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM =
             CryptoAlgorithmRegistry.DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM;
-    public static final String DEVICE_TINK_DEVICE_KEY_PACKAGE =
+    public static final @NonNull String DEVICE_TINK_DEVICE_KEY_PACKAGE =
             CryptoAlgorithmRegistry.DEVICE_TINK_DEVICE_KEY_PACKAGE;
 
     private static final List<String> PAYLOAD_AEAD_ALGORITHMS =
