@@ -58,6 +58,52 @@ class StoredRefreshTokenTest {
                                 BEFORE_CREATED_AT));
     }
 
+    @Test
+    void rejectsBlankTokenHashAndUsername() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredRefreshToken(
+                                " ", "alice", null, EXPIRES_AT, null, CREATED_AT, LAST_USED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredRefreshToken(
+                                "token-hash",
+                                " ",
+                                null,
+                                EXPIRES_AT,
+                                null,
+                                CREATED_AT,
+                                LAST_USED_AT));
+    }
+
+    @Test
+    void rejectsExpiryNotAfterCreation() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredRefreshToken(
+                                "token-hash",
+                                "alice",
+                                null,
+                                CREATED_AT,
+                                null,
+                                CREATED_AT,
+                                LAST_USED_AT));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new StoredRefreshToken(
+                                "token-hash",
+                                "alice",
+                                null,
+                                BEFORE_CREATED_AT,
+                                null,
+                                CREATED_AT,
+                                LAST_USED_AT));
+    }
+
     private static StoredRefreshToken token(String deviceId) {
         return new StoredRefreshToken(
                 "token-hash", "alice", deviceId, EXPIRES_AT, null, CREATED_AT, LAST_USED_AT);
