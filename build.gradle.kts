@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "top.focess"
-version = "0.2.0-SNAPSHOT"
+version = "0.2.0"
 
 java {
     toolchain {
@@ -15,6 +15,12 @@ java {
     }
     withSourcesJar()
 }
+
+// The server ships as a runnable Spring Boot fat JAR (bootJar); the plain
+// classes JAR is not useful (the server is not consumed as a library) and is
+// disabled so build/libs/ contains only the runnable artifact. This keeps the
+// release Dockerfile's JAR glob unambiguous.
+tasks.jar { enabled = false }
 
 dependencies {
     implementation("top.focess:keystead-core")
