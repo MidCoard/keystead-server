@@ -18,6 +18,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.memory.Wipe;
 
 @Service
 class RecoverySessionService {
@@ -199,7 +200,7 @@ class RecoverySessionService {
         try {
             return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
         } finally {
-            java.util.Arrays.fill(value, (byte) 0);
+            Wipe.wipe(value);
         }
     }
 
@@ -212,7 +213,7 @@ class RecoverySessionService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is unavailable", e);
         } finally {
-            java.util.Arrays.fill(encoded, (byte) 0);
+            Wipe.wipe(encoded);
         }
     }
 

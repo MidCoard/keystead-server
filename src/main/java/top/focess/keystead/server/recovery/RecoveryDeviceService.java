@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
@@ -17,6 +16,7 @@ import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import top.focess.keystead.memory.Wipe;
 import top.focess.keystead.recovery.RecoveryDeviceRequest;
 import top.focess.keystead.recovery.RecoveryDeviceRequestCodec;
 import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
@@ -110,7 +110,7 @@ class RecoveryDeviceService {
                 throw new RecoveryAuthenticationFailedException();
             }
         } finally {
-            Arrays.fill(canonical, (byte) 0);
+            Wipe.wipe(canonical);
         }
         List<RecoveryRequestVaultPackageEntity> packages =
                 validateAndMapPackages(username, requestId, approval.vaultPackages());
@@ -141,7 +141,7 @@ class RecoveryDeviceService {
                 throw new RecoveryAuthenticationFailedException();
             }
         } finally {
-            Arrays.fill(canonical, (byte) 0);
+            Wipe.wipe(canonical);
         }
         Instant now = clock.instant();
         if (requests.consumeApproved(requestId, now) != 1) {
@@ -207,7 +207,7 @@ class RecoveryDeviceService {
             throw new InvalidRecoveryRequestException("Recovery wrapping algorithm is unsupported");
         }
         byte[] wrapping = decodeKey(payload.wrappingPublicKey());
-        Arrays.fill(wrapping, (byte) 0);
+        Wipe.wipe(wrapping);
         if (payload.proofPublicKey().equals(payload.wrappingPublicKey())) {
             throw new InvalidRecoveryRequestException(
                     "Recovery proof and wrapping keys must be distinct");
@@ -231,7 +231,7 @@ class RecoveryDeviceService {
                     entity.expiresAt,
                     Base64.getUrlEncoder().withoutPadding().encodeToString(canonical));
         } finally {
-            Arrays.fill(canonical, (byte) 0);
+            Wipe.wipe(canonical);
         }
     }
 
@@ -259,8 +259,8 @@ class RecoveryDeviceService {
                     entity.wrappingKeyAlgorithm,
                     wrapping);
         } finally {
-            Arrays.fill(proof, (byte) 0);
-            Arrays.fill(wrapping, (byte) 0);
+            Wipe.wipe(proof);
+            Wipe.wipe(wrapping);
         }
     }
 
@@ -268,7 +268,7 @@ class RecoveryDeviceService {
         try {
             byte[] value = Base64.getDecoder().decode(encoded);
             if (value.length == 0 || value.length > RecoveryLimits.DECODED_KEY_MAX_BYTES) {
-                Arrays.fill(value, (byte) 0);
+                Wipe.wipe(value);
                 throw new InvalidRecoveryRequestException("Recovery public key is invalid");
             }
             return value;
@@ -283,7 +283,7 @@ class RecoveryDeviceService {
         try {
             return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
         } finally {
-            Arrays.fill(value, (byte) 0);
+            Wipe.wipe(value);
         }
     }
 
