@@ -267,7 +267,7 @@ class RecoveryDeviceService {
     private byte @NonNull [] decodeKey(@NonNull String encoded) {
         try {
             byte[] value = Base64.getDecoder().decode(encoded);
-            if (value.length == 0 || value.length > 64 * 1024) {
+            if (value.length == 0 || value.length > RecoveryLimits.DECODED_KEY_MAX_BYTES) {
                 Arrays.fill(value, (byte) 0);
                 throw new InvalidRecoveryRequestException("Recovery public key is invalid");
             }

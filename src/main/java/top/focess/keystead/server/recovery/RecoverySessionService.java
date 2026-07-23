@@ -187,7 +187,7 @@ class RecoverySessionService {
             throw new RecoveryAuthenticationFailedException();
         }
         String token = authorization.substring("Recovery ".length());
-        if (token.isBlank() || token.length() > 128) {
+        if (token.isBlank() || token.length() > RecoveryLimits.RECOVERY_TOKEN_MAX_LENGTH) {
             throw new RecoveryAuthenticationFailedException();
         }
         return token;
