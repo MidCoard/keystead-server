@@ -1,18 +1,32 @@
 # Keystead Server
 
-Keystead Server is the self-hosted synchronization and account service for
-Keystead. It lets a person use the same encrypted vault across verified devices
-and share a vault with other users without giving the server the ability to
-decrypt secret contents.
+Keystead Server is the self-hosted account, synchronization, and collaboration
+service in the Keystead product family. It lets users carry an encrypted vault
+across verified devices, share whole vaults, coordinate key rotation, and
+recover account access without giving the service a raw vault key or plaintext
+secret.
 
 The desktop client performs encryption and decryption. The server authenticates
 requests, enforces ownership and roles, stores opaque encrypted rows, orders
 sync revisions, distributes client-wrapped vault keys, and records redacted
 security events.
 
-Keystead Core and Keystead Client are independent repositories. You can inspect
-or deploy the server on its own, but it becomes useful as a password-manager
-system when paired with a compatible client.
+## The Keystead ecosystem
+
+Keystead is delivered as three independently versioned repositories:
+
+| Project | What it provides |
+| --- | --- |
+| **[Keystead Server](https://github.com/MidCoard/keystead-server)** | This self-hosted coordination service, its REST API, JPA persistence model, and Flyway schema |
+| **[Keystead Client](https://github.com/MidCoard/keystead-client)** | The desktop application that owns plaintext, local vaults, device private keys, OS-native secure storage, sync, collaboration, and recovery workflows |
+| **[Keystead Core](https://github.com/MidCoard/keystead)** | The Java cryptography, typed-secret, encrypted-protocol, native-memory, persistence, recovery, and rotation foundation |
+
+Server can be built, inspected, and deployed independently, but it becomes a
+usable secret-management system when paired with a compatible client. The
+product's OS-native protection is implemented where secrets exist: Core uses
+locked native memory and exposes process hardening; Client integrates Windows
+DPAPI, macOS Keychain, and Linux Secret Service. Server deliberately does not
+receive the private material those controls protect.
 
 ## What the server gives you
 
@@ -142,6 +156,26 @@ Concurrent or stale commits lose a database compare-and-set and return a
 redacted lifecycle conflict. The persistent model and package replacement use
 JPA transactions; Flyway remains the only schema authority.
 
+### Automation and audit
+
+Vault owners can register automation principals with their own public key,
+issue time-limited scoped tokens, restrict record access to explicit secret
+IDs, and upload a vault-key package encrypted for that principal. The server
+stores token hashes rather than reusable raw tokens. Automation access still
+returns ciphertext and an explicitly wrapped key package; it does not turn the
+server into a plaintext secret API.
+
+Revoking an automation principal revokes its active tokens, removes its current
+key packages, and requires rotation for affected vaults so the principal does
+not receive future generations.
+
+Security-relevant account, device, record, membership, rotation, automation,
+and recovery transitions produce append-only audit events. Details are
+constructed from redacted identifiers and protocol metadata rather than
+plaintext secrets, credentials, raw tokens, or wrapped-key ciphertext.
+Correlation IDs are recorded when a request supplies one, and deployments can
+configure retention and tamper-evident event signing.
+
 ### Account and vault recovery
 
 Keystead separates server-account recovery from vault-key recovery so a password
@@ -163,7 +197,8 @@ completion.
 
 ## Deployment
 
-Requires JDK 21.
+Requires JDK 25. The Gradle build requests an Adoptium Java 25 toolchain and
+produces a runnable Spring Boot fat JAR.
 
 ### Local H2
 
@@ -217,18 +252,21 @@ monitoring appropriate to their environment.
 ./gradlew spotlessCheck test --no-daemon --rerun-tasks
 ```
 
-The current complete suite contains 295 tests. It includes H2/Flyway database
-constraints, JPA-only architecture checks, auth and device lifecycle tests,
-sync races, membership roles, rotation, automation isolation, and audit
+The server suite includes H2/Flyway database constraints, a JPA-only
+architecture guard, bearer and refresh-session behavior, device lifecycle
+tests, synchronization races, membership roles, staged rotation and restart
+state, automation isolation, both recovery paths, audit signing/retention, and
 redaction sentinels.
 
-## Operational boundaries
+## Operational responsibilities and limits
 
 - The access-token HMAC key is generated at server startup. Restarting the
   process invalidates existing access tokens, and the current implementation is
   not suitable for active-active multi-node issuance without a durable shared
   signing-key design.
-- There is no built-in TLS termination, email verification, passkey login, or
+- TLS termination, network access control, database credentials, backups,
+  monitoring, and signing-key lifecycle are deployment responsibilities.
+- There is no built-in email verification, passkey/WebAuthn login, or
   administrative console. Recovery is performed by a compatible client using
   the offline-kit or verified-device APIs.
 - Automatic tombstone compaction is disabled.
