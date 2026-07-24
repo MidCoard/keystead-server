@@ -16,10 +16,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: keystead-server
-      - uses: actions/checkout@v4
-        with:
-          repository: MidCoard/keystead
-          path: keystead
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

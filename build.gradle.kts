@@ -23,7 +23,7 @@ java {
 tasks.jar { enabled = false }
 
 dependencies {
-    implementation("top.focess:keystead-core")
+    implementation("top.focess:keystead-core:0.2.0")
     implementation("org.jspecify:jspecify:1.0.0")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
