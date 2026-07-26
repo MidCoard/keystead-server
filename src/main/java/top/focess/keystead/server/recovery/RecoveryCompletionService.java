@@ -77,30 +77,30 @@ class RecoveryCompletionService {
 
         RecoveryDeviceRegistration registration = registration(session, completion);
         List<RecoveryDeviceVaultPackage> packages = packages(session, completion);
-        Set<String> availableVaultIds = availableVaultIds(session);
+        Set<String> availableFingerprints = availableFingerprints(session);
         String passwordHash = passwordEncoder.encode(completion.newPassword());
 
         identity.resetPasswordAndEnrollVerifiedDevice(
                 session.username, passwordHash, registration, now);
-        List<String> recoveredVaultIds =
+        List<String> recoveredFingerprints =
                 vaultPackages.store(session.username, registration.deviceId(), packages).stream()
                         .sorted()
                         .toList();
         authSessions.revokeAll(session.username, now);
         consumeAuthority(session, now);
 
-        Set<String> pending = new HashSet<>(availableVaultIds);
-        pending.removeAll(recoveredVaultIds);
+        Set<String> pending = new HashSet<>(availableFingerprints);
+        pending.removeAll(recoveredFingerprints);
         audit.recoveryCompleted(
                 session.username,
                 registration.deviceId(),
                 session.authority.name(),
-                recoveredVaultIds.size(),
+                recoveredFingerprints.size(),
                 pending.size());
         return new RecoveryCompletionResponse(
                 true,
                 registration.deviceId(),
-                recoveredVaultIds,
+                recoveredFingerprints,
                 pending.stream().sorted().toList(),
                 true);
     }
@@ -134,7 +134,7 @@ class RecoveryCompletionService {
                     requestPackages.listForRequest(deviceRequest(session).requestId)) {
                 values.add(
                         new RecoveryDeviceVaultPackage(
-                                entity.id.vaultId,
+                                entity.id.fingerprint,
                                 entity.vaultKeyId,
                                 entity.keyAlgorithm,
                                 entity.encryptedVaultKey));
@@ -143,14 +143,14 @@ class RecoveryCompletionService {
         for (RecoveryCompletionVaultPackage value : completion.vaultPackages()) {
             values.add(
                     new RecoveryDeviceVaultPackage(
-                            value.vaultId(),
+                            value.fingerprint(),
                             value.vaultKeyId(),
                             value.keyAlgorithm(),
                             value.encryptedVaultKey()));
         }
-        Set<String> vaultIds = new HashSet<>();
+        Set<String> fingerprints = new HashSet<>();
         for (RecoveryDeviceVaultPackage value : values) {
-            if (!vaultIds.add(value.vaultId())) {
+            if (!fingerprints.add(value.fingerprint())) {
                 throw new InvalidRecoveryRequestException(
                         "Recovery completion contains duplicate vault package");
             }
@@ -158,18 +158,18 @@ class RecoveryCompletionService {
         return values;
     }
 
-    private @NonNull Set<String> availableVaultIds(@NonNull RecoverySessionEntity session) {
+    private @NonNull Set<String> availableFingerprints(@NonNull RecoverySessionEntity session) {
         Set<String> available = new HashSet<>();
         if (session.authority == RecoveryAuthority.KIT
                 && session.enrollmentId != null
                 && session.generation != null) {
             recoveryPackages
                     .listForEnrollment(session.username, session.enrollmentId, session.generation)
-                    .forEach(value -> available.add(value.id.vaultId));
+                    .forEach(value -> available.add(value.id.fingerprint));
         } else if (session.authority == RecoveryAuthority.DEVICE_APPROVAL) {
             requestPackages
                     .listForRequest(deviceRequest(session).requestId)
-                    .forEach(value -> available.add(value.id.vaultId));
+                    .forEach(value -> available.add(value.id.fingerprint));
         }
         return available;
     }

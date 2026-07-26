@@ -42,7 +42,7 @@ class VaultApiTest {
 
         mvc.perform(get("/api/v1/vaults").with(user("vault-test-alice")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].vaultId").value("vault-a"))
+                .andExpect(jsonPath("$[0].fingerprint").value("vault-a"))
                 .andExpect(jsonPath("$[0].encryptedMetadata").value("opaque-vault-metadata"));
     }
 
@@ -84,7 +84,7 @@ class VaultApiTest {
     }
 
     @Test
-    void differentUserCannotCreateVaultWithExistingGlobalVaultId() throws Exception {
+    void differentUserCannotCreateVaultWithExistingGlobalFingerprint() throws Exception {
         mvc.perform(
                         put("/api/v1/vaults/vault-global-private")
                                 .with(user("vault-global-alice"))
@@ -115,12 +115,12 @@ class VaultApiTest {
 
         mvc.perform(get("/api/v1/vaults").with(user("vault-global-alice")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].vaultId").value("vault-global-private"))
+                .andExpect(jsonPath("$[0].fingerprint").value("vault-global-private"))
                 .andExpect(jsonPath("$[0].encryptedMetadata").value("alice-vault-metadata"));
     }
 
     @Test
-    void takenVaultIdDoesNotValidateRequestBodyBeforeOwnershipDenial() throws Exception {
+    void takenFingerprintDoesNotValidateRequestBodyBeforeOwnershipDenial() throws Exception {
         mvc.perform(
                         put("/api/v1/vaults/vault-api-shape-private")
                                 .with(user("vault-shape-alice"))
@@ -149,7 +149,7 @@ class VaultApiTest {
     }
 
     @Test
-    void databaseRejectsDuplicateVaultIdAcrossOwners() {
+    void databaseRejectsDuplicateFingerprintAcrossOwners() {
         insertVault("vault-db-global", "vault-db-alice");
 
         assertThrows(
@@ -157,8 +157,8 @@ class VaultApiTest {
                 () -> insertVault("vault-db-global", "vault-db-bob"));
     }
 
-    private void insertVault(String vaultId, String ownerId) {
+    private void insertVault(String fingerprint, String ownerId) {
         Instant now = Instant.parse("2026-07-03T00:00:00Z");
-        vaults.insert(new StoredVault(ownerId, vaultId, "opaque-vault-metadata", now, now));
+        vaults.insert(new StoredVault(ownerId, fingerprint, "opaque-vault-metadata", now, now));
     }
 }

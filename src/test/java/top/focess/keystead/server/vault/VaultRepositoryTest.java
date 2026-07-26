@@ -45,15 +45,15 @@ class VaultRepositoryTest {
                                         "wrapped-key-b")));
     }
 
-    private static StoredVault vault(String vaultId, String ownerId, String encryptedMetadata) {
-        return new StoredVault(ownerId, vaultId, encryptedMetadata, CREATED_AT, UPDATED_AT);
+    private static StoredVault vault(String fingerprint, String ownerId, String encryptedMetadata) {
+        return new StoredVault(ownerId, fingerprint, encryptedMetadata, CREATED_AT, UPDATED_AT);
     }
 
     private static StoredVaultKeyPackage keyPackage(
-            String ownerId, String vaultId, String deviceId, String encryptedVaultKey) {
+            String ownerId, String fingerprint, String deviceId, String encryptedVaultKey) {
         return new StoredVaultKeyPackage(
                 ownerId,
-                vaultId,
+                fingerprint,
                 deviceId,
                 "RSA_OAEP_SHA256",
                 encryptedVaultKey,

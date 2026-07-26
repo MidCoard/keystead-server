@@ -77,7 +77,7 @@ class EncryptedRecordServiceTest {
                                                 "envelope",
                                                 false)));
 
-        assertEquals("vault-race", exception.vaultId());
+        assertEquals("vault-race", exception.fingerprint());
         assertEquals("secret-new", exception.secretId());
         assertEquals(4L, exception.latestRevision());
         assertEquals(4L, exception.rejectedRevision());
@@ -109,7 +109,7 @@ class EncryptedRecordServiceTest {
                         RevisionConflictException.class,
                         () -> service.delete("alice", "vault-delete-race", "secret-delete", 3L));
 
-        assertEquals("vault-delete-race", exception.vaultId());
+        assertEquals("vault-delete-race", exception.fingerprint());
         assertEquals("secret-delete", exception.secretId());
         assertEquals(3L, exception.latestRevision());
         assertEquals(3L, exception.rejectedRevision());
@@ -119,10 +119,10 @@ class EncryptedRecordServiceTest {
     }
 
     private static StoredEncryptedRecord storedRecord(
-            String ownerId, String vaultId, String secretId, long revision, boolean deleted) {
+            String ownerId, String fingerprint, String secretId, long revision, boolean deleted) {
         return new StoredEncryptedRecord(
                 ownerId,
-                vaultId,
+                fingerprint,
                 secretId,
                 revision,
                 "SECURE_NOTE",

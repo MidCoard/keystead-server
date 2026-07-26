@@ -22,12 +22,12 @@ class VaultController {
         this.service = service;
     }
 
-    @PutMapping("/{vaultId}")
+    @PutMapping("/{fingerprint}")
     @NonNull ResponseEntity<Void> put(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @RequestBody @NonNull VaultRequest request) {
-        service.put(principal.getName(), vaultId, request);
+        service.put(principal.getName(), fingerprint, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 

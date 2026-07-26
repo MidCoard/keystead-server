@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record EncryptedRecordResponse(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String secretId,
         long revision,
         @NonNull String secretType,
@@ -19,7 +19,7 @@ public record EncryptedRecordResponse(
         @NonNull Instant updatedAt) {
 
     public EncryptedRecordResponse {
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(secretId, "secretId");
         Objects.requireNonNull(secretType, "secretType");
         Objects.requireNonNull(updatedAt, "updatedAt");
@@ -45,7 +45,7 @@ public record EncryptedRecordResponse(
     static @NonNull EncryptedRecordResponse from(@NonNull StoredEncryptedRecord record) {
         boolean deleted = record.deleted();
         return new EncryptedRecordResponse(
-                record.vaultId(),
+                record.fingerprint(),
                 record.secretId(),
                 record.revision(),
                 record.secretType(),

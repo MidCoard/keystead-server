@@ -31,7 +31,7 @@ public class VaultMemberEntity {
     protected VaultMemberEntity() {}
 
     private VaultMemberEntity(@NonNull StoredVaultMember member) {
-        this.id = new VaultMemberEntityId(member.vaultId(), member.userId());
+        this.id = new VaultMemberEntityId(member.fingerprint(), member.userId());
         this.role = member.role();
         this.state = member.state();
         this.createdAt = member.createdAt();
@@ -43,6 +43,6 @@ public class VaultMemberEntity {
     }
 
     @NonNull StoredVaultMember toStored() {
-        return new StoredVaultMember(id.vaultId, id.userId, role, state, createdAt, updatedAt);
+        return new StoredVaultMember(id.fingerprint, id.userId, role, state, createdAt, updatedAt);
     }
 }

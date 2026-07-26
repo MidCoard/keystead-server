@@ -154,21 +154,21 @@ class RecoveryEnrollmentApiTest {
         String owner = "recovery-package-owner";
         String recipient = "recovery-package-recipient";
         String outsider = "recovery-package-outsider";
-        String vaultId = "recovery-package-vault";
+        String fingerprint = "recovery-package-vault";
         registerUser(owner);
         registerUser(recipient);
         registerUser(outsider);
-        createVault(owner, vaultId);
-        inviteAndAccept(owner, recipient, vaultId);
-        declareCurrentVaultKey(owner, vaultId, "vault-key-current");
+        createVault(owner, fingerprint);
+        inviteAndAccept(owner, recipient, fingerprint);
+        declareCurrentVaultKey(owner, fingerprint, "vault-key-current");
         String enrollmentId = createEnrollment(recipient, 1L, CREDENTIAL);
 
         mvc.perform(
                         put(
-                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{vaultId}",
+                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{fingerprint}",
                                         recipient,
                                         enrollmentId,
-                                        vaultId)
+                                        fingerprint)
                                 .with(httpBasic(owner, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody(1L, "vault-key-current")))
@@ -176,21 +176,21 @@ class RecoveryEnrollmentApiTest {
 
         mvc.perform(
                         get(
-                                        "/api/v1/recovery/enrollments/{enrollmentId}/vaults/{vaultId}",
+                                        "/api/v1/recovery/enrollments/{enrollmentId}/vaults/{fingerprint}",
                                         enrollmentId,
-                                        vaultId)
+                                        fingerprint)
                                 .with(httpBasic(recipient, PASSWORD)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.vaultId").value(vaultId))
+                .andExpect(jsonPath("$.fingerprint").value(fingerprint))
                 .andExpect(jsonPath("$.vaultKeyId").value("vault-key-current"))
                 .andExpect(jsonPath("$.encryptedVaultKey").value("opaque-recovery-package"));
 
         mvc.perform(
                         put(
-                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{vaultId}",
+                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{fingerprint}",
                                         recipient,
                                         enrollmentId,
-                                        vaultId)
+                                        fingerprint)
                                 .with(httpBasic(owner, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody(1L, "vault-key-stale")))
@@ -198,10 +198,10 @@ class RecoveryEnrollmentApiTest {
 
         mvc.perform(
                         put(
-                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{vaultId}",
+                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{fingerprint}",
                                         recipient,
                                         enrollmentId,
-                                        vaultId)
+                                        fingerprint)
                                 .with(httpBasic(outsider, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody(1L, "vault-key-current")))
@@ -294,32 +294,36 @@ class RecoveryEnrollmentApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque-vault-metadata\"}"))
                 .andExpect(status().isCreated());
     }
 
-    private void inviteAndAccept(String owner, String recipient, String vaultId) throws Exception {
+    private void inviteAndAccept(String owner, String recipient, String fingerprint)
+            throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{recipient}", vaultId, recipient)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/members/{recipient}",
+                                        fingerprint,
+                                        recipient)
                                 .with(httpBasic(owner, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"VIEWER\"}"))
                 .andExpect(status().isCreated());
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
                                 .with(httpBasic(recipient, PASSWORD)))
                 .andExpect(status().isNoContent());
     }
 
-    private void declareCurrentVaultKey(String owner, String vaultId, String vaultKeyId)
+    private void declareCurrentVaultKey(String owner, String fingerprint, String vaultKeyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-rotation", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/key-rotation", fingerprint)
                                 .with(httpBasic(owner, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"vaultKeyId\":\"%s\"}".formatted(vaultKeyId)))

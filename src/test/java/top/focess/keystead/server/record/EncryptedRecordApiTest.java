@@ -56,7 +56,7 @@ class EncryptedRecordApiTest {
 
         mvc.perform(get("/api/v1/vaults/vault-create-fetch/records/secret-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.vaultId").value("vault-create-fetch"))
+                .andExpect(jsonPath("$.fingerprint").value("vault-create-fetch"))
                 .andExpect(jsonPath("$.secretId").value("secret-1"))
                 .andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.secretType").value("LOGIN_PASSWORD"))
@@ -96,7 +96,7 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.message").value("Record revision must increase"))
                 .andExpect(jsonPath("$.latestRevision").value(2))
                 .andExpect(jsonPath("$.rejectedRevision").value(2))
-                .andExpect(jsonPath("$.vaultId").value("vault-duplicate-revision"))
+                .andExpect(jsonPath("$.fingerprint").value("vault-duplicate-revision"))
                 .andExpect(jsonPath("$.secretId").value("secret-2"))
                 .andExpect(jsonPath("$.serverRevision").value(2))
                 .andExpect(jsonPath("$.clientRevision").value(2))
@@ -144,7 +144,7 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.code").value("REVISION_CONFLICT"))
                 .andExpect(jsonPath("$.latestRevision").value(1))
                 .andExpect(jsonPath("$.rejectedRevision").value(1))
-                .andExpect(jsonPath("$.vaultId").value("vault-wide-revision"))
+                .andExpect(jsonPath("$.fingerprint").value("vault-wide-revision"))
                 .andExpect(jsonPath("$.secretId").value("secret-b"));
     }
 
@@ -426,7 +426,7 @@ class EncryptedRecordApiTest {
                                 .param("sinceRevision", "0")
                                 .param("limit", "2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.vaultId").value("vault-sync-page"))
+                .andExpect(jsonPath("$.fingerprint").value("vault-sync-page"))
                 .andExpect(jsonPath("$.sinceRevision").value(0))
                 .andExpect(jsonPath("$.records[0].secretId").value("secret-a"))
                 .andExpect(jsonPath("$.records[0].revision").value(1))
@@ -441,7 +441,7 @@ class EncryptedRecordApiTest {
                                 .param("sinceRevision", "2")
                                 .param("limit", "2"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.vaultId").value("vault-sync-page"))
+                .andExpect(jsonPath("$.fingerprint").value("vault-sync-page"))
                 .andExpect(jsonPath("$.sinceRevision").value(2))
                 .andExpect(jsonPath("$.records[0].secretId").value("secret-c"))
                 .andExpect(jsonPath("$.records[0].revision").value(3))
@@ -527,7 +527,7 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.message").value("Record revision must increase"))
                 .andExpect(jsonPath("$.latestRevision").value(3))
                 .andExpect(jsonPath("$.rejectedRevision").value(2))
-                .andExpect(jsonPath("$.vaultId").value("vault-delete-conflict"))
+                .andExpect(jsonPath("$.fingerprint").value("vault-delete-conflict"))
                 .andExpect(jsonPath("$.secretId").value("secret-delete-conflict"))
                 .andExpect(jsonPath("$.serverRevision").value(3))
                 .andExpect(jsonPath("$.clientRevision").value(2))
@@ -648,9 +648,9 @@ class EncryptedRecordApiTest {
                 .andExpect(jsonPath("$.envelope").doesNotExist());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(user(username))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -662,10 +662,13 @@ class EncryptedRecordApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void putRecord(String vaultId, String secretId, long revision, String envelope)
+    private void putRecord(String fingerprint, String secretId, long revision, String envelope)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/records/{secretId}", vaultId, secretId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/records/{secretId}",
+                                        fingerprint,
+                                        secretId)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -682,10 +685,10 @@ class EncryptedRecordApiTest {
     }
 
     private static StoredEncryptedRecord storedRecord(
-            String ownerId, String vaultId, String secretId, long revision, Instant now) {
+            String ownerId, String fingerprint, String secretId, long revision, Instant now) {
         return new StoredEncryptedRecord(
                 ownerId,
-                vaultId,
+                fingerprint,
                 secretId,
                 revision,
                 "SECURE_NOTE",

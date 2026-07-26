@@ -18,8 +18,8 @@ public final class RecoveryVaultPackageId implements Serializable {
     @Column(name = "generation", nullable = false)
     long generation;
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     public RecoveryVaultPackageId() {}
 
@@ -27,11 +27,11 @@ public final class RecoveryVaultPackageId implements Serializable {
             @NonNull String username,
             @NonNull String enrollmentId,
             long generation,
-            @NonNull String vaultId) {
+            @NonNull String fingerprint) {
         this.username = username;
         this.enrollmentId = enrollmentId;
         this.generation = generation;
-        this.vaultId = vaultId;
+        this.fingerprint = fingerprint;
     }
 
     @Override
@@ -40,11 +40,11 @@ public final class RecoveryVaultPackageId implements Serializable {
                 && username.equals(other.username)
                 && enrollmentId.equals(other.enrollmentId)
                 && generation == other.generation
-                && vaultId.equals(other.vaultId);
+                && fingerprint.equals(other.fingerprint);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(username, enrollmentId, generation, vaultId);
+        return Objects.hash(username, enrollmentId, generation, fingerprint);
     }
 }

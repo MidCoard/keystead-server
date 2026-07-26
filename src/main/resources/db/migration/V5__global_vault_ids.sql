@@ -1,2 +1,2 @@
-create unique index uq_vaults_vault_id
-    on vaults (vault_id);
+create unique index uq_vaults_fingerprint
+    on vaults (fingerprint);

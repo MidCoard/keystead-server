@@ -36,12 +36,13 @@ class DeviceVaultSyncCursorService {
     void acknowledgePulledRevision(
             @NonNull String ownerId,
             @NonNull String deviceId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull DeviceVaultSyncCursorRequest request) {
-        vaultAccess.requireOwnedVault(ownerId, vaultId);
+        vaultAccess.requireOwnedVault(ownerId, fingerprint);
         requireEligibleDevice(ownerId, deviceId);
         validate(request);
-        Optional<StoredDeviceVaultSyncCursor> existing = cursors.find(ownerId, vaultId, deviceId);
+        Optional<StoredDeviceVaultSyncCursor> existing =
+                cursors.find(ownerId, fingerprint, deviceId);
         existing.ifPresent(
                 cursor -> {
                     if (request.pulledRevision() < cursor.pulledRevision()) {
@@ -51,7 +52,7 @@ class DeviceVaultSyncCursorService {
                 });
         StoredDeviceVaultSyncCursor next =
                 new StoredDeviceVaultSyncCursor(
-                        ownerId, vaultId, deviceId, request.pulledRevision(), clock.instant());
+                        ownerId, fingerprint, deviceId, request.pulledRevision(), clock.instant());
         if (existing.isPresent()) {
             cursors.update(next);
         } else {

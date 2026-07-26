@@ -16,11 +16,11 @@ create table devices (
 
 create table vaults (
     owner_id varchar(255) not null,
-    vault_id varchar(255) not null,
+    fingerprint varchar(255) not null,
     encrypted_metadata text not null,
     created_at timestamp not null,
     updated_at timestamp not null,
-    primary key (owner_id, vault_id)
+    primary key (owner_id, fingerprint)
 );
 
 create index idx_devices_owner

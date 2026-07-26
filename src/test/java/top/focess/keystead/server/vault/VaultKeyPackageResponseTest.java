@@ -48,12 +48,12 @@ class VaultKeyPackageResponseTest {
     }
 
     private static VaultKeyPackageResponse response(
-            String vaultId,
+            String fingerprint,
             String deviceId,
             String keyAlgorithm,
             String encryptedVaultKey,
             Instant updatedAt) {
         return new VaultKeyPackageResponse(
-                vaultId, deviceId, keyAlgorithm, encryptedVaultKey, CREATED_AT, updatedAt);
+                fingerprint, deviceId, keyAlgorithm, encryptedVaultKey, CREATED_AT, updatedAt);
     }
 }

@@ -40,22 +40,23 @@ public class EncryptedRecordService {
     @Transactional
     @NonNull StoreRecordResult store(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             @NonNull EncryptedRecordRequest request) {
-        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
-        accessGuard.requireWritableMember(ownerId, vaultId);
-        accessGuard.requireStableForWrite(vaultOwnerId, vaultId);
+        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, fingerprint);
+        accessGuard.requireWritableMember(ownerId, fingerprint);
+        accessGuard.requireStableForWrite(vaultOwnerId, fingerprint);
         validate(request);
         request.validateShape();
-        Optional<StoredEncryptedRecord> existing = records.find(vaultOwnerId, vaultId, secretId);
-        records.latestRevision(vaultOwnerId, vaultId)
+        Optional<StoredEncryptedRecord> existing =
+                records.find(vaultOwnerId, fingerprint, secretId);
+        records.latestRevision(vaultOwnerId, fingerprint)
                 .filter(record -> request.revision() <= record.revision())
                 .ifPresent(
                         record ->
                                 throwRevisionConflict(
                                         vaultOwnerId,
-                                        vaultId,
+                                        fingerprint,
                                         secretId,
                                         record,
                                         request.revision()));
@@ -64,7 +65,7 @@ public class EncryptedRecordService {
         StoredEncryptedRecord next =
                 newRecord(
                         vaultOwnerId,
-                        vaultId,
+                        fingerprint,
                         secretId,
                         request.revision(),
                         request.secretType(),
@@ -83,13 +84,13 @@ public class EncryptedRecordService {
             }
         } catch (DataIntegrityViolationException e) {
             throwRevisionConflictFromConstraint(
-                    vaultOwnerId, vaultId, secretId, request.revision(), e);
+                    vaultOwnerId, fingerprint, secretId, request.revision(), e);
             throw e;
         }
         audit.recordStored(
                 vaultOwnerId,
                 ownerId,
-                vaultId,
+                fingerprint,
                 secretId,
                 request.revision(),
                 request.secretType(),
@@ -100,27 +101,27 @@ public class EncryptedRecordService {
     @Transactional
     void delete(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long revision) {
         requirePositiveRevision(revision);
-        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
-        accessGuard.requireWritableMember(ownerId, vaultId);
-        accessGuard.requireStableForWrite(vaultOwnerId, vaultId);
+        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, fingerprint);
+        accessGuard.requireWritableMember(ownerId, fingerprint);
+        accessGuard.requireStableForWrite(vaultOwnerId, fingerprint);
         StoredEncryptedRecord existing =
-                records.find(vaultOwnerId, vaultId, secretId)
+                records.find(vaultOwnerId, fingerprint, secretId)
                         .orElseThrow(() -> new RecordNotFoundException("Record does not exist"));
-        records.latestRevision(vaultOwnerId, vaultId)
+        records.latestRevision(vaultOwnerId, fingerprint)
                 .filter(record -> revision <= record.revision())
                 .ifPresent(
                         record ->
                                 throwRevisionConflict(
-                                        vaultOwnerId, vaultId, secretId, record, revision));
+                                        vaultOwnerId, fingerprint, secretId, record, revision));
         try {
             records.update(
                     newRecord(
                             vaultOwnerId,
-                            vaultId,
+                            fingerprint,
                             secretId,
                             revision,
                             existing.secretType(),
@@ -129,10 +130,10 @@ public class EncryptedRecordService {
                             "",
                             true));
         } catch (DataIntegrityViolationException e) {
-            throwRevisionConflictFromConstraint(vaultOwnerId, vaultId, secretId, revision, e);
+            throwRevisionConflictFromConstraint(vaultOwnerId, fingerprint, secretId, revision, e);
             throw e;
         }
-        audit.recordDeleted(vaultOwnerId, ownerId, vaultId, secretId, revision);
+        audit.recordDeleted(vaultOwnerId, ownerId, fingerprint, secretId, revision);
     }
 
     private void requirePositiveRevision(long revision) {
@@ -151,7 +152,7 @@ public class EncryptedRecordService {
 
     private @NonNull StoredEncryptedRecord newRecord(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long revision,
             @NonNull String secretType,
@@ -162,7 +163,7 @@ public class EncryptedRecordService {
         try {
             return new StoredEncryptedRecord(
                     ownerId,
-                    vaultId,
+                    fingerprint,
                     secretId,
                     revision,
                     secretType,
@@ -178,21 +179,21 @@ public class EncryptedRecordService {
 
     @Transactional(readOnly = true)
     @NonNull Optional<StoredEncryptedRecord> find(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String secretId) {
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String secretId) {
         return records.find(
-                accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId),
-                vaultId,
+                accessGuard.requireActiveMemberAndResolveOwner(ownerId, fingerprint),
+                fingerprint,
                 secretId);
     }
 
     @Transactional(readOnly = true)
     @NonNull List<EncryptedRecordResponse> listSince(
-            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision) {
+            @NonNull String ownerId, @NonNull String fingerprint, long sinceRevision) {
         requireNonNegativeSinceRevision(sinceRevision);
         return records
                 .listSince(
-                        accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId),
-                        vaultId,
+                        accessGuard.requireActiveMemberAndResolveOwner(ownerId, fingerprint),
+                        fingerprint,
                         sinceRevision)
                 .stream()
                 .map(EncryptedRecordResponse::from)
@@ -202,28 +203,28 @@ public class EncryptedRecordService {
     @Transactional(readOnly = true)
     public @NonNull List<EncryptedRecordResponse> listForAutomation(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             long sinceRevision,
             @NonNull Set<String> secretIdFilter) {
         requireNonNegativeSinceRevision(sinceRevision);
         List<StoredEncryptedRecord> fetched =
                 secretIdFilter.isEmpty()
-                        ? records.listSince(ownerId, vaultId, sinceRevision)
+                        ? records.listSince(ownerId, fingerprint, sinceRevision)
                         : records.listSinceFiltered(
-                                ownerId, vaultId, sinceRevision, secretIdFilter);
+                                ownerId, fingerprint, sinceRevision, secretIdFilter);
         return fetched.stream().map(EncryptedRecordResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
     @NonNull EncryptedRecordPageResponse pageSince(
-            @NonNull String ownerId, @NonNull String vaultId, long sinceRevision, int limit) {
+            @NonNull String ownerId, @NonNull String fingerprint, long sinceRevision, int limit) {
         requireNonNegativeSinceRevision(sinceRevision);
         if (limit <= 0 || limit > MAX_PAGE_LIMIT) {
             throw new InvalidRecordRequestException("Record page limit is out of range");
         }
-        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, vaultId);
+        String vaultOwnerId = accessGuard.requireActiveMemberAndResolveOwner(ownerId, fingerprint);
         List<StoredEncryptedRecord> fetched =
-                records.pageSince(vaultOwnerId, vaultId, sinceRevision, limit + 1);
+                records.pageSince(vaultOwnerId, fingerprint, sinceRevision, limit + 1);
         boolean hasMore = fetched.size() > limit;
         List<EncryptedRecordResponse> page =
                 fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();
@@ -234,13 +235,13 @@ public class EncryptedRecordService {
                         .orElse(sinceRevision);
         Long nextSinceRevision = hasMore ? highestRevision : null;
         return new EncryptedRecordPageResponse(
-                vaultId, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
+                fingerprint, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
     }
 
     @Transactional(readOnly = true)
     public @NonNull EncryptedRecordPageResponse pageForAutomation(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             long sinceRevision,
             int limit,
             @NonNull Set<String> secretIdFilter) {
@@ -250,9 +251,9 @@ public class EncryptedRecordService {
         }
         List<StoredEncryptedRecord> fetched =
                 secretIdFilter.isEmpty()
-                        ? records.pageSince(ownerId, vaultId, sinceRevision, limit + 1)
+                        ? records.pageSince(ownerId, fingerprint, sinceRevision, limit + 1)
                         : records.pageSinceFiltered(
-                                ownerId, vaultId, sinceRevision, limit + 1, secretIdFilter);
+                                ownerId, fingerprint, sinceRevision, limit + 1, secretIdFilter);
         boolean hasMore = fetched.size() > limit;
         List<EncryptedRecordResponse> page =
                 fetched.stream().limit(limit).map(EncryptedRecordResponse::from).toList();
@@ -263,7 +264,7 @@ public class EncryptedRecordService {
                         .orElse(sinceRevision);
         Long nextSinceRevision = hasMore ? highestRevision : null;
         return new EncryptedRecordPageResponse(
-                vaultId, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
+                fingerprint, sinceRevision, page, highestRevision, hasMore, nextSinceRevision);
     }
 
     private void requireNonNegativeSinceRevision(long sinceRevision) {
@@ -274,15 +275,15 @@ public class EncryptedRecordService {
 
     private void throwRevisionConflict(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             @NonNull StoredEncryptedRecord serverRecord,
             long rejectedRevision) {
         audit.recordRevisionConflict(
-                ownerId, ownerId, vaultId, secretId, serverRecord.revision(), rejectedRevision);
+                ownerId, ownerId, fingerprint, secretId, serverRecord.revision(), rejectedRevision);
         throw new RevisionConflictException(
                 "Record revision must increase",
-                vaultId,
+                fingerprint,
                 secretId,
                 serverRecord.revision(),
                 rejectedRevision,
@@ -292,21 +293,21 @@ public class EncryptedRecordService {
 
     private void throwRevisionConflictFromConstraint(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long rejectedRevision,
             @NonNull DataIntegrityViolationException cause) {
         StoredEncryptedRecord serverRecord =
-                records.latestRevision(ownerId, vaultId)
+                records.latestRevision(ownerId, fingerprint)
                         .orElseThrow(
                                 () ->
                                         new InvalidRecordRequestException(
                                                 "Record revision could not be checked"));
         audit.recordRevisionConflict(
-                ownerId, ownerId, vaultId, secretId, serverRecord.revision(), rejectedRevision);
+                ownerId, ownerId, fingerprint, secretId, serverRecord.revision(), rejectedRevision);
         throw new RevisionConflictException(
                 "Record revision must increase",
-                vaultId,
+                fingerprint,
                 secretId,
                 serverRecord.revision(),
                 rejectedRevision,

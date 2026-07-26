@@ -28,11 +28,11 @@ class AuditController {
     @NonNull AuditEventPageResponse page(
             @NonNull Principal principal,
             @RequestParam(defaultValue = "100") int limit,
-            @RequestParam(required = false) @Nullable String vaultId,
+            @RequestParam(required = false) @Nullable String fingerprint,
             @RequestParam(required = false) @Nullable String before,
             @RequestParam(required = false) @Nullable String beforeId) {
         return auditService.pageForOwner(
-                principal.getName(), limit, vaultId, parseBefore(before), beforeId);
+                principal.getName(), limit, fingerprint, parseBefore(before), beforeId);
     }
 
     private static @Nullable Instant parseBefore(@Nullable String before) {

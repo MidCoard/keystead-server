@@ -14,7 +14,7 @@ import org.jspecify.annotations.NonNull;
         indexes =
                 @Index(
                         name = "idx_vault_key_packages_owner_vault",
-                        columnList = "owner_id, vault_id"))
+                        columnList = "owner_id, fingerprint"))
 public class VaultKeyPackageEntity {
 
     @EmbeddedId @NonNull VaultKeyPackageEntityId id = new VaultKeyPackageEntityId();
@@ -40,7 +40,7 @@ public class VaultKeyPackageEntity {
         this.id =
                 new VaultKeyPackageEntityId(
                         keyPackage.ownerId(),
-                        keyPackage.vaultId(),
+                        keyPackage.fingerprint(),
                         keyPackage.recipientId(),
                         keyPackage.deviceId());
         this.vaultKeyId = keyPackage.vaultKeyId();
@@ -57,7 +57,7 @@ public class VaultKeyPackageEntity {
     @NonNull StoredVaultKeyPackage toStored() {
         return new StoredVaultKeyPackage(
                 id.ownerId,
-                id.vaultId,
+                id.fingerprint,
                 id.recipientId,
                 id.deviceId,
                 vaultKeyId,

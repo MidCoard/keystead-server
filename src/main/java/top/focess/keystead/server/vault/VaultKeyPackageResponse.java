@@ -6,7 +6,7 @@ import org.jspecify.annotations.NonNull;
 import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 
 public record VaultKeyPackageResponse(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String recipientId,
         @NonNull String deviceId,
         @NonNull String vaultKeyId,
@@ -16,14 +16,14 @@ public record VaultKeyPackageResponse(
         @NonNull Instant updatedAt) {
 
     VaultKeyPackageResponse(
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String deviceId,
             @NonNull String keyAlgorithm,
             @NonNull String encryptedVaultKey,
             @NonNull Instant createdAt,
             @NonNull Instant updatedAt) {
         this(
-                vaultId,
+                fingerprint,
                 "legacy",
                 deviceId,
                 "legacy",
@@ -34,7 +34,7 @@ public record VaultKeyPackageResponse(
     }
 
     public VaultKeyPackageResponse {
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(recipientId, "recipientId");
         requireNotBlank(deviceId, "deviceId");
         requireNotBlank(vaultKeyId, "vaultKeyId");
@@ -53,7 +53,7 @@ public record VaultKeyPackageResponse(
 
     static @NonNull VaultKeyPackageResponse from(@NonNull StoredVaultKeyPackage keyPackage) {
         return new VaultKeyPackageResponse(
-                keyPackage.vaultId(),
+                keyPackage.fingerprint(),
                 keyPackage.recipientId(),
                 keyPackage.deviceId(),
                 keyPackage.vaultKeyId(),

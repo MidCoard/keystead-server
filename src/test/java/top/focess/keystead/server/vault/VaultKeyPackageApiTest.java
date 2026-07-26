@@ -44,10 +44,10 @@ class VaultKeyPackageApiTest {
         inviteAndAcceptMember("members-owner", "members-viewer", "members-vault");
 
         mvc.perform(
-                        get("/api/v1/vaults/{vaultId}/members", "members-vault")
+                        get("/api/v1/vaults/{fingerprint}/members", "members-vault")
                                 .with(httpBasic("members-owner", "correct horse battery staple")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].vaultId").value("members-vault"))
+                .andExpect(jsonPath("$[0].fingerprint").value("members-vault"))
                 .andExpect(jsonPath("$[0].userId").value("members-owner"))
                 .andExpect(jsonPath("$[0].role").value("OWNER"))
                 .andExpect(jsonPath("$[1].userId").value("members-viewer"))
@@ -80,7 +80,7 @@ class VaultKeyPackageApiTest {
                         get("/api/v1/vaults/package-vault-a/key-packages")
                                 .with(httpBasic("package-alice", "correct horse battery staple")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].vaultId").value("package-vault-a"))
+                .andExpect(jsonPath("$[0].fingerprint").value("package-vault-a"))
                 .andExpect(jsonPath("$[0].recipientId").value("package-alice"))
                 .andExpect(jsonPath("$[0].deviceId").value("laptop-1"))
                 .andExpect(jsonPath("$[0].vaultKeyId").value("vault-key-2"))
@@ -221,13 +221,16 @@ class VaultKeyPackageApiTest {
     void ownerCannotPublishVaultKeyPackageForVerifiedProofOnlyDevice() throws Exception {
         String username = "package-proof-only-owner";
         String deviceId = "proof-only-owner-device";
-        String vaultId = "package-proof-only-owner-vault";
+        String fingerprint = "package-proof-only-owner-vault";
         registerUser(username);
         registerVerifiedProofOnlyDevice(username, deviceId);
-        createVault(username, vaultId);
+        createVault(username, fingerprint);
 
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/key-packages/{deviceId}",
+                                        fingerprint,
+                                        deviceId)
                                 .with(httpBasic(username, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody()))
@@ -239,17 +242,17 @@ class VaultKeyPackageApiTest {
         String owner = "package-proof-only-recipient-owner";
         String recipient = "package-proof-only-recipient";
         String deviceId = "proof-only-recipient-device";
-        String vaultId = "package-proof-only-recipient-vault";
+        String fingerprint = "package-proof-only-recipient-vault";
         registerUser(owner);
         registerUser(recipient);
         registerVerifiedProofOnlyDevice(recipient, deviceId);
-        createVault(owner, vaultId);
-        inviteAndAcceptMember(owner, recipient, vaultId);
+        createVault(owner, fingerprint);
+        inviteAndAcceptMember(owner, recipient, fingerprint);
 
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/key-packages/recipients/{recipientId}/devices/{deviceId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/key-packages/recipients/{recipientId}/devices/{deviceId}",
+                                        fingerprint,
                                         recipient,
                                         deviceId)
                                 .with(httpBasic(owner, "correct horse battery staple"))
@@ -262,14 +265,17 @@ class VaultKeyPackageApiTest {
     void ownerCannotPublishVaultKeyPackageForPairedUnapprovedWrappingAlgorithm() throws Exception {
         String username = "package-unapproved-wrapping-owner";
         String deviceId = "unapproved-wrapping-owner-device";
-        String vaultId = "package-unapproved-wrapping-owner-vault";
+        String fingerprint = "package-unapproved-wrapping-owner-vault";
         registerUser(username);
         registerVerifiedDevice(username, deviceId);
         replaceWrappingAlgorithm(username, deviceId, "UNAPPROVED_WRAPPING");
-        createVault(username, vaultId);
+        createVault(username, fingerprint);
 
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/key-packages/{deviceId}",
+                                        fingerprint,
+                                        deviceId)
                                 .with(httpBasic(username, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody()))
@@ -280,12 +286,15 @@ class VaultKeyPackageApiTest {
     void listOmitsExistingPackageForPairedUnapprovedWrappingAlgorithm() throws Exception {
         String username = "package-list-unapproved-wrapping";
         String deviceId = "unapproved-wrapping-list-device";
-        String vaultId = "package-list-unapproved-wrapping-vault";
+        String fingerprint = "package-list-unapproved-wrapping-vault";
         registerUser(username);
         registerVerifiedDevice(username, deviceId);
-        createVault(username, vaultId);
+        createVault(username, fingerprint);
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/key-packages/{deviceId}",
+                                        fingerprint,
+                                        deviceId)
                                 .with(httpBasic(username, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody()))
@@ -294,7 +303,7 @@ class VaultKeyPackageApiTest {
         replaceWrappingAlgorithm(username, deviceId, "UNAPPROVED_WRAPPING");
 
         mvc.perform(
-                        get("/api/v1/vaults/{vaultId}/key-packages", vaultId)
+                        get("/api/v1/vaults/{fingerprint}/key-packages", fingerprint)
                                 .with(httpBasic(username, "correct horse battery staple")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
@@ -554,9 +563,9 @@ class VaultKeyPackageApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -568,16 +577,16 @@ class VaultKeyPackageApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void inviteAndAcceptMember(String owner, String recipient, String vaultId)
+    private void inviteAndAcceptMember(String owner, String recipient, String fingerprint)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, recipient)
+                        put("/api/v1/vaults/{fingerprint}/members/{userId}", fingerprint, recipient)
                                 .with(httpBasic(owner, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"VIEWER\"}"))
                 .andExpect(status().isCreated());
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
                                 .with(httpBasic(recipient, "correct horse battery staple")))
                 .andExpect(status().isNoContent());
     }

@@ -76,21 +76,21 @@ class StagedVaultRotationApiTest {
         String editor = "rotation-editor-" + suffix;
         String selectedPending = "rotation-selected-" + suffix;
         String unselectedPending = "rotation-unselected-" + suffix;
-        String vaultId = "rotation-vault-" + suffix;
+        String fingerprint = "rotation-vault-" + suffix;
         for (String username :
                 new String[] {owner, admin, editor, selectedPending, unselectedPending}) {
             registerUser(username);
             registerDevice(username, username + "-device");
         }
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "key-1");
-        activate(owner, admin, vaultId, "ADMIN", "key-1");
-        activate(owner, editor, vaultId, "EDITOR", "key-1");
-        inviteAndAccept(owner, selectedPending, vaultId, "VIEWER");
-        inviteAndAccept(owner, unselectedPending, vaultId, "VIEWER");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "key-1");
+        activate(owner, admin, fingerprint, "ADMIN", "key-1");
+        activate(owner, editor, fingerprint, "EDITOR", "key-1");
+        inviteAndAccept(owner, selectedPending, fingerprint, "VIEWER");
+        inviteAndAccept(owner, unselectedPending, fingerprint, "VIEWER");
 
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                 .with(user(editor))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(beginBody("key-1", "key-2", 1L, Set.of())))
@@ -99,7 +99,7 @@ class StagedVaultRotationApiTest {
         JsonNode begun =
                 responseJson(
                         mvc.perform(
-                                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                                 .with(user(owner))
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(
@@ -116,7 +116,7 @@ class StagedVaultRotationApiTest {
                                 .andReturn());
         String generationId = begun.path("generationId").asText();
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                 .with(user(admin))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(beginBody("key-1", "key-3", 2L, Set.of())))
@@ -129,7 +129,7 @@ class StagedVaultRotationApiTest {
         assertFalse(recipients.contains(unselectedPending));
 
         registerDevice(owner, owner + "-new-device");
-        JsonNode statusBeforeUploads = rotationStatus(owner, vaultId, generationId);
+        JsonNode statusBeforeUploads = rotationStatus(owner, fingerprint, generationId);
         assertFalse(
                 values(statusBeforeUploads.path("targets")).stream()
                         .anyMatch(
@@ -141,27 +141,27 @@ class StagedVaultRotationApiTest {
         JsonNode first = targets.getFirst();
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/targets/{targetId}/package",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/targets/{targetId}/package",
+                                        fingerprint,
                                         generationId,
                                         first.path("targetId").asText())
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody(first, "key-2", "wrong-recipient")))
                 .andExpect(status().isBadRequest());
-        putTargetPackage(owner, vaultId, generationId, first, "key-2");
+        putTargetPackage(owner, fingerprint, generationId, first, "key-2");
 
         mvc.perform(
                         post(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/commit",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/commit",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isConflict());
         mvc.perform(
                         delete(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isConflict());
@@ -175,8 +175,8 @@ class StagedVaultRotationApiTest {
                         .asText();
         mvc.perform(
                         get(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/self-package",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/self-package",
+                                        fingerprint,
                                         generationId)
                                 .queryParam("deviceId", owner + "-device")
                                 .with(user(owner)))
@@ -192,11 +192,11 @@ class StagedVaultRotationApiTest {
                                             target.path("targetId").asText().equals(ownerTargetId))
                             .findFirst()
                             .orElseThrow();
-            putTargetPackage(owner, vaultId, generationId, ownerTarget, "key-2");
+            putTargetPackage(owner, fingerprint, generationId, ownerTarget, "key-2");
             mvc.perform(
                             get(
-                                            "/api/v1/vaults/{vaultId}/rotations/{generationId}/self-package",
-                                            vaultId,
+                                            "/api/v1/vaults/{fingerprint}/rotations/{generationId}/self-package",
+                                            fingerprint,
                                             generationId)
                                     .queryParam("deviceId", owner + "-device")
                                     .with(user(owner)))
@@ -208,8 +208,8 @@ class StagedVaultRotationApiTest {
         }
         mvc.perform(
                         get(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/self-package",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/self-package",
+                                        fingerprint,
                                         generationId)
                                 .queryParam("deviceId", owner + "-device")
                                 .with(user(admin)))
@@ -217,14 +217,14 @@ class StagedVaultRotationApiTest {
 
         for (JsonNode target : targets) {
             if (!target.path("covered").asBoolean()) {
-                putTargetPackage(owner, vaultId, generationId, target, "key-2");
+                putTargetPackage(owner, fingerprint, generationId, target, "key-2");
             }
         }
-        rotationStatus(owner, vaultId, generationId);
+        rotationStatus(owner, fingerprint, generationId);
         mvc.perform(
                         get(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isOk())
@@ -232,8 +232,8 @@ class StagedVaultRotationApiTest {
 
         mvc.perform(
                         post(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/commit",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/commit",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isOk())
@@ -241,18 +241,19 @@ class StagedVaultRotationApiTest {
                 .andExpect(jsonPath("$.lifecycleVersion").value(3));
         mvc.perform(
                         post(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/commit",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/commit",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("COMMITTED"))
                 .andExpect(jsonPath("$.lifecycleVersion").value(3));
 
-        assertMembership(owner, vaultId, "ACTIVE", "key-2", "STABLE", 3L);
-        assertMembership(selectedPending, vaultId, "ACTIVE", "key-2", "STABLE", 3L);
-        assertMembership(unselectedPending, vaultId, "ACCEPTED_PENDING_KEY", "key-2", "STABLE", 3L);
-        mvc.perform(get("/api/v1/vaults/{vaultId}/key-packages", vaultId).with(user(owner)))
+        assertMembership(owner, fingerprint, "ACTIVE", "key-2", "STABLE", 3L);
+        assertMembership(selectedPending, fingerprint, "ACTIVE", "key-2", "STABLE", 3L);
+        assertMembership(
+                unselectedPending, fingerprint, "ACCEPTED_PENDING_KEY", "key-2", "STABLE", 3L);
+        mvc.perform(get("/api/v1/vaults/{fingerprint}/key-packages", fingerprint).with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(
                         jsonPath("$[*].vaultKeyId")
@@ -260,7 +261,7 @@ class StagedVaultRotationApiTest {
                                         org.hamcrest.Matchers.everyItem(
                                                 org.hamcrest.Matchers.is("key-2"))));
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/records/after-rotation", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/records/after-rotation", fingerprint)
                                 .with(user(editor))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(recordBody(1L)))
@@ -271,21 +272,21 @@ class StagedVaultRotationApiTest {
     void automationAndRecoveryTargetsRotateWhileRevokedTargetsArePruned() throws Exception {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "rotation-bridge-owner-" + suffix;
-        String vaultId = "rotation-bridge-vault-" + suffix;
+        String fingerprint = "rotation-bridge-vault-" + suffix;
         String deviceId = owner + "-device";
         String principalId = "rotation-agent-" + suffix;
         registerUser(owner);
         registerDevice(owner, deviceId);
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, deviceId, "key-1");
-        putAutomationPrincipal(owner, vaultId, principalId, "key-1");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, deviceId, "key-1");
+        putAutomationPrincipal(owner, fingerprint, principalId, "key-1");
         String enrollmentId = createActiveRecoveryEnrollment(owner);
-        putRecoveryPackage(owner, vaultId, enrollmentId, "key-1");
+        putRecoveryPackage(owner, fingerprint, enrollmentId, "key-1");
 
         JsonNode begun =
                 responseJson(
                         mvc.perform(
-                                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                                 .with(user(owner))
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(beginBody("key-1", "key-2", 1L, Set.of())))
@@ -300,12 +301,12 @@ class StagedVaultRotationApiTest {
 
         mvc.perform(
                         delete(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}",
+                                        fingerprint,
                                         principalId)
                                 .with(user(owner)))
                 .andExpect(status().isNoContent());
-        JsonNode pruned = rotationStatus(owner, vaultId, generationId);
+        JsonNode pruned = rotationStatus(owner, fingerprint, generationId);
         List<JsonNode> remaining = values(pruned.path("targets"));
         assertEquals(2, remaining.size());
         assertFalse(
@@ -314,12 +315,12 @@ class StagedVaultRotationApiTest {
                                 target -> target.path("targetType").asText().equals("AUTOMATION")));
 
         for (JsonNode target : remaining) {
-            putTargetPackage(owner, vaultId, generationId, target, "key-2");
+            putTargetPackage(owner, fingerprint, generationId, target, "key-2");
         }
         mvc.perform(
                         post(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/commit",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/commit",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isOk())
@@ -333,9 +334,9 @@ class StagedVaultRotationApiTest {
                         .orElseThrow();
         mvc.perform(
                         get(
-                                        "/api/v1/recovery/enrollments/{enrollmentId}/vaults/{vaultId}",
+                                        "/api/v1/recovery/enrollments/{enrollmentId}/vaults/{fingerprint}",
                                         enrollmentId,
-                                        vaultId)
+                                        fingerprint)
                                 .with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.vaultKeyId").value("key-2"))
@@ -364,17 +365,17 @@ class StagedVaultRotationApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "cancel-owner-" + suffix;
         String admin = "cancel-admin-" + suffix;
-        String vaultId = "cancel-vault-" + suffix;
+        String fingerprint = "cancel-vault-" + suffix;
         registerUser(owner);
         registerDevice(owner, owner + "-device");
         registerUser(admin);
         registerDevice(admin, admin + "-device");
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "key-1");
-        activate(owner, admin, vaultId, "ADMIN", "key-1");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "key-1");
+        activate(owner, admin, fingerprint, "ADMIN", "key-1");
 
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(beginBody("stale-key", "key-2", 1L, Set.of())))
@@ -382,7 +383,7 @@ class StagedVaultRotationApiTest {
         JsonNode begun =
                 responseJson(
                         mvc.perform(
-                                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                                 .with(user(admin))
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(beginBody("key-1", "key-2", 1L, Set.of())))
@@ -391,19 +392,19 @@ class StagedVaultRotationApiTest {
         String generationId = begun.path("generationId").asText();
         mvc.perform(
                         delete(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isNoContent());
         mvc.perform(
                         get(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}",
+                                        fingerprint,
                                         generationId)
                                 .with(user(owner)))
                 .andExpect(status().isNotFound());
-        assertMembership(owner, vaultId, "ACTIVE", "key-1", "STABLE", 3L);
+        assertMembership(owner, fingerprint, "ACTIVE", "key-1", "STABLE", 3L);
     }
 
     @Test
@@ -411,18 +412,18 @@ class StagedVaultRotationApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "rotation-race-owner-" + suffix;
         String removed = "rotation-race-removed-" + suffix;
-        String vaultId = "rotation-race-vault-" + suffix;
+        String fingerprint = "rotation-race-vault-" + suffix;
         registerUser(owner);
         registerDevice(owner, owner + "-device");
         registerUser(removed);
         registerDevice(removed, removed + "-device");
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "key-1");
-        activate(owner, removed, vaultId, "VIEWER", "key-1");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "key-1");
+        activate(owner, removed, fingerprint, "VIEWER", "key-1");
         JsonNode begun =
                 responseJson(
                         mvc.perform(
-                                        post("/api/v1/vaults/{vaultId}/rotations", vaultId)
+                                        post("/api/v1/vaults/{fingerprint}/rotations", fingerprint)
                                                 .with(user(owner))
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(beginBody("key-1", "key-2", 1L, Set.of())))
@@ -430,14 +431,17 @@ class StagedVaultRotationApiTest {
                                 .andReturn());
         String generationId = begun.path("generationId").asText();
         mvc.perform(
-                        delete("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, removed)
+                        delete(
+                                        "/api/v1/vaults/{fingerprint}/members/{userId}",
+                                        fingerprint,
+                                        removed)
                                 .with(user(owner)))
                 .andExpect(status().isNoContent());
-        JsonNode pruned = rotationStatus(owner, vaultId, generationId);
+        JsonNode pruned = rotationStatus(owner, fingerprint, generationId);
         List<JsonNode> remaining = values(pruned.path("targets"));
         assertEquals(1, remaining.size());
         assertEquals(owner, remaining.getFirst().path("recipientId").asText());
-        putTargetPackage(owner, vaultId, generationId, remaining.getFirst(), "key-2");
+        putTargetPackage(owner, fingerprint, generationId, remaining.getFirst(), "key-2");
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);
@@ -449,8 +453,8 @@ class StagedVaultRotationApiTest {
                         assertTrue(start.await(5, TimeUnit.SECONDS));
                         return mvc.perform(
                                         post(
-                                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/commit",
-                                                        vaultId,
+                                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/commit",
+                                                        fingerprint,
                                                         generationId)
                                                 .with(user(owner)))
                                 .andReturn()
@@ -470,7 +474,7 @@ class StagedVaultRotationApiTest {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
         }
-        assertMembership(owner, vaultId, "ACTIVE", "key-2", "STABLE", 3L);
+        assertMembership(owner, fingerprint, "ACTIVE", "key-2", "STABLE", 3L);
         Long auditCount =
                 new TransactionTemplate(transactionManager)
                         .execute(
@@ -534,9 +538,9 @@ class StagedVaultRotationApiTest {
                                         .executeUpdate());
     }
 
-    private void createVault(@NonNull String owner, @NonNull String vaultId) throws Exception {
+    private void createVault(@NonNull String owner, @NonNull String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque-metadata\"}"))
@@ -545,12 +549,15 @@ class StagedVaultRotationApiTest {
 
     private void putOwnerPackage(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String deviceId,
             @NonNull String keyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/key-packages/{deviceId}",
+                                        fingerprint,
+                                        deviceId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(currentPackageBody(keyId)))
@@ -559,14 +566,14 @@ class StagedVaultRotationApiTest {
 
     private void putAutomationPrincipal(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull String keyId)
             throws Exception {
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}",
+                                        fingerprint,
                                         principalId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -575,8 +582,8 @@ class StagedVaultRotationApiTest {
                 .andExpect(status().isCreated());
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}/key-package",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}/key-package",
+                                        fingerprint,
                                         principalId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -617,16 +624,16 @@ class StagedVaultRotationApiTest {
 
     private void putRecoveryPackage(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String enrollmentId,
             @NonNull String keyId)
             throws Exception {
         mvc.perform(
                         put(
-                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{vaultId}",
+                                        "/api/v1/recovery/users/{username}/enrollments/{enrollmentId}/vaults/{fingerprint}",
                                         owner,
                                         enrollmentId,
-                                        vaultId)
+                                        fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -645,31 +652,33 @@ class StagedVaultRotationApiTest {
     private void inviteAndAccept(
             @NonNull String owner,
             @NonNull String recipient,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String role)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, recipient)
+                        put("/api/v1/vaults/{fingerprint}/members/{userId}", fingerprint, recipient)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"%s\"}".formatted(role)))
                 .andExpect(status().isCreated());
-        mvc.perform(post("/api/v1/vaults/{vaultId}/members/accept", vaultId).with(user(recipient)))
+        mvc.perform(
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
+                                .with(user(recipient)))
                 .andExpect(status().isNoContent());
     }
 
     private void activate(
             @NonNull String owner,
             @NonNull String recipient,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String role,
             @NonNull String keyId)
             throws Exception {
-        inviteAndAccept(owner, recipient, vaultId, role);
+        inviteAndAccept(owner, recipient, fingerprint, role);
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/key-packages/recipients/{recipientId}/devices/{deviceId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/key-packages/recipients/{recipientId}/devices/{deviceId}",
+                                        fingerprint,
                                         recipient,
                                         recipient + "-device")
                                 .with(user(owner))
@@ -679,13 +688,13 @@ class StagedVaultRotationApiTest {
     }
 
     private @NonNull JsonNode rotationStatus(
-            @NonNull String actor, @NonNull String vaultId, @NonNull String generationId)
+            @NonNull String actor, @NonNull String fingerprint, @NonNull String generationId)
             throws Exception {
         return responseJson(
                 mvc.perform(
                                 get(
-                                                "/api/v1/vaults/{vaultId}/rotations/{generationId}",
-                                                vaultId,
+                                                "/api/v1/vaults/{fingerprint}/rotations/{generationId}",
+                                                fingerprint,
                                                 generationId)
                                         .with(user(actor)))
                         .andExpect(status().isOk())
@@ -694,15 +703,15 @@ class StagedVaultRotationApiTest {
 
     private void putTargetPackage(
             @NonNull String actor,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String generationId,
             @NonNull JsonNode target,
             @NonNull String targetKeyId)
             throws Exception {
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/rotations/{generationId}/targets/{targetId}/package",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/rotations/{generationId}/targets/{targetId}/package",
+                                        fingerprint,
                                         generationId,
                                         target.path("targetId").asText())
                                 .with(user(actor))
@@ -714,7 +723,7 @@ class StagedVaultRotationApiTest {
 
     private void assertMembership(
             @NonNull String username,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String membershipState,
             @NonNull String currentKeyId,
             @NonNull String lifecycleState,
@@ -723,16 +732,24 @@ class StagedVaultRotationApiTest {
         mvc.perform(get("/api/v1/vaults").with(user(username)))
                 .andExpect(status().isOk())
                 .andExpect(
-                        jsonPath("$[?(@.vaultId == '%s')].membershipState".formatted(vaultId))
+                        jsonPath(
+                                        "$[?(@.fingerprint == '%s')].membershipState"
+                                                .formatted(fingerprint))
                                 .value(org.hamcrest.Matchers.hasItem(membershipState)))
                 .andExpect(
-                        jsonPath("$[?(@.vaultId == '%s')].currentVaultKeyId".formatted(vaultId))
+                        jsonPath(
+                                        "$[?(@.fingerprint == '%s')].currentVaultKeyId"
+                                                .formatted(fingerprint))
                                 .value(org.hamcrest.Matchers.hasItem(currentKeyId)))
                 .andExpect(
-                        jsonPath("$[?(@.vaultId == '%s')].keyLifecycleState".formatted(vaultId))
+                        jsonPath(
+                                        "$[?(@.fingerprint == '%s')].keyLifecycleState"
+                                                .formatted(fingerprint))
                                 .value(org.hamcrest.Matchers.hasItem(lifecycleState)))
                 .andExpect(
-                        jsonPath("$[?(@.vaultId == '%s')].lifecycleVersion".formatted(vaultId))
+                        jsonPath(
+                                        "$[?(@.fingerprint == '%s')].lifecycleVersion"
+                                                .formatted(fingerprint))
                                 .value(org.hamcrest.Matchers.hasItem((int) lifecycleVersion)));
     }
 

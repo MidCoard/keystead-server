@@ -16,7 +16,7 @@ interface RecoveryVaultPackageRepository
              where p.id.username = :username
                and p.id.enrollmentId = :enrollmentId
                and p.id.generation = :generation
-             order by p.id.vaultId
+             order by p.id.fingerprint
             """)
     @NonNull List<RecoveryVaultPackageEntity> listForEnrollment(
             @Param("username") @NonNull String username,
@@ -28,8 +28,9 @@ interface RecoveryVaultPackageRepository
             """
             delete from RecoveryVaultPackageEntity p
              where p.id.username = :username
-               and p.id.vaultId = :vaultId
+               and p.id.fingerprint = :fingerprint
             """)
     int deleteForVault(
-            @Param("username") @NonNull String username, @Param("vaultId") @NonNull String vaultId);
+            @Param("username") @NonNull String username,
+            @Param("fingerprint") @NonNull String fingerprint);
 }

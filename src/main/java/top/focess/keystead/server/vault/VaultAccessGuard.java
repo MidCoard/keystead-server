@@ -20,13 +20,13 @@ public class VaultAccessGuard {
         this.keyStates = keyStates;
     }
 
-    public void requireActiveMember(@NonNull String userId, @NonNull String vaultId) {
-        activeMemberOrThrow(userId, vaultId);
+    public void requireActiveMember(@NonNull String userId, @NonNull String fingerprint) {
+        activeMemberOrThrow(userId, fingerprint);
     }
 
-    public void requireAcceptedOrActiveMember(@NonNull String userId, @NonNull String vaultId) {
+    public void requireAcceptedOrActiveMember(@NonNull String userId, @NonNull String fingerprint) {
         StoredVaultMember member =
-                members.find(vaultId, userId)
+                members.find(fingerprint, userId)
                         .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
         if (member.state() != VaultMemberState.ACCEPTED_PENDING_KEY
                 && member.state() != VaultMemberState.ACTIVE) {
@@ -35,50 +35,50 @@ public class VaultAccessGuard {
     }
 
     public @NonNull String requireActiveMemberAndResolveOwner(
-            @NonNull String userId, @NonNull String vaultId) {
-        activeMemberOrThrow(userId, vaultId);
-        return vaults.findGlobally(vaultId)
+            @NonNull String userId, @NonNull String fingerprint) {
+        activeMemberOrThrow(userId, fingerprint);
+        return vaults.findGlobally(fingerprint)
                 .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"))
                 .ownerId();
     }
 
-    public void requireWritableMember(@NonNull String userId, @NonNull String vaultId) {
-        if (!activeMemberOrThrow(userId, vaultId).role().canWriteRecords()) {
+    public void requireWritableMember(@NonNull String userId, @NonNull String fingerprint) {
+        if (!activeMemberOrThrow(userId, fingerprint).role().canWriteRecords()) {
             throw new VaultNotFoundException("Vault does not exist");
         }
     }
 
-    public void requireMemberManager(@NonNull String userId, @NonNull String vaultId) {
-        if (!activeMemberOrThrow(userId, vaultId).role().canManageMembers()) {
+    public void requireMemberManager(@NonNull String userId, @NonNull String fingerprint) {
+        if (!activeMemberOrThrow(userId, fingerprint).role().canManageMembers()) {
             throw new VaultNotFoundException("Vault does not exist");
         }
     }
 
     public @NonNull String requireMemberManagerAndResolveOwner(
-            @NonNull String userId, @NonNull String vaultId) {
-        StoredVaultMember member = activeMemberOrThrow(userId, vaultId);
+            @NonNull String userId, @NonNull String fingerprint) {
+        StoredVaultMember member = activeMemberOrThrow(userId, fingerprint);
         if (!member.role().canManageMembers()) {
             throw new VaultNotFoundException("Vault does not exist");
         }
-        return resolveOwner(vaultId);
+        return resolveOwner(fingerprint);
     }
 
-    public @NonNull String resolveOwner(@NonNull String vaultId) {
-        return vaults.findGlobally(vaultId)
+    public @NonNull String resolveOwner(@NonNull String fingerprint) {
+        return vaults.findGlobally(fingerprint)
                 .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"))
                 .ownerId();
     }
 
-    public void requireOwnedVault(@NonNull String ownerId, @NonNull String vaultId) {
-        if (!vaults.exists(ownerId, vaultId)) {
+    public void requireOwnedVault(@NonNull String ownerId, @NonNull String fingerprint) {
+        if (!vaults.exists(ownerId, fingerprint)) {
             throw new VaultNotFoundException("Vault does not exist");
         }
     }
 
-    public void requireStableForWrite(@NonNull String ownerId, @NonNull String vaultId) {
+    public void requireStableForWrite(@NonNull String ownerId, @NonNull String fingerprint) {
         VaultKeyLifecycleState state =
                 keyStates
-                        .findById(new VaultEntityId(ownerId, vaultId))
+                        .findById(new VaultEntityId(ownerId, fingerprint))
                         .map(value -> value.lifecycleState)
                         .orElse(VaultKeyLifecycleState.STABLE);
         if (state != VaultKeyLifecycleState.STABLE) {
@@ -87,17 +87,17 @@ public class VaultAccessGuard {
     }
 
     @NonNull Optional<StoredVault> findOwnedVaultOrRejectTakenId(
-            @NonNull String ownerId, @NonNull String vaultId) {
-        Optional<StoredVault> existing = vaults.find(ownerId, vaultId);
-        if (existing.isEmpty() && vaults.existsGlobally(vaultId)) {
+            @NonNull String ownerId, @NonNull String fingerprint) {
+        Optional<StoredVault> existing = vaults.find(ownerId, fingerprint);
+        if (existing.isEmpty() && vaults.existsGlobally(fingerprint)) {
             throw new VaultNotFoundException("Vault does not exist");
         }
         return existing;
     }
 
     private @NonNull StoredVaultMember activeMemberOrThrow(
-            @NonNull String userId, @NonNull String vaultId) {
-        return members.findActive(vaultId, userId)
+            @NonNull String userId, @NonNull String fingerprint) {
+        return members.findActive(fingerprint, userId)
                 .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
     }
 }

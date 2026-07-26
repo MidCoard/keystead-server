@@ -23,11 +23,12 @@ class TombstoneCompactionEligibilityService {
     }
 
     @Transactional(readOnly = true)
-    boolean isEligible(@NonNull String ownerId, @NonNull String vaultId, long tombstoneRevision) {
+    boolean isEligible(
+            @NonNull String ownerId, @NonNull String fingerprint, long tombstoneRevision) {
         if (tombstoneRevision <= 0) {
             throw new IllegalArgumentException("tombstoneRevision must be positive");
         }
-        vaultAccess.requireOwnedVault(ownerId, vaultId);
+        vaultAccess.requireOwnedVault(ownerId, fingerprint);
         List<StoredDevice> activeDevices =
                 devices.list(ownerId).stream()
                         .filter(device -> device.verifiedAt() != null)
@@ -39,7 +40,7 @@ class TombstoneCompactionEligibilityService {
         return activeDevices.stream()
                 .allMatch(
                         device ->
-                                cursors.find(ownerId, vaultId, device.deviceId())
+                                cursors.find(ownerId, fingerprint, device.deviceId())
                                         .map(cursor -> cursor.pulledRevision() >= tombstoneRevision)
                                         .orElse(false));
     }

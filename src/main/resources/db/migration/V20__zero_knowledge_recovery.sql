@@ -28,13 +28,13 @@ create table recovery_vault_packages (
     username varchar(255) not null,
     enrollment_id varchar(128) not null,
     generation bigint not null,
-    vault_id varchar(255) not null,
+    fingerprint varchar(255) not null,
     vault_key_id varchar(255) not null,
     key_algorithm varchar(64) not null,
     encrypted_vault_key text not null,
     created_at timestamp not null,
     updated_at timestamp not null,
-    primary key (username, enrollment_id, generation, vault_id),
+    primary key (username, enrollment_id, generation, fingerprint),
     constraint fk_recovery_vault_package_enrollment foreign key (
         username, enrollment_id, generation
     ) references recovery_enrollments (username, enrollment_id, generation)

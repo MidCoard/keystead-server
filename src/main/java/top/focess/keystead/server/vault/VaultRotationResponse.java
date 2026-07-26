@@ -5,7 +5,7 @@ import org.jspecify.annotations.NonNull;
 
 public record VaultRotationResponse(
         @NonNull String generationId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String sourceVaultKeyId,
         @NonNull String targetVaultKeyId,
         @NonNull VaultRotationGenerationState state,

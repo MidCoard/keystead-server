@@ -129,7 +129,7 @@ class AutomationTokenRepositoryTest {
                                         current.tokenHash(),
                                         current.ownerId(),
                                         current.principalId(),
-                                        current.vaultId(),
+                                        current.fingerprint(),
                                         current.scopes(),
                                         current.expiresAt(),
                                         current.createdAt(),

@@ -14,7 +14,7 @@ import org.jspecify.annotations.NonNull;
         indexes =
                 @Index(
                         name = "idx_device_vault_sync_cursors_owner_vault_revision",
-                        columnList = "owner_id, vault_id, pulled_revision"))
+                        columnList = "owner_id, fingerprint, pulled_revision"))
 public class DeviceVaultSyncCursorEntity {
 
     @EmbeddedId @NonNull DeviceVaultSyncCursorEntityId id = new DeviceVaultSyncCursorEntityId();
@@ -30,7 +30,7 @@ public class DeviceVaultSyncCursorEntity {
     private DeviceVaultSyncCursorEntity(@NonNull StoredDeviceVaultSyncCursor cursor) {
         this.id =
                 new DeviceVaultSyncCursorEntityId(
-                        cursor.ownerId(), cursor.vaultId(), cursor.deviceId());
+                        cursor.ownerId(), cursor.fingerprint(), cursor.deviceId());
         this.pulledRevision = cursor.pulledRevision();
         this.updatedAt = cursor.updatedAt();
     }
@@ -41,6 +41,6 @@ public class DeviceVaultSyncCursorEntity {
 
     @NonNull StoredDeviceVaultSyncCursor toStored() {
         return new StoredDeviceVaultSyncCursor(
-                id.ownerId, id.vaultId, id.deviceId, pulledRevision, updatedAt);
+                id.ownerId, id.fingerprint, id.deviceId, pulledRevision, updatedAt);
     }
 }

@@ -18,7 +18,7 @@ public record StoredAuditEvent(
         @NonNull String eventType,
         @NonNull String targetType,
         @NonNull String targetId,
-        @Nullable String vaultId,
+        @Nullable String fingerprint,
         @Nullable Long revision,
         @NonNull String outcome,
         @NonNull String details,
@@ -70,8 +70,8 @@ public record StoredAuditEvent(
             throw new IllegalArgumentException("Audit target type is unsupported");
         }
         requireNotBlank(targetId, "targetId");
-        if (vaultId != null && vaultId.isBlank()) {
-            throw new IllegalArgumentException("vaultId must not be blank");
+        if (fingerprint != null && fingerprint.isBlank()) {
+            throw new IllegalArgumentException("fingerprint must not be blank");
         }
         if (revision != null && revision <= 0) {
             throw new IllegalArgumentException("Audit revision must be positive");
@@ -80,7 +80,7 @@ public record StoredAuditEvent(
         if (!ALLOWED_OUTCOMES.contains(outcome)) {
             throw new IllegalArgumentException("Audit outcome is unsupported");
         }
-        requireEventShape(type, targetType, vaultId, revision, outcome);
+        requireEventShape(type, targetType, fingerprint, revision, outcome);
         requireNotBlank(details, "details");
         requireJsonObjectDetails(details);
         Objects.requireNonNull(createdAt, "createdAt");
@@ -131,29 +131,29 @@ public record StoredAuditEvent(
     private static void requireEventShape(
             @NonNull AuditEventType eventType,
             @NonNull String targetType,
-            @Nullable String vaultId,
+            @Nullable String fingerprint,
             @Nullable Long revision,
             @NonNull String outcome) {
         switch (eventType) {
             case RECORD_STORED, RECORD_DELETED -> {
                 requireShape(targetType, "record", outcome, "SUCCESS");
-                requireVaultAndRevision(vaultId, revision);
+                requireVaultAndRevision(fingerprint, revision);
             }
             case RECORD_REVISION_CONFLICT -> {
                 requireShape(targetType, "record", outcome, "CONFLICT");
-                requireVaultAndRevision(vaultId, revision);
+                requireVaultAndRevision(fingerprint, revision);
             }
             case KEY_PACKAGE_STORED -> {
                 requireShape(targetType, "key_package", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case DEVICE_REVOKED -> {
                 requireShape(targetType, "device", outcome, "SUCCESS");
-                requireNoVaultOrRevision(vaultId, revision);
+                requireNoVaultOrRevision(fingerprint, revision);
             }
             case VAULT_ROTATION_REQUIRED, VAULT_ROTATION_COMMITTED -> {
                 requireShape(targetType, "vault_lifecycle", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case VAULT_MEMBER_INVITED,
                     VAULT_MEMBER_ACCEPTED,
@@ -161,35 +161,35 @@ public record StoredAuditEvent(
                     VAULT_MEMBER_ROLE_CHANGED,
                     VAULT_MEMBER_REMOVED -> {
                 requireShape(targetType, "vault_member", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case LOGIN_FAILED -> {
                 requireShape(targetType, "auth", outcome, "FAILURE");
-                requireNoVaultOrRevision(vaultId, revision);
+                requireNoVaultOrRevision(fingerprint, revision);
             }
             case AUTOMATION_PRINCIPAL_STORED, AUTOMATION_PRINCIPAL_REVOKED -> {
                 requireShape(targetType, "automation_principal", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case AUTOMATION_TOKEN_ISSUED, AUTOMATION_TOKEN_REVOKED -> {
                 requireShape(targetType, "automation_token", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case AUTOMATION_KEY_PACKAGE_STORED -> {
                 requireShape(targetType, "key_package", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case RECOVERY_ENROLLMENT_CREATED, RECOVERY_ENROLLMENT_COMMITTED -> {
                 requireShape(targetType, "recovery_enrollment", outcome, "SUCCESS");
-                requireNoVaultOrRevision(vaultId, revision);
+                requireNoVaultOrRevision(fingerprint, revision);
             }
             case RECOVERY_KEY_PACKAGE_STORED -> {
                 requireShape(targetType, "key_package", outcome, "SUCCESS");
-                requireVaultWithoutRevision(vaultId, revision);
+                requireVaultWithoutRevision(fingerprint, revision);
             }
             case RECOVERY_COMPLETED -> {
                 requireShape(targetType, "recovery_session", outcome, "SUCCESS");
-                requireNoVaultOrRevision(vaultId, revision);
+                requireNoVaultOrRevision(fingerprint, revision);
             }
         }
     }
@@ -207,15 +207,16 @@ public record StoredAuditEvent(
         }
     }
 
-    private static void requireVaultAndRevision(@Nullable String vaultId, @Nullable Long revision) {
-        if (vaultId == null || revision == null) {
+    private static void requireVaultAndRevision(
+            @Nullable String fingerprint, @Nullable Long revision) {
+        if (fingerprint == null || revision == null) {
             throw new IllegalArgumentException("Audit event requires vault and revision");
         }
     }
 
     private static void requireVaultWithoutRevision(
-            @Nullable String vaultId, @Nullable Long revision) {
-        if (vaultId == null) {
+            @Nullable String fingerprint, @Nullable Long revision) {
+        if (fingerprint == null) {
             throw new IllegalArgumentException("Audit event requires vault");
         }
         if (revision != null) {
@@ -224,8 +225,8 @@ public record StoredAuditEvent(
     }
 
     private static void requireNoVaultOrRevision(
-            @Nullable String vaultId, @Nullable Long revision) {
-        if (vaultId != null || revision != null) {
+            @Nullable String fingerprint, @Nullable Long revision) {
+        if (fingerprint != null || revision != null) {
             throw new IllegalArgumentException("Audit event must not carry vault or revision");
         }
     }

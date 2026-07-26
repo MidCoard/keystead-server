@@ -90,9 +90,10 @@ class EncryptedRecordPageResponseTest {
         assertThrows(UnsupportedOperationException.class, () -> page.records().clear());
     }
 
-    private static EncryptedRecordResponse record(String vaultId, String secretId, long revision) {
+    private static EncryptedRecordResponse record(
+            String fingerprint, String secretId, long revision) {
         return new EncryptedRecordResponse(
-                vaultId,
+                fingerprint,
                 secretId,
                 revision,
                 "API_TOKEN",

@@ -6,7 +6,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public record EncryptedRecordPageResponse(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         long sinceRevision,
         @NonNull List<EncryptedRecordResponse> records,
         long highestRevision,
@@ -14,7 +14,7 @@ public record EncryptedRecordPageResponse(
         @Nullable Long nextSinceRevision) {
 
     public EncryptedRecordPageResponse {
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         records = List.copyOf(Objects.requireNonNull(records, "records"));
         if (sinceRevision < 0) {
             throw new IllegalArgumentException("sinceRevision must not be negative");
@@ -24,7 +24,7 @@ public record EncryptedRecordPageResponse(
         }
         long lastRevision = sinceRevision;
         for (EncryptedRecordResponse record : records) {
-            if (!vaultId.equals(record.vaultId())) {
+            if (!fingerprint.equals(record.fingerprint())) {
                 throw new IllegalArgumentException("Page row belongs to a different vault");
             }
             if (record.revision() <= lastRevision) {

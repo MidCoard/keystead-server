@@ -43,11 +43,17 @@ class RevisionConflictExceptionTest {
 
     private static RevisionConflictException conflict(
             String message,
-            String vaultId,
+            String fingerprint,
             String secretId,
             long latestRevision,
             long rejectedRevision) {
         return new RevisionConflictException(
-                message, vaultId, secretId, latestRevision, rejectedRevision, false, UPDATED_AT);
+                message,
+                fingerprint,
+                secretId,
+                latestRevision,
+                rejectedRevision,
+                false,
+                UPDATED_AT);
     }
 }

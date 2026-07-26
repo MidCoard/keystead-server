@@ -38,18 +38,18 @@ class VaultService {
     }
 
     @Transactional
-    void put(@NonNull String ownerId, @NonNull String vaultId, @NonNull VaultRequest request) {
+    void put(@NonNull String ownerId, @NonNull String fingerprint, @NonNull VaultRequest request) {
         Optional<StoredVault> existing =
-                accessGuard.findOwnedVaultOrRejectTakenId(ownerId, vaultId);
+                accessGuard.findOwnedVaultOrRejectTakenId(ownerId, fingerprint);
         validate(request);
         Instant now = clock.instant();
         Instant createdAt = existing.map(StoredVault::createdAt).orElse(now);
         StoredVault next =
-                new StoredVault(ownerId, vaultId, request.encryptedMetadata(), createdAt, now);
+                new StoredVault(ownerId, fingerprint, request.encryptedMetadata(), createdAt, now);
         try {
             if (existing.isEmpty()) {
                 vaults.insert(next);
-                members.insertOwner(vaultId, ownerId, now);
+                members.insertOwner(fingerprint, ownerId, now);
             } else {
                 vaults.update(next);
             }
@@ -66,12 +66,12 @@ class VaultService {
     private @NonNull VaultMembershipResponse membership(@NonNull VaultMemberEntity entity) {
         StoredVaultMember member = entity.toStored();
         StoredVault vault =
-                vaults.findGlobally(member.vaultId())
+                vaults.findGlobally(member.fingerprint())
                         .orElseThrow(() -> new VaultNotFoundException("Vault does not exist"));
         Optional<VaultKeyStateEntity> keyState =
-                keyStates.findById(new VaultEntityId(vault.ownerId(), vault.vaultId()));
+                keyStates.findById(new VaultEntityId(vault.ownerId(), vault.fingerprint()));
         return new VaultMembershipResponse(
-                vault.vaultId(),
+                vault.fingerprint(),
                 vault.ownerId(),
                 vault.encryptedMetadata(),
                 member.role(),

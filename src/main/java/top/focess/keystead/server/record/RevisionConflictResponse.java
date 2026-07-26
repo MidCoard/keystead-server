@@ -7,7 +7,7 @@ import org.jspecify.annotations.NonNull;
 public record RevisionConflictResponse(
         @NonNull String code,
         @NonNull String message,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String secretId,
         long latestRevision,
         long rejectedRevision,
@@ -19,7 +19,7 @@ public record RevisionConflictResponse(
     public RevisionConflictResponse {
         requireNotBlank(code, "code");
         requireNotBlank(message, "message");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(secretId, "secretId");
         Objects.requireNonNull(serverUpdatedAt, "serverUpdatedAt");
         if (latestRevision <= 0 || serverRevision <= 0) {
@@ -41,7 +41,7 @@ public record RevisionConflictResponse(
         return new RevisionConflictResponse(
                 "REVISION_CONFLICT",
                 exception.getMessage(),
-                exception.vaultId(),
+                exception.fingerprint(),
                 exception.secretId(),
                 exception.latestRevision(),
                 exception.rejectedRevision(),

@@ -9,28 +9,28 @@ import org.jspecify.annotations.NonNull;
 @Embeddable
 public final class VaultMemberEntityId implements Serializable {
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     @Column(name = "user_id", nullable = false)
     @NonNull String userId = "";
 
     public VaultMemberEntityId() {}
 
-    public VaultMemberEntityId(@NonNull String vaultId, @NonNull String userId) {
-        this.vaultId = vaultId;
+    public VaultMemberEntityId(@NonNull String fingerprint, @NonNull String userId) {
+        this.fingerprint = fingerprint;
         this.userId = userId;
     }
 
     @Override
     public boolean equals(@NonNull Object object) {
         return object instanceof VaultMemberEntityId other
-                && vaultId.equals(other.vaultId)
+                && fingerprint.equals(other.fingerprint)
                 && userId.equals(other.userId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(vaultId, userId);
+        return Objects.hash(fingerprint, userId);
     }
 }

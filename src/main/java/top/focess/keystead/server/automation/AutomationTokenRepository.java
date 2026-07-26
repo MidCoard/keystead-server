@@ -20,9 +20,9 @@ interface AutomationTokenRepository extends JpaRepository<AutomationTokenEntity,
     }
 
     default @NonNull List<AutomationToken> list(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
-        return findByOwnerIdAndVaultIdAndPrincipalIdOrderByCreatedAtDesc(
-                        ownerId, vaultId, principalId)
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String principalId) {
+        return findByOwnerIdAndFingerprintAndPrincipalIdOrderByCreatedAtDesc(
+                        ownerId, fingerprint, principalId)
                 .stream()
                 .map(AutomationTokenEntity::toStored)
                 .toList();
@@ -30,20 +30,20 @@ interface AutomationTokenRepository extends JpaRepository<AutomationTokenEntity,
 
     default @NonNull Optional<AutomationToken> findByTokenId(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull String tokenId) {
-        return findByOwnerIdAndVaultIdAndPrincipalIdAndTokenId(
-                        ownerId, vaultId, principalId, tokenId)
+        return findByOwnerIdAndFingerprintAndPrincipalIdAndTokenId(
+                        ownerId, fingerprint, principalId, tokenId)
                 .map(AutomationTokenEntity::toStored);
     }
 
-    List<AutomationTokenEntity> findByOwnerIdAndVaultIdAndPrincipalIdOrderByCreatedAtDesc(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId);
+    List<AutomationTokenEntity> findByOwnerIdAndFingerprintAndPrincipalIdOrderByCreatedAtDesc(
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String principalId);
 
-    Optional<AutomationTokenEntity> findByOwnerIdAndVaultIdAndPrincipalIdAndTokenId(
+    Optional<AutomationTokenEntity> findByOwnerIdAndFingerprintAndPrincipalIdAndTokenId(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull String tokenId);
 

@@ -12,8 +12,8 @@ public final class EncryptedRecordEntityId implements Serializable {
     @Column(name = "owner_id", nullable = false)
     @NonNull String ownerId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     @Column(name = "secret_id", nullable = false)
     @NonNull String secretId = "";
@@ -21,9 +21,9 @@ public final class EncryptedRecordEntityId implements Serializable {
     public EncryptedRecordEntityId() {}
 
     public EncryptedRecordEntityId(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String secretId) {
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String secretId) {
         this.ownerId = ownerId;
-        this.vaultId = vaultId;
+        this.fingerprint = fingerprint;
         this.secretId = secretId;
     }
 
@@ -36,12 +36,12 @@ public final class EncryptedRecordEntityId implements Serializable {
             return false;
         }
         return ownerId.equals(other.ownerId)
-                && vaultId.equals(other.vaultId)
+                && fingerprint.equals(other.fingerprint)
                 && secretId.equals(other.secretId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ownerId, vaultId, secretId);
+        return Objects.hash(ownerId, fingerprint, secretId);
     }
 }

@@ -86,7 +86,7 @@ public final class AuditSigner {
                 enc(event.eventType()),
                 enc(event.targetType()),
                 enc(event.targetId()),
-                enc(event.vaultId()),
+                enc(event.fingerprint()),
                 enc(event.revision() == null ? null : event.revision().toString()),
                 enc(event.outcome()),
                 enc(event.details()),

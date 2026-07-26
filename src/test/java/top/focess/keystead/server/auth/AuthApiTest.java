@@ -72,7 +72,7 @@ class AuthApiTest {
                         get("/api/v1/vaults")
                                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].vaultId").value("token-vault"));
+                .andExpect(jsonPath("$[0].fingerprint").value("token-vault"));
     }
 
     @Test

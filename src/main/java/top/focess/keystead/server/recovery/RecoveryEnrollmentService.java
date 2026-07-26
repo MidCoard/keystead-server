@@ -137,11 +137,11 @@ class RecoveryEnrollmentService {
             @NonNull String actorId,
             @NonNull String username,
             @NonNull String enrollmentId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull RecoveryVaultPackageRequest request) {
-        vaultAccess.requireMemberManager(actorId, vaultId);
-        String ownerId = vaultAccess.requireActiveMemberAndResolveOwner(actorId, vaultId);
-        vaultAccess.requireAcceptedOrActiveMember(username, vaultId);
+        vaultAccess.requireMemberManager(actorId, fingerprint);
+        String ownerId = vaultAccess.requireActiveMemberAndResolveOwner(actorId, fingerprint);
+        vaultAccess.requireAcceptedOrActiveMember(username, fingerprint);
         validate(request);
         requireRecoveryAlgorithm(request.keyAlgorithm());
         RecoveryEnrollmentEntity enrollment =
@@ -157,11 +157,14 @@ class RecoveryEnrollmentService {
                                 () ->
                                         new RecoveryNotFoundException(
                                                 "Recovery enrollment does not exist"));
-        rotations.requireCurrentOrLegacy(ownerId, vaultId, request.vaultKeyId());
+        rotations.requireCurrentOrLegacy(ownerId, fingerprint, request.vaultKeyId());
 
         RecoveryVaultPackageId id =
                 new RecoveryVaultPackageId(
-                        username, enrollment.id.enrollmentId, enrollment.id.generation, vaultId);
+                        username,
+                        enrollment.id.enrollmentId,
+                        enrollment.id.generation,
+                        fingerprint);
         Instant now = clock.instant();
         @Nullable RecoveryVaultPackageEntity existing = vaultPackages.findById(id).orElse(null);
         RecoveryVaultPackageEntity entity = new RecoveryVaultPackageEntity();
@@ -176,7 +179,7 @@ class RecoveryEnrollmentService {
                 username,
                 actorId,
                 enrollmentId,
-                vaultId,
+                fingerprint,
                 request.generation(),
                 request.vaultKeyId(),
                 request.keyAlgorithm());
@@ -185,7 +188,7 @@ class RecoveryEnrollmentService {
 
     @Transactional(readOnly = true)
     @NonNull RecoveryVaultPackageResponse getPackage(
-            @NonNull String username, @NonNull String enrollmentId, @NonNull String vaultId) {
+            @NonNull String username, @NonNull String enrollmentId, @NonNull String fingerprint) {
         RecoveryEnrollmentEntity enrollment =
                 enrollments
                         .findByIdUsernameAndIdEnrollmentId(username, enrollmentId)
@@ -196,7 +199,7 @@ class RecoveryEnrollmentService {
         return vaultPackages
                 .findById(
                         new RecoveryVaultPackageId(
-                                username, enrollmentId, enrollment.id.generation, vaultId))
+                                username, enrollmentId, enrollment.id.generation, fingerprint))
                 .map(RecoveryVaultPackageResponse::from)
                 .orElseThrow(
                         () -> new RecoveryNotFoundException("Recovery package does not exist"));

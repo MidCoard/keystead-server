@@ -21,8 +21,10 @@ public class AutomationRotationBridge {
 
     @Transactional(readOnly = true)
     public @NonNull List<Target> targets(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String currentVaultKeyId) {
-        return principals.listRotationTargets(ownerId, vaultId, currentVaultKeyId).stream()
+            @NonNull String ownerId,
+            @NonNull String fingerprint,
+            @NonNull String currentVaultKeyId) {
+        return principals.listRotationTargets(ownerId, fingerprint, currentVaultKeyId).stream()
                 .map(
                         value ->
                                 new Target(
@@ -35,16 +37,16 @@ public class AutomationRotationBridge {
     @Transactional
     public void replace(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String targetVaultKeyId,
             @NonNull List<Package> replacements,
             @NonNull Instant now) {
-        packages.deleteForVault(ownerId, vaultId);
+        packages.deleteForVault(ownerId, fingerprint);
         for (Package replacement : replacements) {
             packages.persist(
                     new AutomationVaultKeyPackage(
                             ownerId,
-                            vaultId,
+                            fingerprint,
                             replacement.principalId(),
                             targetVaultKeyId,
                             replacement.keyAlgorithm(),

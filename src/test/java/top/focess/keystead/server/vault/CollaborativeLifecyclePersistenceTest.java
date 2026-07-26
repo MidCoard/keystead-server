@@ -50,15 +50,16 @@ class CollaborativeLifecyclePersistenceTest {
     void repositoriesRoundTripPendingMembershipLifecycleTargetsAndOpaquePackages() {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String ownerId = "owner-" + suffix;
-        String vaultId = "vault-" + suffix;
+        String fingerprint = "vault-" + suffix;
         String generationId = "generation-" + suffix;
         vaults.saveAndFlush(
-                VaultEntity.from(new StoredVault(ownerId, vaultId, "opaque-metadata", NOW, NOW)));
+                VaultEntity.from(
+                        new StoredVault(ownerId, fingerprint, "opaque-metadata", NOW, NOW)));
 
         VaultRotationGenerationEntity generation =
-                generation(generationId, ownerId, vaultId, "target-key", 7L);
+                generation(generationId, ownerId, fingerprint, "target-key", 7L);
         generations.saveAndFlush(generation);
-        VaultKeyStateEntity keyState = keyState(ownerId, vaultId, generationId, 7L);
+        VaultKeyStateEntity keyState = keyState(ownerId, fingerprint, generationId, 7L);
         keyStates.saveAndFlush(keyState);
         VaultRotationTargetEntity target = deviceTarget(generationId, "target-device");
         targets.saveAndFlush(target);
@@ -66,7 +67,7 @@ class CollaborativeLifecyclePersistenceTest {
         packages.saveAndFlush(keyPackage);
 
         VaultKeyStateEntity storedState =
-                keyStates.findById(new VaultEntityId(ownerId, vaultId)).orElseThrow();
+                keyStates.findById(new VaultEntityId(ownerId, fingerprint)).orElseThrow();
         assertEquals(VaultKeyLifecycleState.ROTATING, storedState.lifecycleState);
         assertEquals(generationId, storedState.pendingGenerationId);
         assertEquals(7L, storedState.lifecycleVersion);
@@ -85,11 +86,12 @@ class CollaborativeLifecyclePersistenceTest {
     void databaseAllowsOnlyOnePendingGenerationPerVault() {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String ownerId = "one-owner-" + suffix;
-        String vaultId = "one-vault-" + suffix;
+        String fingerprint = "one-vault-" + suffix;
         vaults.saveAndFlush(
-                VaultEntity.from(new StoredVault(ownerId, vaultId, "opaque-metadata", NOW, NOW)));
+                VaultEntity.from(
+                        new StoredVault(ownerId, fingerprint, "opaque-metadata", NOW, NOW)));
         generations.saveAndFlush(
-                generation("one-generation-" + suffix, ownerId, vaultId, "key-2", 1L));
+                generation("one-generation-" + suffix, ownerId, fingerprint, "key-2", 1L));
 
         ConstraintViolationException error =
                 assertThrows(
@@ -101,7 +103,7 @@ class CollaborativeLifecyclePersistenceTest {
                                                     generation(
                                                             "two-generation-" + suffix,
                                                             ownerId,
-                                                            vaultId,
+                                                            fingerprint,
                                                             "key-3",
                                                             1L));
                                             entityManager.flush();
@@ -114,26 +116,28 @@ class CollaborativeLifecyclePersistenceTest {
     void databaseRejectsNonPositiveLifecycleVersionAndGeneration() {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String ownerId = "positive-owner-" + suffix;
-        String vaultId = "positive-vault-" + suffix;
+        String fingerprint = "positive-vault-" + suffix;
         vaults.saveAndFlush(
-                VaultEntity.from(new StoredVault(ownerId, vaultId, "opaque-metadata", NOW, NOW)));
+                VaultEntity.from(
+                        new StoredVault(ownerId, fingerprint, "opaque-metadata", NOW, NOW)));
 
         assertConstraint(
-                "ck_vault_key_state_lifecycle_version", keyState(ownerId, vaultId, null, 0L));
+                "ck_vault_key_state_lifecycle_version", keyState(ownerId, fingerprint, null, 0L));
         assertConstraint(
                 "ck_vault_rotation_generation_version",
-                generation("zero-generation-" + suffix, ownerId, vaultId, "key-2", 0L));
+                generation("zero-generation-" + suffix, ownerId, fingerprint, "key-2", 0L));
     }
 
     @Test
     void databaseRejectsMixedTargetIdentityAndPackageWithoutTarget() {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String ownerId = "target-owner-" + suffix;
-        String vaultId = "target-vault-" + suffix;
+        String fingerprint = "target-vault-" + suffix;
         String generationId = "target-generation-" + suffix;
         vaults.saveAndFlush(
-                VaultEntity.from(new StoredVault(ownerId, vaultId, "opaque-metadata", NOW, NOW)));
-        generations.saveAndFlush(generation(generationId, ownerId, vaultId, "key-2", 1L));
+                VaultEntity.from(
+                        new StoredVault(ownerId, fingerprint, "opaque-metadata", NOW, NOW)));
+        generations.saveAndFlush(generation(generationId, ownerId, fingerprint, "key-2", 1L));
 
         VaultRotationTargetEntity mixed = deviceTarget(generationId, "mixed-target");
         mixed.principalId = "automation-must-be-null";
@@ -157,11 +161,11 @@ class CollaborativeLifecyclePersistenceTest {
 
     private static @NonNull VaultKeyStateEntity keyState(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             String pendingGenerationId,
             long lifecycleVersion) {
         VaultKeyStateEntity state = new VaultKeyStateEntity();
-        state.id = new VaultEntityId(ownerId, vaultId);
+        state.id = new VaultEntityId(ownerId, fingerprint);
         state.currentVaultKeyId = "key-1";
         state.lifecycleState =
                 pendingGenerationId == null
@@ -176,13 +180,13 @@ class CollaborativeLifecyclePersistenceTest {
     private static @NonNull VaultRotationGenerationEntity generation(
             @NonNull String generationId,
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String targetKeyId,
             long lifecycleVersion) {
         VaultRotationGenerationEntity generation = new VaultRotationGenerationEntity();
         generation.generationId = generationId;
         generation.ownerId = ownerId;
-        generation.vaultId = vaultId;
+        generation.fingerprint = fingerprint;
         generation.sourceKeyId = "key-1";
         generation.targetKeyId = targetKeyId;
         generation.state = VaultRotationGenerationState.OPEN;

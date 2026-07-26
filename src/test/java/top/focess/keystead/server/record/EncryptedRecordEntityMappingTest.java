@@ -22,7 +22,7 @@ class EncryptedRecordEntityMappingTest {
                                                 constraint,
                                                 "uq_encrypted_records_owner_vault_revision",
                                                 "owner_id",
-                                                "vault_id",
+                                                "fingerprint",
                                                 "revision")));
         assertTrue(
                 Arrays.stream(table.indexes())
@@ -31,7 +31,7 @@ class EncryptedRecordEntityMappingTest {
                                         hasNameAndColumnList(
                                                 index,
                                                 "idx_encrypted_records_owner_vault",
-                                                "owner_id, vault_id")));
+                                                "owner_id, fingerprint")));
         assertTrue(
                 Arrays.stream(table.indexes())
                         .anyMatch(
@@ -39,7 +39,7 @@ class EncryptedRecordEntityMappingTest {
                                         hasNameAndColumnList(
                                                 index,
                                                 "idx_encrypted_records_sync_page",
-                                                "owner_id, vault_id, revision, secret_id")));
+                                                "owner_id, fingerprint, revision, secret_id")));
     }
 
     private static boolean hasNameAndColumns(

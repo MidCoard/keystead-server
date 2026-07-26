@@ -13,7 +13,7 @@ interface RecoveryRequestVaultPackageRepository
             """
             select p from RecoveryRequestVaultPackageEntity p
              where p.id.requestId = :requestId
-             order by p.id.vaultId
+             order by p.id.fingerprint
             """)
     @NonNull List<RecoveryRequestVaultPackageEntity> listForRequest(
             @Param("requestId") @NonNull String requestId);

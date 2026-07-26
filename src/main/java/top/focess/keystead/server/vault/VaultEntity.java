@@ -13,7 +13,7 @@ import org.jspecify.annotations.NonNull;
 @Table(
         name = "vaults",
         uniqueConstraints =
-                @UniqueConstraint(name = "uq_vaults_vault_id", columnNames = "vault_id"),
+                @UniqueConstraint(name = "uq_vaults_fingerprint", columnNames = "fingerprint"),
         indexes = @Index(name = "idx_vaults_owner", columnList = "owner_id"))
 public class VaultEntity {
 
@@ -31,7 +31,7 @@ public class VaultEntity {
     protected VaultEntity() {}
 
     private VaultEntity(@NonNull StoredVault vault) {
-        this.id = new VaultEntityId(vault.ownerId(), vault.vaultId());
+        this.id = new VaultEntityId(vault.ownerId(), vault.fingerprint());
         this.encryptedMetadata = vault.encryptedMetadata();
         this.createdAt = vault.createdAt();
         this.updatedAt = vault.updatedAt();
@@ -42,6 +42,6 @@ public class VaultEntity {
     }
 
     @NonNull StoredVault toStored() {
-        return new StoredVault(id.ownerId, id.vaultId, encryptedMetadata, createdAt, updatedAt);
+        return new StoredVault(id.ownerId, id.fingerprint, encryptedMetadata, createdAt, updatedAt);
     }
 }

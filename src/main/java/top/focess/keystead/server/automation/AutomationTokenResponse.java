@@ -8,6 +8,6 @@ record AutomationTokenResponse(
         @NonNull String token,
         @NonNull String tokenId,
         @NonNull String principalId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull Set<AutomationScope> scopes,
         @NonNull Instant expiresAt) {}

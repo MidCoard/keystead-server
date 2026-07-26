@@ -46,11 +46,11 @@ class VerifiedDeviceRecoveryApiTest {
             throws Exception {
         String username = "device-recovery-alice";
         String trustedDevice = "trusted-laptop";
-        String vaultId = "device-recovery-vault";
+        String fingerprint = "device-recovery-vault";
         registerUser(username);
         KeyPair trustedKeys = registerVerifiedDevice(username, trustedDevice);
-        createVault(username, vaultId);
-        declareCurrentVaultKey(username, vaultId, "vault-key-current");
+        createVault(username, fingerprint);
+        declareCurrentVaultKey(username, fingerprint, "vault-key-current");
         KeyPair replacementProof = rsaKeyPair();
 
         String requestJson = createRequest(username, "replacement-laptop", replacementProof);
@@ -79,7 +79,7 @@ class VerifiedDeviceRecoveryApiTest {
                                           "deviceId": "%s",
                                           "signature": "%s",
                                           "vaultPackages": [{
-                                            "vaultId": "%s",
+                                            "fingerprint": "%s",
                                             "vaultKeyId": "vault-key-current",
                                             "keyAlgorithm": "TINK_DEVICE_KEY_PACKAGE",
                                             "encryptedVaultKey": "opaque-new-device-package"
@@ -87,7 +87,9 @@ class VerifiedDeviceRecoveryApiTest {
                                         }
                                         """
                                                 .formatted(
-                                                        trustedDevice, approvalSignature, vaultId)))
+                                                        trustedDevice,
+                                                        approvalSignature,
+                                                        fingerprint)))
                 .andExpect(status().isNoContent());
         approveExpecting(username, requestId, trustedDevice, approvalSignature, 401);
 
@@ -347,19 +349,19 @@ class VerifiedDeviceRecoveryApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque\"}"))
                 .andExpect(status().isCreated());
     }
 
-    private void declareCurrentVaultKey(String username, String vaultId, String vaultKeyId)
+    private void declareCurrentVaultKey(String username, String fingerprint, String vaultKeyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-rotation", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/key-rotation", fingerprint)
                                 .with(httpBasic(username, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"vaultKeyId\":\"%s\"}".formatted(vaultKeyId)))

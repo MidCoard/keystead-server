@@ -166,12 +166,12 @@ class RecoveryDeviceService {
             @NonNull String username,
             @NonNull String requestId,
             @NonNull List<RecoveryApprovalVaultPackage> values) {
-        Set<String> vaultIds = new HashSet<>();
+        Set<String> fingerprints = new HashSet<>();
         List<RecoveryRequestVaultPackageEntity> mapped = new ArrayList<>();
         Instant now = clock.instant();
         for (RecoveryApprovalVaultPackage value : values) {
             validate(value);
-            if (!vaultIds.add(value.vaultId())) {
+            if (!fingerprints.add(value.fingerprint())) {
                 throw new InvalidRecoveryRequestException("Recovery package vault is duplicated");
             }
             if (!ServerCryptoAlgorithmRegistry.DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM
@@ -182,10 +182,10 @@ class RecoveryDeviceService {
                         "Recovery package algorithm is unsupported");
             }
             String ownerId =
-                    vaultAccess.requireActiveMemberAndResolveOwner(username, value.vaultId());
-            rotations.requireCurrentOrLegacy(ownerId, value.vaultId(), value.vaultKeyId());
+                    vaultAccess.requireActiveMemberAndResolveOwner(username, value.fingerprint());
+            rotations.requireCurrentOrLegacy(ownerId, value.fingerprint(), value.vaultKeyId());
             RecoveryRequestVaultPackageEntity entity = new RecoveryRequestVaultPackageEntity();
-            entity.id = new RecoveryRequestVaultPackageId(requestId, value.vaultId());
+            entity.id = new RecoveryRequestVaultPackageId(requestId, value.fingerprint());
             entity.vaultKeyId = value.vaultKeyId();
             entity.keyAlgorithm = value.keyAlgorithm();
             entity.encryptedVaultKey = value.encryptedVaultKey();

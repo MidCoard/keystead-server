@@ -82,10 +82,11 @@ class StoredEncryptedRecordTest {
                 UPDATED_AT);
     }
 
-    private static StoredEncryptedRecord record(String ownerId, String vaultId, String secretId) {
+    private static StoredEncryptedRecord record(
+            String ownerId, String fingerprint, String secretId) {
         return new StoredEncryptedRecord(
                 ownerId,
-                vaultId,
+                fingerprint,
                 secretId,
                 1L,
                 "API_TOKEN",

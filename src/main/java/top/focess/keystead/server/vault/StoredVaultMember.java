@@ -5,7 +5,7 @@ import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 
 record StoredVaultMember(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String userId,
         @NonNull VaultMemberRole role,
         @NonNull VaultMemberState state,
@@ -13,7 +13,7 @@ record StoredVaultMember(
         @NonNull Instant updatedAt) {
 
     StoredVaultMember {
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(userId, "userId");
         Objects.requireNonNull(role, "role");
         Objects.requireNonNull(state, "state");

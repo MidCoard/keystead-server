@@ -44,42 +44,47 @@ class VaultRemovalRotationApiTest {
         String owner = "removal-owner-" + suffix;
         String removed = "removal-removed-" + suffix;
         String remaining = "removal-remaining-" + suffix;
-        String vaultId = "removal-vault-" + suffix;
+        String fingerprint = "removal-vault-" + suffix;
         for (String username : new String[] {owner, removed, remaining}) {
             registerUser(username);
             registerDevice(username, username + "-device");
         }
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "current-key");
-        activate(owner, removed, vaultId, "EDITOR", "current-key");
-        activate(owner, remaining, vaultId, "EDITOR", "current-key");
-        putRecord(removed, vaultId, "record-1", 1L, 201);
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "current-key");
+        activate(owner, removed, fingerprint, "EDITOR", "current-key");
+        activate(owner, remaining, fingerprint, "EDITOR", "current-key");
+        putRecord(removed, fingerprint, "record-1", 1L, 201);
 
         mvc.perform(
-                        delete("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, removed)
+                        delete(
+                                        "/api/v1/vaults/{fingerprint}/members/{userId}",
+                                        fingerprint,
+                                        removed)
                                 .with(user(owner)))
                 .andExpect(status().isNoContent());
 
-        mvc.perform(get("/api/v1/vaults/{vaultId}/records", vaultId).with(user(removed)))
+        mvc.perform(get("/api/v1/vaults/{fingerprint}/records", fingerprint).with(user(removed)))
                 .andExpect(status().isNotFound());
-        mvc.perform(get("/api/v1/vaults/{vaultId}/records", vaultId).with(user(remaining)))
+        mvc.perform(get("/api/v1/vaults/{fingerprint}/records", fingerprint).with(user(remaining)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].secretId").value("record-1"));
-        putRecord(owner, vaultId, "record-2", 2L, 409);
-        putRecord(remaining, vaultId, "record-2", 2L, 409);
+        putRecord(owner, fingerprint, "record-2", 2L, 409);
+        putRecord(remaining, fingerprint, "record-2", 2L, 409);
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/records/record-2", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/records/record-2", fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(recordBody(2L)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.lifecycleState").value("ROTATION_REQUIRED"));
-        assertLifecycle(owner, vaultId, "ROTATION_REQUIRED");
-        mvc.perform(get("/api/v1/vaults/{vaultId}/package-recipients", vaultId).with(user(owner)))
+        assertLifecycle(owner, fingerprint, "ROTATION_REQUIRED");
+        mvc.perform(
+                        get("/api/v1/vaults/{fingerprint}/package-recipients", fingerprint)
+                                .with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.devices[*].userId").value(not(hasItem(removed))));
 
-        String details = rotationAuditDetails(vaultId);
+        String details = rotationAuditDetails(fingerprint);
         assertTrue(details.contains("MEMBER_REMOVED"));
         assertTrue(details.contains(removed));
         assertFalse(details.toLowerCase().contains("encryptedvaultkey"));
@@ -92,28 +97,34 @@ class VaultRemovalRotationApiTest {
         String owner = "nonrotation-owner-" + suffix;
         String pending = "nonrotation-pending-" + suffix;
         String active = "nonrotation-active-" + suffix;
-        String vaultId = "nonrotation-vault-" + suffix;
+        String fingerprint = "nonrotation-vault-" + suffix;
         for (String username : new String[] {owner, pending, active}) {
             registerUser(username);
             registerDevice(username, username + "-device");
         }
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "current-key");
-        inviteAndAccept(owner, pending, vaultId, "VIEWER");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "current-key");
+        inviteAndAccept(owner, pending, fingerprint, "VIEWER");
         mvc.perform(
-                        delete("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, pending)
+                        delete(
+                                        "/api/v1/vaults/{fingerprint}/members/{userId}",
+                                        fingerprint,
+                                        pending)
                                 .with(user(owner)))
                 .andExpect(status().isNoContent());
-        assertLifecycle(owner, vaultId, "STABLE");
+        assertLifecycle(owner, fingerprint, "STABLE");
 
-        activate(owner, active, vaultId, "EDITOR", "current-key");
+        activate(owner, active, fingerprint, "EDITOR", "current-key");
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}/role", vaultId, active)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/members/{userId}/role",
+                                        fingerprint,
+                                        active)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"VIEWER\"}"))
                 .andExpect(status().isNoContent());
-        assertLifecycle(owner, vaultId, "STABLE");
+        assertLifecycle(owner, fingerprint, "STABLE");
     }
 
     @Test
@@ -137,7 +148,9 @@ class VaultRemovalRotationApiTest {
 
         assertLifecycle(owner, packagedVault, "ROTATION_REQUIRED");
         assertLifecycle(owner, otherVault, "STABLE");
-        mvc.perform(get("/api/v1/vaults/{vaultId}/key-packages", packagedVault).with(user(owner)))
+        mvc.perform(
+                        get("/api/v1/vaults/{fingerprint}/key-packages", packagedVault)
+                                .with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
@@ -161,14 +174,14 @@ class VaultRemovalRotationApiTest {
 
         mvc.perform(
                         delete(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}",
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}",
                                         packagedVault,
                                         packagedPrincipal)
                                 .with(user(owner)))
                 .andExpect(status().isNoContent());
         mvc.perform(
                         delete(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}",
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}",
                                         otherVault,
                                         unpackagedPrincipal)
                                 .with(user(owner)))
@@ -228,9 +241,9 @@ class VaultRemovalRotationApiTest {
                                         .executeUpdate());
     }
 
-    private void createVault(@NonNull String owner, @NonNull String vaultId) throws Exception {
+    private void createVault(@NonNull String owner, @NonNull String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque-metadata\"}"))
@@ -238,10 +251,10 @@ class VaultRemovalRotationApiTest {
     }
 
     private void declareCurrentKey(
-            @NonNull String owner, @NonNull String vaultId, @NonNull String keyId)
+            @NonNull String owner, @NonNull String fingerprint, @NonNull String keyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-rotation", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/key-rotation", fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"vaultKeyId\":\"%s\"}".formatted(keyId)))
@@ -250,12 +263,15 @@ class VaultRemovalRotationApiTest {
 
     private void putOwnerPackage(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String deviceId,
             @NonNull String keyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/key-packages/{deviceId}",
+                                        fingerprint,
+                                        deviceId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody(keyId)))
@@ -265,31 +281,33 @@ class VaultRemovalRotationApiTest {
     private void inviteAndAccept(
             @NonNull String owner,
             @NonNull String recipient,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String role)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, recipient)
+                        put("/api/v1/vaults/{fingerprint}/members/{userId}", fingerprint, recipient)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"%s\"}".formatted(role)))
                 .andExpect(status().isCreated());
-        mvc.perform(post("/api/v1/vaults/{vaultId}/members/accept", vaultId).with(user(recipient)))
+        mvc.perform(
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
+                                .with(user(recipient)))
                 .andExpect(status().isNoContent());
     }
 
     private void activate(
             @NonNull String owner,
             @NonNull String recipient,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String role,
             @NonNull String keyId)
             throws Exception {
-        inviteAndAccept(owner, recipient, vaultId, role);
+        inviteAndAccept(owner, recipient, fingerprint, role);
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/key-packages/recipients/{recipientId}/devices/{deviceId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/key-packages/recipients/{recipientId}/devices/{deviceId}",
+                                        fingerprint,
                                         recipient,
                                         recipient + "-device")
                                 .with(user(owner))
@@ -300,13 +318,16 @@ class VaultRemovalRotationApiTest {
 
     private void putRecord(
             @NonNull String actor,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long revision,
             int statusCode)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/records/{secretId}", vaultId, secretId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/records/{secretId}",
+                                        fingerprint,
+                                        secretId)
                                 .with(user(actor))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(recordBody(revision)))
@@ -314,22 +335,24 @@ class VaultRemovalRotationApiTest {
     }
 
     private void assertLifecycle(
-            @NonNull String username, @NonNull String vaultId, @NonNull String state)
+            @NonNull String username, @NonNull String fingerprint, @NonNull String state)
             throws Exception {
         mvc.perform(get("/api/v1/vaults").with(user(username)))
                 .andExpect(status().isOk())
                 .andExpect(
-                        jsonPath("$[?(@.vaultId == '%s')].keyLifecycleState".formatted(vaultId))
+                        jsonPath(
+                                        "$[?(@.fingerprint == '%s')].keyLifecycleState"
+                                                .formatted(fingerprint))
                                 .value(hasItem(state)));
     }
 
     private void putAutomationPrincipal(
-            @NonNull String owner, @NonNull String vaultId, @NonNull String principalId)
+            @NonNull String owner, @NonNull String fingerprint, @NonNull String principalId)
             throws Exception {
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}",
+                                        fingerprint,
                                         principalId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -340,14 +363,14 @@ class VaultRemovalRotationApiTest {
 
     private void putAutomationPackage(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull String keyId)
             throws Exception {
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/automation-principals/{principalId}/key-package",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/automation-principals/{principalId}/key-package",
+                                        fingerprint,
                                         principalId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -355,7 +378,7 @@ class VaultRemovalRotationApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private @NonNull String rotationAuditDetails(@NonNull String vaultId) {
+    private @NonNull String rotationAuditDetails(@NonNull String fingerprint) {
         return new TransactionTemplate(transactionManager)
                 .execute(
                         ignored -> {
@@ -365,11 +388,11 @@ class VaultRemovalRotationApiTest {
                                                     """
                                                     select a.details from AuditEventEntity a
                                                      where a.eventType = 'VAULT_ROTATION_REQUIRED'
-                                                       and a.vaultId = :vaultId
+                                                       and a.fingerprint = :fingerprint
                                                      order by a.createdAt desc
                                                     """,
                                                     String.class)
-                                            .setParameter("vaultId", vaultId)
+                                            .setParameter("fingerprint", fingerprint)
                                             .getResultList();
                             return values.getFirst();
                         });

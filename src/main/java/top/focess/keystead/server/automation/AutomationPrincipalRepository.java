@@ -28,12 +28,12 @@ interface AutomationPrincipalRepository
                and k.id.principalId = p.id.principalId
              where p.id.ownerId = :ownerId
                and p.revokedAt is null
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
                and k.vaultKeyId = :currentVaultKeyId
              order by p.id.principalId
             """)
     @NonNull List<AutomationPrincipalEntity> listRotationTargets(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("currentVaultKeyId") @NonNull String currentVaultKeyId);
 }

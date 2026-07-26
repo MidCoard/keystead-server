@@ -11,30 +11,32 @@ import org.springframework.data.repository.query.Param;
 
 interface VaultMemberRepository extends JpaRepository<VaultMemberEntity, VaultMemberEntityId> {
     @org.springframework.data.jpa.repository.Query(
-            "select m from VaultMemberEntity m where m.id.vaultId = :vaultId order by m.id.userId")
+            "select m from VaultMemberEntity m where m.id.fingerprint = :fingerprint order by m.id.userId")
     @NonNull List<VaultMemberEntity> findAllForVault(
-            @org.springframework.data.repository.query.Param("vaultId") @NonNull String vaultId);
+            @org.springframework.data.repository.query.Param("fingerprint")
+                    @NonNull String fingerprint);
 
     @Query(
             """
             select m from VaultMemberEntity m
              where m.id.userId = :userId
                and m.state <> top.focess.keystead.server.vault.VaultMemberState.REMOVED
-             order by m.id.vaultId
+             order by m.id.fingerprint
             """)
     @NonNull List<VaultMemberEntity> findAllForUser(@Param("userId") @NonNull String userId);
 
     default @NonNull Optional<StoredVaultMember> find(
-            @NonNull String vaultId, @NonNull String userId) {
-        return findById(new VaultMemberEntityId(vaultId, userId)).map(VaultMemberEntity::toStored);
+            @NonNull String fingerprint, @NonNull String userId) {
+        return findById(new VaultMemberEntityId(fingerprint, userId))
+                .map(VaultMemberEntity::toStored);
     }
 
     default void insertOwner(
-            @NonNull String vaultId, @NonNull String ownerId, @NonNull Instant now) {
+            @NonNull String fingerprint, @NonNull String ownerId, @NonNull Instant now) {
         saveAndFlush(
                 VaultMemberEntity.from(
                         new StoredVaultMember(
-                                vaultId,
+                                fingerprint,
                                 ownerId,
                                 VaultMemberRole.OWNER,
                                 VaultMemberState.ACTIVE,
@@ -43,8 +45,9 @@ interface VaultMemberRepository extends JpaRepository<VaultMemberEntity, VaultMe
     }
 
     default @NonNull Optional<StoredVaultMember> findActive(
-            @NonNull String vaultId, @NonNull String userId) {
-        return find(vaultId, userId).filter(member -> member.state() == VaultMemberState.ACTIVE);
+            @NonNull String fingerprint, @NonNull String userId) {
+        return find(fingerprint, userId)
+                .filter(member -> member.state() == VaultMemberState.ACTIVE);
     }
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -53,12 +56,12 @@ interface VaultMemberRepository extends JpaRepository<VaultMemberEntity, VaultMe
             update VaultMemberEntity m
                set m.state = top.focess.keystead.server.vault.VaultMemberState.ACTIVE,
                    m.updatedAt = :updatedAt
-             where m.id.vaultId = :vaultId
+             where m.id.fingerprint = :fingerprint
                and m.id.userId = :userId
                and m.state = top.focess.keystead.server.vault.VaultMemberState.ACCEPTED_PENDING_KEY
             """)
     int activatePending(
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("userId") @NonNull String userId,
             @Param("updatedAt") @NonNull Instant updatedAt);
 }

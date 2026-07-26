@@ -39,13 +39,13 @@ class DeviceController {
         return service.listDevices(principal.getName());
     }
 
-    @PutMapping("/{deviceId}/vaults/{vaultId}/sync-cursor")
+    @PutMapping("/{deviceId}/vaults/{fingerprint}/sync-cursor")
     @NonNull ResponseEntity<Void> acknowledgePulledRevision(
             @NonNull Principal principal,
             @PathVariable @NonNull String deviceId,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @RequestBody @NonNull DeviceVaultSyncCursorRequest request) {
-        syncCursors.acknowledgePulledRevision(principal.getName(), deviceId, vaultId, request);
+        syncCursors.acknowledgePulledRevision(principal.getName(), deviceId, fingerprint, request);
         return ResponseEntity.noContent().build();
     }
 

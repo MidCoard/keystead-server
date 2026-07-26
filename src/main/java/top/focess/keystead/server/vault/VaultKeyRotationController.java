@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/vaults/{vaultId}")
+@RequestMapping("/api/v1/vaults/{fingerprint}")
 class VaultKeyRotationController {
     private final VaultKeyRotationService rotations;
 
@@ -24,62 +24,63 @@ class VaultKeyRotationController {
     @PutMapping("/key-rotation")
     @NonNull ResponseEntity<Void> rotate(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @RequestBody @NonNull VaultKeyRotationRequest request) {
-        rotations.rotate(principal.getName(), vaultId, request);
+        rotations.rotate(principal.getName(), fingerprint, request);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/rotations")
     @NonNull ResponseEntity<VaultRotationResponse> begin(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @RequestBody @NonNull VaultRotationBeginRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(rotations.begin(principal.getName(), vaultId, request));
+                .body(rotations.begin(principal.getName(), fingerprint, request));
     }
 
     @GetMapping("/rotations/{generationId}")
     @NonNull VaultRotationResponse status(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @org.springframework.web.bind.annotation.PathVariable @NonNull String generationId) {
-        return rotations.status(principal.getName(), vaultId, generationId);
+        return rotations.status(principal.getName(), fingerprint, generationId);
     }
 
     @PutMapping("/rotations/{generationId}/targets/{targetId}/package")
     @NonNull VaultRotationResponse putPackage(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @org.springframework.web.bind.annotation.PathVariable @NonNull String generationId,
             @org.springframework.web.bind.annotation.PathVariable @NonNull String targetId,
             @RequestBody @NonNull VaultRotationPackageRequest request) {
-        return rotations.putPackage(principal.getName(), vaultId, generationId, targetId, request);
+        return rotations.putPackage(
+                principal.getName(), fingerprint, generationId, targetId, request);
     }
 
     @GetMapping("/rotations/{generationId}/self-package")
     @NonNull VaultRotationPackageResponse selfPackage(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @org.springframework.web.bind.annotation.PathVariable @NonNull String generationId,
             @org.springframework.web.bind.annotation.RequestParam @NonNull String deviceId) {
-        return rotations.selfPackage(principal.getName(), vaultId, generationId, deviceId);
+        return rotations.selfPackage(principal.getName(), fingerprint, generationId, deviceId);
     }
 
     @DeleteMapping("/rotations/{generationId}")
     @NonNull ResponseEntity<Void> cancel(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @org.springframework.web.bind.annotation.PathVariable @NonNull String generationId) {
-        rotations.cancel(principal.getName(), vaultId, generationId);
+        rotations.cancel(principal.getName(), fingerprint, generationId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/rotations/{generationId}/commit")
     @NonNull VaultRotationResponse commit(
             @NonNull Principal principal,
-            @org.springframework.web.bind.annotation.PathVariable @NonNull String vaultId,
+            @org.springframework.web.bind.annotation.PathVariable @NonNull String fingerprint,
             @org.springframework.web.bind.annotation.PathVariable @NonNull String generationId) {
-        return rotations.commit(principal.getName(), vaultId, generationId);
+        return rotations.commit(principal.getName(), fingerprint, generationId);
     }
 }

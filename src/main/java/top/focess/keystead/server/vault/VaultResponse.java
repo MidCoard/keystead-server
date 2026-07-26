@@ -5,13 +5,13 @@ import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 
 public record VaultResponse(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String encryptedMetadata,
         @NonNull Instant createdAt,
         @NonNull Instant updatedAt) {
 
     public VaultResponse {
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(encryptedMetadata, "encryptedMetadata");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
@@ -23,7 +23,10 @@ public record VaultResponse(
 
     static @NonNull VaultResponse from(@NonNull StoredVault vault) {
         return new VaultResponse(
-                vault.vaultId(), vault.encryptedMetadata(), vault.createdAt(), vault.updatedAt());
+                vault.fingerprint(),
+                vault.encryptedMetadata(),
+                vault.createdAt(),
+                vault.updatedAt());
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {

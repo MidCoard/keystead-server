@@ -20,7 +20,7 @@ class DeviceVaultSyncCursorEntityMappingTest {
                                         hasNameAndColumnList(
                                                 index,
                                                 "idx_device_vault_sync_cursors_owner_vault_revision",
-                                                "owner_id, vault_id, pulled_revision")));
+                                                "owner_id, fingerprint, pulled_revision")));
     }
 
     private static boolean hasNameAndColumnList(Index index, String name, String columnList) {

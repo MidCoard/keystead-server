@@ -18,7 +18,7 @@ class DeviceVaultSyncCursorMigrationMappingTest {
                 migrations.contains(
                                 "create index idx_device_vault_sync_cursors_owner_vault_revision")
                         && migrations.contains(
-                                "on device_vault_sync_cursors (owner_id, vault_id, pulled_revision)"));
+                                "on device_vault_sync_cursors (owner_id, fingerprint, pulled_revision)"));
     }
 
     private static String migrationSql() throws IOException {

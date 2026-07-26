@@ -21,8 +21,10 @@ public class RecoveryRotationBridge {
 
     @Transactional(readOnly = true)
     public @NonNull List<Target> targets(
-            @NonNull String username, @NonNull String vaultId, @NonNull String currentVaultKeyId) {
-        return enrollments.listRotationTargets(username, vaultId, currentVaultKeyId).stream()
+            @NonNull String username,
+            @NonNull String fingerprint,
+            @NonNull String currentVaultKeyId) {
+        return enrollments.listRotationTargets(username, fingerprint, currentVaultKeyId).stream()
                 .map(
                         value ->
                                 new Target(
@@ -36,11 +38,11 @@ public class RecoveryRotationBridge {
     @Transactional
     public void replace(
             @NonNull String username,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String targetVaultKeyId,
             @NonNull List<Package> replacements,
             @NonNull Instant now) {
-        packages.deleteForVault(username, vaultId);
+        packages.deleteForVault(username, fingerprint);
         for (Package replacement : replacements) {
             RecoveryVaultPackageEntity entity = new RecoveryVaultPackageEntity();
             entity.id =
@@ -48,7 +50,7 @@ public class RecoveryRotationBridge {
                             username,
                             replacement.enrollmentId(),
                             replacement.generation(),
-                            vaultId);
+                            fingerprint);
             entity.vaultKeyId = targetVaultKeyId;
             entity.keyAlgorithm = replacement.keyAlgorithm();
             entity.encryptedVaultKey = replacement.encryptedVaultKey();

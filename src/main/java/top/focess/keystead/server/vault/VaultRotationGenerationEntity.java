@@ -17,10 +17,10 @@ import org.jspecify.annotations.Nullable;
         uniqueConstraints = {
             @UniqueConstraint(
                     name = "uq_vault_rotation_generation_binding",
-                    columnNames = {"generation_id", "owner_id", "vault_id"}),
+                    columnNames = {"generation_id", "owner_id", "fingerprint"}),
             @UniqueConstraint(
                     name = "ux_vault_rotation_pending_generation",
-                    columnNames = {"owner_id", "vault_id", "pending_marker"})
+                    columnNames = {"owner_id", "fingerprint", "pending_marker"})
         })
 public class VaultRotationGenerationEntity {
 
@@ -31,8 +31,8 @@ public class VaultRotationGenerationEntity {
     @Column(name = "owner_id", nullable = false)
     @NonNull String ownerId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     @Column(name = "source_key_id")
     @Nullable String sourceKeyId;

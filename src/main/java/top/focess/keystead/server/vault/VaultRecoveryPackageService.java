@@ -42,11 +42,11 @@ public class VaultRecoveryPackageService {
         if (!packages.verifiedDeviceExists(username, deviceId)) {
             throw new VaultKeyPackageNotFoundException("Replacement device does not exist");
         }
-        Set<String> vaultIds = new HashSet<>();
+        Set<String> fingerprints = new HashSet<>();
         List<PendingPackage> pending = new ArrayList<>();
         Instant now = clock.instant();
         for (RecoveryDeviceVaultPackage value : values) {
-            if (!vaultIds.add(value.vaultId())) {
+            if (!fingerprints.add(value.fingerprint())) {
                 throw new InvalidVaultKeyPackageRequestException(
                         "Recovery package vault is duplicated");
             }
@@ -55,16 +55,17 @@ public class VaultRecoveryPackageService {
                 throw new InvalidVaultKeyPackageRequestException(
                         "Recovery package algorithm is unsupported");
             }
-            String ownerId = access.requireActiveMemberAndResolveOwner(username, value.vaultId());
-            rotations.requireCurrentOrLegacy(ownerId, value.vaultId(), value.vaultKeyId());
+            String ownerId =
+                    access.requireActiveMemberAndResolveOwner(username, value.fingerprint());
+            rotations.requireCurrentOrLegacy(ownerId, value.fingerprint(), value.vaultKeyId());
             StoredVaultKeyPackage existing =
-                    packages.find(ownerId, value.vaultId(), username, deviceId).orElse(null);
+                    packages.find(ownerId, value.fingerprint(), username, deviceId).orElse(null);
             pending.add(
                     new PendingPackage(
                             ownerId,
                             new StoredVaultKeyPackage(
                                     ownerId,
-                                    value.vaultId(),
+                                    value.fingerprint(),
                                     username,
                                     deviceId,
                                     value.vaultKeyId(),
@@ -83,12 +84,12 @@ public class VaultRecoveryPackageService {
             audit.keyPackageStored(
                     value.ownerId(),
                     username,
-                    value.keyPackage().vaultId(),
+                    value.keyPackage().fingerprint(),
                     deviceId,
                     value.keyPackage().vaultKeyId(),
                     value.keyPackage().keyAlgorithm());
         }
-        return List.copyOf(vaultIds);
+        return List.copyOf(fingerprints);
     }
 
     private record PendingPackage(

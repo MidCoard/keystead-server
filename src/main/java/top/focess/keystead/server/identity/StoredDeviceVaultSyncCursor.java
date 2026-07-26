@@ -6,14 +6,14 @@ import org.jspecify.annotations.NonNull;
 
 record StoredDeviceVaultSyncCursor(
         @NonNull String ownerId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String deviceId,
         long pulledRevision,
         @NonNull Instant updatedAt) {
 
     StoredDeviceVaultSyncCursor {
         requireNotBlank(ownerId, "ownerId");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(deviceId, "deviceId");
         Objects.requireNonNull(updatedAt, "updatedAt");
         if (pulledRevision < 0) {

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.NonNull;
 
 public record RecoveryApprovalVaultPackage(
-        @NotBlank @Size(max = 255) @NonNull String vaultId,
+        @NotBlank @Size(max = 255) @NonNull String fingerprint,
         @NotBlank @Size(max = 255) @NonNull String vaultKeyId,
         @NotBlank @Size(max = 64) @NonNull String keyAlgorithm,
         @NotBlank @Size(max = RecoveryLimits.CIPHERTEXT_MAX_LENGTH)
@@ -13,7 +13,7 @@ public record RecoveryApprovalVaultPackage(
 
     @Override
     public @NonNull String toString() {
-        return "RecoveryApprovalVaultPackage[vaultId=%s, vaultKeyId=%s, keyAlgorithm=%s, encryptedVaultKey=[REDACTED %d chars]]"
-                .formatted(vaultId, vaultKeyId, keyAlgorithm, encryptedVaultKey.length());
+        return "RecoveryApprovalVaultPackage[fingerprint=%s, vaultKeyId=%s, keyAlgorithm=%s, encryptedVaultKey=[REDACTED %d chars]]"
+                .formatted(fingerprint, vaultKeyId, keyAlgorithm, encryptedVaultKey.length());
     }
 }

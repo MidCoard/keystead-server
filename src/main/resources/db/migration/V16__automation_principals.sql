@@ -13,7 +13,7 @@ create table automation_tokens (
     token_hash varchar(64) not null primary key,
     owner_id varchar(255) not null,
     principal_id varchar(255) not null,
-    vault_id varchar(255) not null,
+    fingerprint varchar(255) not null,
     scopes varchar(255) not null,
     expires_at timestamp not null,
     created_at timestamp not null,

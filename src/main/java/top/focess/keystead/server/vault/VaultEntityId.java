@@ -12,14 +12,14 @@ public final class VaultEntityId implements Serializable {
     @Column(name = "owner_id", nullable = false)
     @NonNull String ownerId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     public VaultEntityId() {}
 
-    public VaultEntityId(@NonNull String ownerId, @NonNull String vaultId) {
+    public VaultEntityId(@NonNull String ownerId, @NonNull String fingerprint) {
         this.ownerId = ownerId;
-        this.vaultId = vaultId;
+        this.fingerprint = fingerprint;
     }
 
     @Override
@@ -30,11 +30,11 @@ public final class VaultEntityId implements Serializable {
         if (!(object instanceof VaultEntityId other)) {
             return false;
         }
-        return ownerId.equals(other.ownerId) && vaultId.equals(other.vaultId);
+        return ownerId.equals(other.ownerId) && fingerprint.equals(other.fingerprint);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ownerId, vaultId);
+        return Objects.hash(ownerId, fingerprint);
     }
 }

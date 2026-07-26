@@ -22,8 +22,8 @@ public class AutomationTokenEntity {
     @Column(name = "principal_id", nullable = false)
     @NonNull String principalId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     @Column(name = "scopes", nullable = false)
     @NonNull String scopes = "";
@@ -52,7 +52,7 @@ public class AutomationTokenEntity {
         tokenHash = token.tokenHash();
         ownerId = token.ownerId();
         principalId = token.principalId();
-        vaultId = token.vaultId();
+        fingerprint = token.fingerprint();
         scopes = token.scopes();
         tokenId = token.tokenId();
         grantedSecretIds = token.grantedSecretIds();
@@ -71,7 +71,7 @@ public class AutomationTokenEntity {
                 tokenHash,
                 ownerId,
                 principalId,
-                vaultId,
+                fingerprint,
                 scopes,
                 expiresAt,
                 createdAt,

@@ -59,14 +59,14 @@ class RevisionConflictResponseTest {
     private static RevisionConflictResponse response(
             String code,
             String message,
-            String vaultId,
+            String fingerprint,
             String secretId,
             long serverRevision,
             long clientRevision) {
         return new RevisionConflictResponse(
                 code,
                 message,
-                vaultId,
+                fingerprint,
                 secretId,
                 serverRevision,
                 clientRevision,

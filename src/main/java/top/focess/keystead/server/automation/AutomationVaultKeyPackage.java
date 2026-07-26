@@ -6,7 +6,7 @@ import org.jspecify.annotations.NonNull;
 
 record AutomationVaultKeyPackage(
         @NonNull String ownerId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String principalId,
         @NonNull String vaultKeyId,
         @NonNull String keyAlgorithm,
@@ -16,7 +16,7 @@ record AutomationVaultKeyPackage(
 
     AutomationVaultKeyPackage {
         requireNotBlank(ownerId, "ownerId");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(principalId, "principalId");
         requireNotBlank(vaultKeyId, "vaultKeyId");
         requireNotBlank(keyAlgorithm, "keyAlgorithm");

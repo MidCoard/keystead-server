@@ -19,7 +19,9 @@ class VaultEntityMappingTest {
                         .anyMatch(
                                 constraint ->
                                         hasNameAndColumns(
-                                                constraint, "uq_vaults_vault_id", "vault_id")));
+                                                constraint,
+                                                "uq_vaults_fingerprint",
+                                                "fingerprint")));
         assertTrue(
                 Arrays.stream(table.indexes())
                         .anyMatch(
@@ -39,7 +41,7 @@ class VaultEntityMappingTest {
                                         hasNameAndColumnList(
                                                 index,
                                                 "idx_vault_key_packages_owner_vault",
-                                                "owner_id, vault_id")));
+                                                "owner_id, fingerprint")));
     }
 
     private static boolean hasNameAndColumnList(Index index, String name, String columnList) {

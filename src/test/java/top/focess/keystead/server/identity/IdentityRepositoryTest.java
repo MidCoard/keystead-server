@@ -84,8 +84,8 @@ class IdentityRepositoryTest {
     }
 
     private static StoredDeviceVaultSyncCursor cursor(
-            String ownerId, String vaultId, String deviceId, long pulledRevision) {
+            String ownerId, String fingerprint, String deviceId, long pulledRevision) {
         return new StoredDeviceVaultSyncCursor(
-                ownerId, vaultId, deviceId, pulledRevision, UPDATED_AT);
+                ownerId, fingerprint, deviceId, pulledRevision, UPDATED_AT);
     }
 }

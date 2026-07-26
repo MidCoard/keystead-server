@@ -16,12 +16,14 @@ import org.jspecify.annotations.Nullable;
         uniqueConstraints =
                 @UniqueConstraint(
                         name = "uq_encrypted_records_owner_vault_revision",
-                        columnNames = {"owner_id", "vault_id", "revision"}),
+                        columnNames = {"owner_id", "fingerprint", "revision"}),
         indexes = {
-            @Index(name = "idx_encrypted_records_owner_vault", columnList = "owner_id, vault_id"),
+            @Index(
+                    name = "idx_encrypted_records_owner_vault",
+                    columnList = "owner_id, fingerprint"),
             @Index(
                     name = "idx_encrypted_records_sync_page",
-                    columnList = "owner_id, vault_id, revision, secret_id")
+                    columnList = "owner_id, fingerprint, revision, secret_id")
         })
 public class EncryptedRecordEntity {
 
@@ -52,7 +54,8 @@ public class EncryptedRecordEntity {
 
     private EncryptedRecordEntity(@NonNull StoredEncryptedRecord record) {
         this.id =
-                new EncryptedRecordEntityId(record.ownerId(), record.vaultId(), record.secretId());
+                new EncryptedRecordEntityId(
+                        record.ownerId(), record.fingerprint(), record.secretId());
         this.revision = record.revision();
         this.secretType = record.secretType();
         this.metadata = record.metadata();
@@ -69,7 +72,7 @@ public class EncryptedRecordEntity {
     @NonNull StoredEncryptedRecord toStored() {
         return new StoredEncryptedRecord(
                 id.ownerId,
-                id.vaultId,
+                id.fingerprint,
                 id.secretId,
                 revision,
                 secretType,

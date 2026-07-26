@@ -34,7 +34,7 @@ public class AutomationVaultKeyPackageEntity {
     private AutomationVaultKeyPackageEntity(@NonNull AutomationVaultKeyPackage keyPackage) {
         id =
                 new AutomationVaultKeyPackageEntityId(
-                        keyPackage.ownerId(), keyPackage.vaultId(), keyPackage.principalId());
+                        keyPackage.ownerId(), keyPackage.fingerprint(), keyPackage.principalId());
         vaultKeyId = keyPackage.vaultKeyId();
         keyAlgorithm = keyPackage.keyAlgorithm();
         encryptedVaultKey = keyPackage.encryptedVaultKey();
@@ -50,7 +50,7 @@ public class AutomationVaultKeyPackageEntity {
     @NonNull AutomationVaultKeyPackage toStored() {
         return new AutomationVaultKeyPackage(
                 id.ownerId,
-                id.vaultId,
+                id.fingerprint,
                 id.principalId,
                 vaultKeyId,
                 keyAlgorithm,

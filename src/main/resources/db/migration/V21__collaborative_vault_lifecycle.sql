@@ -4,15 +4,15 @@ alter table vault_members add constraint ck_vault_member_state check (
 
 create table vault_key_states (
     owner_id varchar(255) not null,
-    vault_id varchar(255) not null,
+    fingerprint varchar(255) not null,
     current_vault_key_id varchar(255),
     lifecycle_state varchar(32) not null,
     lifecycle_version bigint not null,
     pending_generation_id varchar(255),
     updated_at timestamp not null,
-    primary key (owner_id, vault_id),
-    constraint fk_vault_key_state_vault foreign key (owner_id, vault_id)
-        references vaults (owner_id, vault_id),
+    primary key (owner_id, fingerprint),
+    constraint fk_vault_key_state_vault foreign key (owner_id, fingerprint)
+        references vaults (owner_id, fingerprint),
     constraint ck_vault_key_state_lifecycle_state check (
         lifecycle_state in ('STABLE', 'ROTATION_REQUIRED', 'ROTATING')
     ),
@@ -28,7 +28,7 @@ create table vault_key_states (
 create table vault_rotation_generations (
     generation_id varchar(255) not null,
     owner_id varchar(255) not null,
-    vault_id varchar(255) not null,
+    fingerprint varchar(255) not null,
     source_key_id varchar(255),
     target_key_id varchar(255) not null,
     state varchar(32) not null,
@@ -40,10 +40,10 @@ create table vault_rotation_generations (
     updated_at timestamp not null,
     primary key (generation_id),
     constraint uq_vault_rotation_generation_binding unique (
-        generation_id, owner_id, vault_id
+        generation_id, owner_id, fingerprint
     ),
-    constraint fk_vault_rotation_generation_vault foreign key (owner_id, vault_id)
-        references vaults (owner_id, vault_id),
+    constraint fk_vault_rotation_generation_vault foreign key (owner_id, fingerprint)
+        references vaults (owner_id, fingerprint),
     constraint ck_vault_rotation_generation_state check (
         state in ('OPEN', 'PACKAGING', 'READY', 'COMMITTED')
     ),
@@ -56,13 +56,13 @@ create table vault_rotation_generations (
         or (state = 'COMMITTED' and pending_marker is null)
     ),
     constraint ux_vault_rotation_pending_generation unique (
-        owner_id, vault_id, pending_marker
+        owner_id, fingerprint, pending_marker
     )
 );
 
 alter table vault_key_states add constraint fk_vault_key_state_pending_generation
-    foreign key (pending_generation_id, owner_id, vault_id)
-    references vault_rotation_generations (generation_id, owner_id, vault_id);
+    foreign key (pending_generation_id, owner_id, fingerprint)
+    references vault_rotation_generations (generation_id, owner_id, fingerprint);
 
 create table vault_rotation_targets (
     generation_id varchar(255) not null,
@@ -111,19 +111,19 @@ create table vault_rotation_packages (
 
 insert into vault_key_states (
     owner_id,
-    vault_id,
+    fingerprint,
     current_vault_key_id,
     lifecycle_state,
     lifecycle_version,
     pending_generation_id,
     updated_at
 )
-select owner_id, vault_id, vault_key_id, 'STABLE', 1, null, rotated_at
+select owner_id, fingerprint, vault_key_id, 'STABLE', 1, null, rotated_at
   from vault_key_rotations;
 
 drop table vault_key_rotations;
 
 create index idx_vault_rotation_generations_vault
-    on vault_rotation_generations (owner_id, vault_id);
+    on vault_rotation_generations (owner_id, fingerprint);
 create index idx_vault_rotation_targets_generation
     on vault_rotation_targets (generation_id);

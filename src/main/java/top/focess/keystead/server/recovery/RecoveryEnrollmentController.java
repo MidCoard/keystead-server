@@ -43,24 +43,24 @@ final class RecoveryEnrollmentController {
         return service.commit(principal.getName(), enrollmentId, request);
     }
 
-    @PutMapping("/users/{username}/enrollments/{enrollmentId}/vaults/{vaultId}")
+    @PutMapping("/users/{username}/enrollments/{enrollmentId}/vaults/{fingerprint}")
     @NonNull ResponseEntity<RecoveryVaultPackageResponse> putPackage(
             @NonNull Principal principal,
             @PathVariable @NonNull String username,
             @PathVariable @NonNull String enrollmentId,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @RequestBody @NonNull RecoveryVaultPackageRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(
                         service.putPackage(
-                                principal.getName(), username, enrollmentId, vaultId, request));
+                                principal.getName(), username, enrollmentId, fingerprint, request));
     }
 
-    @GetMapping("/enrollments/{enrollmentId}/vaults/{vaultId}")
+    @GetMapping("/enrollments/{enrollmentId}/vaults/{fingerprint}")
     @NonNull RecoveryVaultPackageResponse getPackage(
             @NonNull Principal principal,
             @PathVariable @NonNull String enrollmentId,
-            @PathVariable @NonNull String vaultId) {
-        return service.getPackage(principal.getName(), enrollmentId, vaultId);
+            @PathVariable @NonNull String fingerprint) {
+        return service.getPackage(principal.getName(), enrollmentId, fingerprint);
     }
 }

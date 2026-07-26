@@ -54,7 +54,7 @@ class VaultPackageCoverageApiTest {
         String pending = "coverage-pending-" + suffix;
         String invited = "coverage-invited-" + suffix;
         String outsider = "coverage-outsider-" + suffix;
-        String vaultId = "coverage-vault-" + suffix;
+        String fingerprint = "coverage-vault-" + suffix;
         for (String userId : new String[] {owner, admin, viewer, pending, invited, outsider}) {
             registerUser(userId);
             registerDevice(userId, userId + "-device", true);
@@ -62,17 +62,19 @@ class VaultPackageCoverageApiTest {
         registerDevice(pending, pending + "-unverified", false);
         registerDevice(pending, pending + "-revoked", true);
         revoke(pending, pending + "-revoked");
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "key-current");
-        inviteAndAccept(owner, admin, vaultId, "ADMIN");
-        putRecipientPackage(owner, vaultId, admin, admin + "-device", "key-current", 201);
-        inviteAndAccept(owner, viewer, vaultId, "VIEWER");
-        putRecipientPackage(owner, vaultId, viewer, viewer + "-device", "key-current", 201);
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "key-current");
+        inviteAndAccept(owner, admin, fingerprint, "ADMIN");
+        putRecipientPackage(owner, fingerprint, admin, admin + "-device", "key-current", 201);
+        inviteAndAccept(owner, viewer, fingerprint, "VIEWER");
+        putRecipientPackage(owner, fingerprint, viewer, viewer + "-device", "key-current", 201);
         registerDevice(viewer, viewer + "-second-device", true);
-        inviteAndAccept(owner, pending, vaultId, "EDITOR");
-        invite(owner, invited, vaultId, "VIEWER");
+        inviteAndAccept(owner, pending, fingerprint, "EDITOR");
+        invite(owner, invited, fingerprint, "VIEWER");
 
-        mvc.perform(get("/api/v1/vaults/{vaultId}/package-recipients", vaultId).with(user(owner)))
+        mvc.perform(
+                        get("/api/v1/vaults/{fingerprint}/package-recipients", fingerprint)
+                                .with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.currentVaultKeyId").value("key-current"))
                 .andExpect(jsonPath("$.keyLifecycleState").value("STABLE"))
@@ -105,11 +107,13 @@ class VaultPackageCoverageApiTest {
                         jsonPath("$.devices[*].deviceId").value(not(hasItem(pending + "-revoked"))))
                 .andExpect(jsonPath("$.devices[0].encryptedVaultKey").doesNotExist());
 
-        mvc.perform(get("/api/v1/vaults/{vaultId}/package-recipients", vaultId).with(user(admin)))
+        mvc.perform(
+                        get("/api/v1/vaults/{fingerprint}/package-recipients", fingerprint)
+                                .with(user(admin)))
                 .andExpect(status().isOk());
         for (String denied : new String[] {viewer, pending, outsider}) {
             mvc.perform(
-                            get("/api/v1/vaults/{vaultId}/package-recipients", vaultId)
+                            get("/api/v1/vaults/{fingerprint}/package-recipients", fingerprint)
                                     .with(user(denied)))
                     .andExpect(status().isNotFound());
         }
@@ -121,25 +125,27 @@ class VaultPackageCoverageApiTest {
         String owner = "activation-owner-" + suffix;
         String recipient = "activation-recipient-" + suffix;
         String outsider = "activation-outsider-" + suffix;
-        String vaultId = "activation-vault-" + suffix;
+        String fingerprint = "activation-vault-" + suffix;
         registerUser(owner);
         registerUser(recipient);
         registerUser(outsider);
         registerDevice(owner, owner + "-device", true);
         registerDevice(recipient, recipient + "-device", true);
         registerDevice(outsider, outsider + "-device", true);
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, owner + "-device", "key-current");
-        inviteAndAccept(owner, recipient, vaultId, "EDITOR");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, owner + "-device", "key-current");
+        inviteAndAccept(owner, recipient, fingerprint, "EDITOR");
 
-        putRecipientPackage(owner, vaultId, recipient, recipient + "-device", "key-stale", 400);
-        assertMembershipState(recipient, vaultId, "ACCEPTED_PENDING_KEY");
-        putRecipientPackage(owner, vaultId, recipient, outsider + "-device", "key-current", 404);
-        assertMembershipState(recipient, vaultId, "ACCEPTED_PENDING_KEY");
+        putRecipientPackage(owner, fingerprint, recipient, recipient + "-device", "key-stale", 400);
+        assertMembershipState(recipient, fingerprint, "ACCEPTED_PENDING_KEY");
+        putRecipientPackage(
+                owner, fingerprint, recipient, outsider + "-device", "key-current", 404);
+        assertMembershipState(recipient, fingerprint, "ACCEPTED_PENDING_KEY");
 
-        putRecipientPackage(owner, vaultId, recipient, recipient + "-device", "key-current", 201);
-        assertMembershipState(recipient, vaultId, "ACTIVE");
-        mvc.perform(get("/api/v1/vaults/{vaultId}/records", vaultId).with(user(recipient)))
+        putRecipientPackage(
+                owner, fingerprint, recipient, recipient + "-device", "key-current", 201);
+        assertMembershipState(recipient, fingerprint, "ACTIVE");
+        mvc.perform(get("/api/v1/vaults/{fingerprint}/records", fingerprint).with(user(recipient)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
     }
@@ -149,24 +155,24 @@ class VaultPackageCoverageApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "initial-owner-" + suffix;
         String recipient = "initial-recipient-" + suffix;
-        String vaultId = "initial-vault-" + suffix;
+        String fingerprint = "initial-vault-" + suffix;
         registerUser(owner);
         registerUser(recipient);
         registerDevice(owner, owner + "-device", true);
         registerDevice(recipient, recipient + "-device", true);
-        createVault(owner, vaultId);
+        createVault(owner, fingerprint);
 
-        putOwnerPackage(owner, vaultId, owner + "-device", "first-key");
+        putOwnerPackage(owner, fingerprint, owner + "-device", "first-key");
         mvc.perform(get("/api/v1/vaults").with(user(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].currentVaultKeyId").value("first-key"))
                 .andExpect(jsonPath("$[0].lifecycleVersion").value(1));
 
-        inviteAndAccept(owner, recipient, vaultId, "VIEWER");
+        inviteAndAccept(owner, recipient, fingerprint, "VIEWER");
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/key-packages/recipients/{recipientId}/devices/{deviceId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/key-packages/recipients/{recipientId}/devices/{deviceId}",
+                                        fingerprint,
                                         recipient,
                                         recipient + "-device")
                                 .with(user(owner))
@@ -181,7 +187,7 @@ class VaultPackageCoverageApiTest {
                                         """
                                                 .formatted("x".repeat(16_385))))
                 .andExpect(status().isBadRequest());
-        assertMembershipState(recipient, vaultId, "ACCEPTED_PENDING_KEY");
+        assertMembershipState(recipient, fingerprint, "ACCEPTED_PENDING_KEY");
     }
 
     @Test
@@ -189,16 +195,16 @@ class VaultPackageCoverageApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "rollback-owner-" + suffix;
         String recipient = "rollback-recipient-" + suffix;
-        String vaultId = "rollback-vault-" + suffix;
+        String fingerprint = "rollback-vault-" + suffix;
         String ownerDevice = owner + "-device";
         String recipientDevice = recipient + "-device";
         registerUser(owner);
         registerUser(recipient);
         registerDevice(owner, ownerDevice, true);
         registerDevice(recipient, recipientDevice, true);
-        createVault(owner, vaultId);
-        putOwnerPackage(owner, vaultId, ownerDevice, "rollback-key");
-        inviteAndAccept(owner, recipient, vaultId, "VIEWER");
+        createVault(owner, fingerprint);
+        putOwnerPackage(owner, fingerprint, ownerDevice, "rollback-key");
+        inviteAndAccept(owner, recipient, fingerprint, "VIEWER");
         doThrow(new DataIntegrityViolationException("injected package insert failure"))
                 .when(keyPackages)
                 .insert(argThat(value -> value.recipientId().equals(recipient)));
@@ -208,7 +214,7 @@ class VaultPackageCoverageApiTest {
                 () ->
                         service.putForRecipient(
                                 owner,
-                                vaultId,
+                                fingerprint,
                                 recipient,
                                 recipientDevice,
                                 new VaultKeyPackageRequest(
@@ -218,9 +224,10 @@ class VaultPackageCoverageApiTest {
 
         assertEquals(
                 VaultMemberState.ACCEPTED_PENDING_KEY,
-                members.find(vaultId, recipient).orElseThrow().state());
+                members.find(fingerprint, recipient).orElseThrow().state());
         assertEquals(
-                0, keyPackages.find(owner, vaultId, recipient, recipientDevice).stream().count());
+                0,
+                keyPackages.find(owner, fingerprint, recipient, recipientDevice).stream().count());
     }
 
     private void registerUser(@NonNull String username) throws Exception {
@@ -295,9 +302,9 @@ class VaultPackageCoverageApiTest {
                                         .executeUpdate());
     }
 
-    private void createVault(@NonNull String owner, @NonNull String vaultId) throws Exception {
+    private void createVault(@NonNull String owner, @NonNull String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque-metadata\"}"))
@@ -307,11 +314,14 @@ class VaultPackageCoverageApiTest {
     private void invite(
             @NonNull String owner,
             @NonNull String recipient,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String role)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{recipient}", vaultId, recipient)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/members/{recipient}",
+                                        fingerprint,
+                                        recipient)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"%s\"}".formatted(role)))
@@ -321,22 +331,27 @@ class VaultPackageCoverageApiTest {
     private void inviteAndAccept(
             @NonNull String owner,
             @NonNull String recipient,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String role)
             throws Exception {
-        invite(owner, recipient, vaultId, role);
-        mvc.perform(post("/api/v1/vaults/{vaultId}/members/accept", vaultId).with(user(recipient)))
+        invite(owner, recipient, fingerprint, role);
+        mvc.perform(
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
+                                .with(user(recipient)))
                 .andExpect(status().isNoContent());
     }
 
     private void putOwnerPackage(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String deviceId,
             @NonNull String keyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-packages/{deviceId}", vaultId, deviceId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/key-packages/{deviceId}",
+                                        fingerprint,
+                                        deviceId)
                                 .with(user(owner))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(packageBody(keyId)))
@@ -345,7 +360,7 @@ class VaultPackageCoverageApiTest {
 
     private void putRecipientPackage(
             @NonNull String owner,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String recipient,
             @NonNull String deviceId,
             @NonNull String keyId,
@@ -353,8 +368,8 @@ class VaultPackageCoverageApiTest {
             throws Exception {
         mvc.perform(
                         put(
-                                        "/api/v1/vaults/{vaultId}/key-packages/recipients/{recipient}/devices/{deviceId}",
-                                        vaultId,
+                                        "/api/v1/vaults/{fingerprint}/key-packages/recipients/{recipient}/devices/{deviceId}",
+                                        fingerprint,
                                         recipient,
                                         deviceId)
                                 .with(user(owner))
@@ -364,12 +379,14 @@ class VaultPackageCoverageApiTest {
     }
 
     private void assertMembershipState(
-            @NonNull String username, @NonNull String vaultId, @NonNull String state)
+            @NonNull String username, @NonNull String fingerprint, @NonNull String state)
             throws Exception {
         mvc.perform(get("/api/v1/vaults").with(user(username)))
                 .andExpect(status().isOk())
                 .andExpect(
-                        jsonPath("$[?(@.vaultId == '%s')].membershipState".formatted(vaultId))
+                        jsonPath(
+                                        "$[?(@.fingerprint == '%s')].membershipState"
+                                                .formatted(fingerprint))
                                 .value(hasItem(state)));
     }
 

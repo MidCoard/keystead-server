@@ -28,7 +28,7 @@ class AuditEventEntityMappingTest {
                                         hasNameAndColumnList(
                                                 index,
                                                 "idx_audit_events_owner_vault",
-                                                "owner_id, vault_id")));
+                                                "owner_id, fingerprint")));
     }
 
     private static boolean hasNameAndColumnList(Index index, String name, String columnList) {

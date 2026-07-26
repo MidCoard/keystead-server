@@ -6,12 +6,12 @@ import org.jspecify.annotations.NonNull;
 public record RecoveryCompletionResponse(
         boolean accountRecovered,
         @NonNull String deviceId,
-        @NonNull List<String> recoveredVaultIds,
-        @NonNull List<String> pendingVaultIds,
+        @NonNull List<String> recoveredFingerprints,
+        @NonNull List<String> pendingFingerprints,
         boolean replacementKitRequired) {
 
     public RecoveryCompletionResponse {
-        recoveredVaultIds = List.copyOf(recoveredVaultIds);
-        pendingVaultIds = List.copyOf(pendingVaultIds);
+        recoveredFingerprints = List.copyOf(recoveredFingerprints);
+        pendingFingerprints = List.copyOf(pendingFingerprints);
     }
 }

@@ -4,7 +4,7 @@ import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 
 record AutomationVaultKeyPackageResponse(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String principalId,
         @NonNull String vaultKeyId,
         @NonNull String keyAlgorithm,
@@ -15,7 +15,7 @@ record AutomationVaultKeyPackageResponse(
     static @NonNull AutomationVaultKeyPackageResponse from(
             @NonNull AutomationVaultKeyPackage keyPackage) {
         return new AutomationVaultKeyPackageResponse(
-                keyPackage.vaultId(),
+                keyPackage.fingerprint(),
                 keyPackage.principalId(),
                 keyPackage.vaultKeyId(),
                 keyPackage.keyAlgorithm(),

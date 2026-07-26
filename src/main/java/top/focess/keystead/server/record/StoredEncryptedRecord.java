@@ -6,7 +6,7 @@ import org.jspecify.annotations.NonNull;
 
 record StoredEncryptedRecord(
         @NonNull String ownerId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String secretId,
         long revision,
         @NonNull String secretType,
@@ -18,7 +18,7 @@ record StoredEncryptedRecord(
 
     StoredEncryptedRecord {
         requireNotBlank(ownerId, "ownerId");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(secretId, "secretId");
         Objects.requireNonNull(secretType, "secretType");
         Objects.requireNonNull(metadata, "metadata");

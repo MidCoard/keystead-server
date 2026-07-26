@@ -12,8 +12,8 @@ interface AutomationVaultKeyPackageRepository
         extends JpaRepository<AutomationVaultKeyPackageEntity, AutomationVaultKeyPackageEntityId> {
 
     default @NonNull Optional<AutomationVaultKeyPackage> find(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
-        return findById(new AutomationVaultKeyPackageEntityId(ownerId, vaultId, principalId))
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String principalId) {
+        return findById(new AutomationVaultKeyPackageEntityId(ownerId, fingerprint, principalId))
                 .map(AutomationVaultKeyPackageEntity::toStored);
     }
 
@@ -34,16 +34,16 @@ interface AutomationVaultKeyPackageRepository
 
     @Query(
             """
-            select k.id.vaultId from AutomationVaultKeyPackageEntity k
+            select k.id.fingerprint from AutomationVaultKeyPackageEntity k
               join VaultKeyStateEntity s
                 on s.id.ownerId = k.id.ownerId
-               and s.id.vaultId = k.id.vaultId
+               and s.id.fingerprint = k.id.fingerprint
                and s.currentVaultKeyId = k.vaultKeyId
              where k.id.ownerId = :ownerId
                and k.id.principalId = :principalId
-             order by k.id.vaultId
+             order by k.id.fingerprint
             """)
-    @NonNull List<String> listCurrentVaultIds(
+    @NonNull List<String> listCurrentFingerprints(
             @Param("ownerId") @NonNull String ownerId,
             @Param("principalId") @NonNull String principalId);
 
@@ -52,8 +52,9 @@ interface AutomationVaultKeyPackageRepository
             """
             delete from AutomationVaultKeyPackageEntity k
              where k.id.ownerId = :ownerId
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
             """)
     int deleteForVault(
-            @Param("ownerId") @NonNull String ownerId, @Param("vaultId") @NonNull String vaultId);
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("fingerprint") @NonNull String fingerprint);
 }

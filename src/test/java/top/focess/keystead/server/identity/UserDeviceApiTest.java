@@ -88,15 +88,15 @@ class UserDeviceApiTest {
         String username = "device-sync-cursor-monotonic-user";
         String password = "correct horse battery staple";
         String deviceId = "phone-sync-cursor-monotonic";
-        String vaultId = "vault-sync-cursor-monotonic";
+        String fingerprint = "vault-sync-cursor-monotonic";
         registerUser(username);
         proveDeviceWithAlgorithm(
                 username, deviceId, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
-        createVault(username, password, vaultId);
-        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+        createVault(username, password, fingerprint);
+        acknowledgePulledRevision(username, password, deviceId, fingerprint, 7)
                 .andExpect(status().isNoContent());
 
-        acknowledgePulledRevision(username, password, deviceId, vaultId, 6)
+        acknowledgePulledRevision(username, password, deviceId, fingerprint, 6)
                 .andExpect(status().isBadRequest());
     }
 
@@ -105,15 +105,15 @@ class UserDeviceApiTest {
         String username = "device-sync-cursor-idempotent-user";
         String password = "correct horse battery staple";
         String deviceId = "phone-sync-cursor-idempotent";
-        String vaultId = "vault-sync-cursor-idempotent";
+        String fingerprint = "vault-sync-cursor-idempotent";
         registerUser(username);
         proveDeviceWithAlgorithm(
                 username, deviceId, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
-        createVault(username, password, vaultId);
+        createVault(username, password, fingerprint);
 
-        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+        acknowledgePulledRevision(username, password, deviceId, fingerprint, 7)
                 .andExpect(status().isNoContent());
-        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+        acknowledgePulledRevision(username, password, deviceId, fingerprint, 7)
                 .andExpect(status().isNoContent());
     }
 
@@ -122,12 +122,12 @@ class UserDeviceApiTest {
         String username = "device-sync-cursor-unverified-user";
         String password = "correct horse battery staple";
         String deviceId = "phone-sync-cursor-unverified";
-        String vaultId = "vault-sync-cursor-unverified";
+        String fingerprint = "vault-sync-cursor-unverified";
         registerUser(username);
         registerDevice(username, deviceId, "RSA_OAEP_SHA256", "public-key-material");
-        createVault(username, password, vaultId);
+        createVault(username, password, fingerprint);
 
-        acknowledgePulledRevision(username, password, deviceId, vaultId, 7)
+        acknowledgePulledRevision(username, password, deviceId, fingerprint, 7)
                 .andExpect(status().isNotFound());
     }
 
@@ -153,42 +153,42 @@ class UserDeviceApiTest {
     void tombstoneEligibilityRequiresEveryActiveDeviceToAcknowledgeRevision() throws Exception {
         String username = "tombstone-eligibility-user";
         String password = "correct horse battery staple";
-        String vaultId = "vault-tombstone-eligibility";
+        String fingerprint = "vault-tombstone-eligibility";
         String laptop = "laptop-tombstone-eligibility";
         String phone = "phone-tombstone-eligibility";
         registerUser(username);
         proveDeviceWithAlgorithm(
                 username, laptop, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
         proveDeviceWithAlgorithm(username, phone, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
-        createVault(username, password, vaultId);
-        acknowledgePulledRevision(username, password, laptop, vaultId, 8)
+        createVault(username, password, fingerprint);
+        acknowledgePulledRevision(username, password, laptop, fingerprint, 8)
                 .andExpect(status().isNoContent());
-        acknowledgePulledRevision(username, password, phone, vaultId, 7)
+        acknowledgePulledRevision(username, password, phone, fingerprint, 7)
                 .andExpect(status().isNoContent());
 
-        assertTrue(compactionEligibility.isEligible(username, vaultId, 7L));
-        assertFalse(compactionEligibility.isEligible(username, vaultId, 8L));
+        assertTrue(compactionEligibility.isEligible(username, fingerprint, 7L));
+        assertFalse(compactionEligibility.isEligible(username, fingerprint, 8L));
     }
 
     @Test
     void revokedDeviceDoesNotBlockTombstoneEligibility() throws Exception {
         String username = "tombstone-eligibility-revoked-user";
         String password = "correct horse battery staple";
-        String vaultId = "vault-tombstone-eligibility-revoked";
+        String fingerprint = "vault-tombstone-eligibility-revoked";
         String laptop = "laptop-tombstone-eligibility-revoked";
         String phone = "phone-tombstone-eligibility-revoked";
         registerUser(username);
         proveDeviceWithAlgorithm(
                 username, laptop, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
         proveDeviceWithAlgorithm(username, phone, "RSA_OAEP_SHA256", rsaKeyPair(), "SHA256withRSA");
-        createVault(username, password, vaultId);
-        acknowledgePulledRevision(username, password, laptop, vaultId, 7)
+        createVault(username, password, fingerprint);
+        acknowledgePulledRevision(username, password, laptop, fingerprint, 7)
                 .andExpect(status().isNoContent());
 
         mvc.perform(delete("/api/v1/devices/{deviceId}", phone).with(httpBasic(username, password)))
                 .andExpect(status().isNoContent());
 
-        assertTrue(compactionEligibility.isEligible(username, vaultId, 7L));
+        assertTrue(compactionEligibility.isEligible(username, fingerprint, 7L));
     }
 
     @Test
@@ -874,9 +874,10 @@ class UserDeviceApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String password, String vaultId) throws Exception {
+    private void createVault(String username, String password, String fingerprint)
+            throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, password))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque-vault-metadata\"}"))
@@ -884,10 +885,17 @@ class UserDeviceApiTest {
     }
 
     private org.springframework.test.web.servlet.ResultActions acknowledgePulledRevision(
-            String username, String password, String deviceId, String vaultId, long pulledRevision)
+            String username,
+            String password,
+            String deviceId,
+            String fingerprint,
+            long pulledRevision)
             throws Exception {
         return mvc.perform(
-                put("/api/v1/devices/{deviceId}/vaults/{vaultId}/sync-cursor", deviceId, vaultId)
+                put(
+                                "/api/v1/devices/{deviceId}/vaults/{fingerprint}/sync-cursor",
+                                deviceId,
+                                fingerprint)
                         .with(httpBasic(username, password))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pulledRevision\":%d}".formatted(pulledRevision)));

@@ -20,12 +20,12 @@ class VaultKeyLifecycleService {
     void requireRotation(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String reason,
             @NonNull String subjectId,
             @NonNull Instant now) {
-        if (keyStates.markRotationRequired(ownerId, vaultId, now) == 1) {
-            audit.vaultRotationRequired(ownerId, actorId, vaultId, reason, subjectId);
+        if (keyStates.markRotationRequired(ownerId, fingerprint, now) == 1) {
+            audit.vaultRotationRequired(ownerId, actorId, fingerprint, reason, subjectId);
         }
     }
 }

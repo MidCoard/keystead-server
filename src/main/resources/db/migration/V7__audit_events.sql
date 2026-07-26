@@ -5,7 +5,7 @@ create table audit_events (
     event_type varchar(64) not null,
     target_type varchar(64) not null,
     target_id varchar(255) not null,
-    vault_id varchar(255),
+    fingerprint varchar(255),
     revision bigint,
     outcome varchar(64) not null,
     details text not null,
@@ -17,4 +17,4 @@ create index idx_audit_events_owner_created
     on audit_events (owner_id, created_at);
 
 create index idx_audit_events_owner_vault
-    on audit_events (owner_id, vault_id);
+    on audit_events (owner_id, fingerprint);

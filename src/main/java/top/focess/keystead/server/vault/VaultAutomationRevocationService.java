@@ -19,11 +19,11 @@ public class VaultAutomationRevocationService {
     public void requireRotation(
             @NonNull String ownerId,
             @NonNull String principalId,
-            @NonNull List<String> vaultIds,
+            @NonNull List<String> fingerprints,
             @NonNull Instant now) {
-        for (String vaultId : vaultIds.stream().distinct().toList()) {
+        for (String fingerprint : fingerprints.stream().distinct().toList()) {
             lifecycle.requireRotation(
-                    ownerId, ownerId, vaultId, "AUTOMATION_REVOKED", principalId, now);
+                    ownerId, ownerId, fingerprint, "AUTOMATION_REVOKED", principalId, now);
         }
     }
 }

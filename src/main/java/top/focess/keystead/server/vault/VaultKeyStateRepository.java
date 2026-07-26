@@ -17,13 +17,13 @@ interface VaultKeyStateRepository extends JpaRepository<VaultKeyStateEntity, Vau
                    s.lifecycleVersion = s.lifecycleVersion + 1,
                    s.updatedAt = :updatedAt
              where s.id.ownerId = :ownerId
-               and s.id.vaultId = :vaultId
+               and s.id.fingerprint = :fingerprint
                and s.currentVaultKeyId is not null
                and s.lifecycleState = top.focess.keystead.server.vault.VaultKeyLifecycleState.STABLE
             """)
     int markRotationRequired(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("updatedAt") @NonNull Instant updatedAt);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -35,7 +35,7 @@ interface VaultKeyStateRepository extends JpaRepository<VaultKeyStateEntity, Vau
                    s.pendingGenerationId = :generationId,
                    s.updatedAt = :updatedAt
              where s.id.ownerId = :ownerId
-               and s.id.vaultId = :vaultId
+               and s.id.fingerprint = :fingerprint
                and s.currentVaultKeyId = :expectedCurrentVaultKeyId
                and s.lifecycleVersion = :expectedLifecycleVersion
                and s.pendingGenerationId is null
@@ -45,7 +45,7 @@ interface VaultKeyStateRepository extends JpaRepository<VaultKeyStateEntity, Vau
             """)
     int beginRotation(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("expectedCurrentVaultKeyId") @NonNull String expectedCurrentVaultKeyId,
             @Param("expectedLifecycleVersion") long expectedLifecycleVersion,
             @Param("generationId") @NonNull String generationId,
@@ -60,14 +60,14 @@ interface VaultKeyStateRepository extends JpaRepository<VaultKeyStateEntity, Vau
                    s.pendingGenerationId = null,
                    s.updatedAt = :updatedAt
              where s.id.ownerId = :ownerId
-               and s.id.vaultId = :vaultId
+               and s.id.fingerprint = :fingerprint
                and s.lifecycleState = top.focess.keystead.server.vault.VaultKeyLifecycleState.ROTATING
                and s.lifecycleVersion = :expectedLifecycleVersion
                and s.pendingGenerationId = :generationId
             """)
     int cancelRotation(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("generationId") @NonNull String generationId,
             @Param("expectedLifecycleVersion") long expectedLifecycleVersion,
             @Param("priorLifecycleState") @NonNull VaultKeyLifecycleState priorLifecycleState,
@@ -83,14 +83,14 @@ interface VaultKeyStateRepository extends JpaRepository<VaultKeyStateEntity, Vau
                    s.pendingGenerationId = null,
                    s.updatedAt = :updatedAt
              where s.id.ownerId = :ownerId
-               and s.id.vaultId = :vaultId
+               and s.id.fingerprint = :fingerprint
                and s.lifecycleState = top.focess.keystead.server.vault.VaultKeyLifecycleState.ROTATING
                and s.lifecycleVersion = :expectedLifecycleVersion
                and s.pendingGenerationId = :generationId
             """)
     int commitRotation(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("generationId") @NonNull String generationId,
             @Param("expectedLifecycleVersion") long expectedLifecycleVersion,
             @Param("targetVaultKeyId") @NonNull String targetVaultKeyId,

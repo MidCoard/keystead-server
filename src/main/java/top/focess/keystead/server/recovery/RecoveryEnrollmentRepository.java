@@ -79,12 +79,12 @@ interface RecoveryEnrollmentRepository
                and p.id.generation = e.id.generation
              where e.id.username = :username
                and e.state = top.focess.keystead.server.recovery.RecoveryEnrollmentState.ACTIVE
-               and p.id.vaultId = :vaultId
+               and p.id.fingerprint = :fingerprint
                and p.vaultKeyId = :currentVaultKeyId
              order by e.id.enrollmentId, e.id.generation
             """)
     @NonNull List<RecoveryEnrollmentEntity> listRotationTargets(
             @Param("username") @NonNull String username,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("currentVaultKeyId") @NonNull String currentVaultKeyId);
 }

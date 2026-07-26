@@ -12,8 +12,8 @@ public final class VaultKeyPackageEntityId implements Serializable {
     @Column(name = "owner_id", nullable = false)
     @NonNull String ownerId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     @Column(name = "recipient_id", nullable = false)
     @NonNull String recipientId = "";
@@ -24,17 +24,17 @@ public final class VaultKeyPackageEntityId implements Serializable {
     public VaultKeyPackageEntityId() {}
 
     public VaultKeyPackageEntityId(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String deviceId) {
-        this(ownerId, vaultId, ownerId, deviceId);
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String deviceId) {
+        this(ownerId, fingerprint, ownerId, deviceId);
     }
 
     public VaultKeyPackageEntityId(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String recipientId,
             @NonNull String deviceId) {
         this.ownerId = ownerId;
-        this.vaultId = vaultId;
+        this.fingerprint = fingerprint;
         this.recipientId = recipientId;
         this.deviceId = deviceId;
     }
@@ -48,13 +48,13 @@ public final class VaultKeyPackageEntityId implements Serializable {
             return false;
         }
         return ownerId.equals(other.ownerId)
-                && vaultId.equals(other.vaultId)
+                && fingerprint.equals(other.fingerprint)
                 && recipientId.equals(other.recipientId)
                 && deviceId.equals(other.deviceId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ownerId, vaultId, recipientId, deviceId);
+        return Objects.hash(ownerId, fingerprint, recipientId, deviceId);
     }
 }

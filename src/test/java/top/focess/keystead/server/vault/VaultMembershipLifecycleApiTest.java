@@ -31,17 +31,17 @@ class VaultMembershipLifecycleApiTest {
         String owner = "membership-owner-" + suffix;
         String invitee = "membership-invitee-" + suffix;
         String outsider = "membership-outsider-" + suffix;
-        String vaultId = "membership-vault-" + suffix;
+        String fingerprint = "membership-vault-" + suffix;
         registerUser(owner);
         registerUser(invitee);
         registerUser(outsider);
-        createVault(owner, vaultId);
-        declareCurrentKey(owner, vaultId, "current-key-1");
-        invite(owner, invitee, vaultId, "VIEWER");
+        createVault(owner, fingerprint);
+        declareCurrentKey(owner, fingerprint, "current-key-1");
+        invite(owner, invitee, fingerprint, "VIEWER");
 
         mvc.perform(get("/api/v1/vaults").with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].vaultId").value(vaultId))
+                .andExpect(jsonPath("$[0].fingerprint").value(fingerprint))
                 .andExpect(jsonPath("$[0].ownerId").value(owner))
                 .andExpect(jsonPath("$[0].encryptedMetadata").value("opaque-vault-metadata"))
                 .andExpect(jsonPath("$[0].role").value("VIEWER"))
@@ -53,23 +53,23 @@ class VaultMembershipLifecycleApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        accept(invitee, vaultId);
-        accept(invitee, vaultId);
+        accept(invitee, fingerprint);
+        accept(invitee, fingerprint);
 
         mvc.perform(get("/api/v1/vaults").with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].membershipState").value("ACCEPTED_PENDING_KEY"));
         mvc.perform(
-                        get("/api/v1/vaults/{vaultId}/records", vaultId)
+                        get("/api/v1/vaults/{fingerprint}/records", fingerprint)
                                 .with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isNotFound());
         mvc.perform(
-                        get("/api/v1/vaults/{vaultId}/members", vaultId)
+                        get("/api/v1/vaults/{fingerprint}/members", fingerprint)
                                 .with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isNotFound());
 
         mvc.perform(
-                        get("/api/v1/vaults/{vaultId}/members", vaultId)
+                        get("/api/v1/vaults/{fingerprint}/members", fingerprint)
                                 .with(httpBasic(owner, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].userId").value(hasItem(invitee)))
@@ -83,26 +83,26 @@ class VaultMembershipLifecycleApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "decline-owner-" + suffix;
         String invitee = "decline-invitee-" + suffix;
-        String vaultId = "decline-vault-" + suffix;
+        String fingerprint = "decline-vault-" + suffix;
         registerUser(owner);
         registerUser(invitee);
-        createVault(owner, vaultId);
-        invite(owner, invitee, vaultId, "VIEWER");
+        createVault(owner, fingerprint);
+        invite(owner, invitee, fingerprint, "VIEWER");
 
-        decline(invitee, vaultId);
-        decline(invitee, vaultId);
+        decline(invitee, fingerprint);
+        decline(invitee, fingerprint);
         mvc.perform(get("/api/v1/vaults").with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        invite(owner, invitee, vaultId, "VIEWER");
-        accept(invitee, vaultId);
-        decline(invitee, vaultId);
+        invite(owner, invitee, fingerprint, "VIEWER");
+        accept(invitee, fingerprint);
+        decline(invitee, fingerprint);
         mvc.perform(get("/api/v1/vaults").with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
-        invite(owner, invitee, vaultId, "EDITOR");
+        invite(owner, invitee, fingerprint, "EDITOR");
         mvc.perform(get("/api/v1/vaults").with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].role").value("EDITOR"))
@@ -113,20 +113,20 @@ class VaultMembershipLifecycleApiTest {
     void ownerCannotAcceptDeclineOrBeReinvited() throws Exception {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "protected-owner-" + suffix;
-        String vaultId = "protected-vault-" + suffix;
+        String fingerprint = "protected-vault-" + suffix;
         registerUser(owner);
-        createVault(owner, vaultId);
+        createVault(owner, fingerprint);
 
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
                                 .with(httpBasic(owner, PASSWORD)))
                 .andExpect(status().isNotFound());
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/decline", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/decline", fingerprint)
                                 .with(httpBasic(owner, PASSWORD)))
                 .andExpect(status().isNotFound());
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, owner)
+                        put("/api/v1/vaults/{fingerprint}/members/{userId}", fingerprint, owner)
                                 .with(httpBasic(owner, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"VIEWER\"}"))
@@ -148,44 +148,45 @@ class VaultMembershipLifecycleApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque-vault-metadata\"}"))
                 .andExpect(status().isCreated());
     }
 
-    private void declareCurrentKey(String username, String vaultId, String keyId) throws Exception {
+    private void declareCurrentKey(String username, String fingerprint, String keyId)
+            throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-rotation", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/key-rotation", fingerprint)
                                 .with(httpBasic(username, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"vaultKeyId\":\"%s\"}".formatted(keyId)))
                 .andExpect(status().isNoContent());
     }
 
-    private void invite(String owner, String invitee, String vaultId, String role)
+    private void invite(String owner, String invitee, String fingerprint, String role)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, invitee)
+                        put("/api/v1/vaults/{fingerprint}/members/{userId}", fingerprint, invitee)
                                 .with(httpBasic(owner, PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"%s\"}".formatted(role)))
                 .andExpect(status().isCreated());
     }
 
-    private void accept(String invitee, String vaultId) throws Exception {
+    private void accept(String invitee, String fingerprint) throws Exception {
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
                                 .with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isNoContent());
     }
 
-    private void decline(String invitee, String vaultId) throws Exception {
+    private void decline(String invitee, String fingerprint) throws Exception {
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/decline", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/decline", fingerprint)
                                 .with(httpBasic(invitee, PASSWORD)))
                 .andExpect(status().isNoContent());
     }

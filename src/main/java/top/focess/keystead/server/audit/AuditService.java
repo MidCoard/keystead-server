@@ -79,7 +79,7 @@ public class AuditService {
                 event.eventType(),
                 event.targetType(),
                 event.targetId(),
-                event.vaultId(),
+                event.fingerprint(),
                 event.revision(),
                 event.outcome(),
                 event.details(),
@@ -96,7 +96,7 @@ public class AuditService {
     public @NonNull AuditEventPageResponse pageForOwner(
             @NonNull String ownerId,
             int limit,
-            @Nullable String vaultId,
+            @Nullable String fingerprint,
             @Nullable Instant before,
             @Nullable String beforeId) {
         if (limit <= 0 || limit > auditProperties.queryMaxLimit()) {
@@ -108,8 +108,8 @@ public class AuditService {
         }
         List<AuditEventEntity> fetched =
                 before == null
-                        ? auditEvents.pageFirst(ownerId, vaultId, limit + 1)
-                        : auditEvents.pageCursor(ownerId, vaultId, before, beforeId, limit + 1);
+                        ? auditEvents.pageFirst(ownerId, fingerprint, limit + 1)
+                        : auditEvents.pageCursor(ownerId, fingerprint, before, beforeId, limit + 1);
         boolean hasMore = fetched.size() > limit;
         List<AuditEventResponse> page =
                 fetched.stream().limit(limit).map(AuditEventResponse::from).toList();
@@ -139,7 +139,7 @@ public class AuditService {
     public void recordStored(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long revision,
             @NonNull String secretType,
@@ -148,7 +148,7 @@ public class AuditService {
                 ownerId,
                 actorId,
                 AuditEventType.RECORD_STORED,
-                vaultId,
+                fingerprint,
                 secretId,
                 revision,
                 safeRecordDetails(secretType, deleted));
@@ -157,14 +157,14 @@ public class AuditService {
     public void recordDeleted(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long revision) {
         append(
                 ownerId,
                 actorId,
                 AuditEventType.RECORD_DELETED,
-                vaultId,
+                fingerprint,
                 secretId,
                 revision,
                 "{\"deleted\":true}");
@@ -173,7 +173,7 @@ public class AuditService {
     public void keyPackageStored(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String deviceId,
             @NonNull String vaultKeyId,
             @NonNull String keyAlgorithm) {
@@ -185,7 +185,7 @@ public class AuditService {
                         AuditEventType.KEY_PACKAGE_STORED.name(),
                         TARGET_KEY_PACKAGE,
                         deviceId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         safeKeyPackageDetails(vaultKeyId, keyAlgorithm),
@@ -212,7 +212,7 @@ public class AuditService {
     public void vaultRotationRequired(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String reason,
             @NonNull String subjectId) {
         persist(
@@ -222,8 +222,8 @@ public class AuditService {
                         actorId,
                         AuditEventType.VAULT_ROTATION_REQUIRED.name(),
                         TARGET_VAULT_LIFECYCLE,
-                        vaultId,
-                        vaultId,
+                        fingerprint,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"reason\":\""
@@ -237,7 +237,7 @@ public class AuditService {
     public void vaultRotationCommitted(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String generationId,
             @NonNull String sourceVaultKeyId,
             @NonNull String targetVaultKeyId,
@@ -250,7 +250,7 @@ public class AuditService {
                         AuditEventType.VAULT_ROTATION_COMMITTED.name(),
                         TARGET_VAULT_LIFECYCLE,
                         generationId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"sourceVaultKeyId\":\""
@@ -266,7 +266,7 @@ public class AuditService {
     public void vaultMemberInvited(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String memberId,
             @NonNull String role) {
         persist(
@@ -277,7 +277,7 @@ public class AuditService {
                         AuditEventType.VAULT_MEMBER_INVITED.name(),
                         TARGET_VAULT_MEMBER,
                         memberId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"role\":\"" + escapeJson(role) + "\"}",
@@ -287,7 +287,7 @@ public class AuditService {
     public void vaultMemberAccepted(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String memberId) {
         persist(
                 new StoredAuditEvent(
@@ -297,7 +297,7 @@ public class AuditService {
                         AuditEventType.VAULT_MEMBER_ACCEPTED.name(),
                         TARGET_VAULT_MEMBER,
                         memberId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"accepted\":true}",
@@ -307,7 +307,7 @@ public class AuditService {
     public void vaultMemberDeclined(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String memberId) {
         persist(
                 new StoredAuditEvent(
@@ -317,7 +317,7 @@ public class AuditService {
                         AuditEventType.VAULT_MEMBER_DECLINED.name(),
                         TARGET_VAULT_MEMBER,
                         memberId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"declined\":true}",
@@ -327,7 +327,7 @@ public class AuditService {
     public void vaultMemberRoleChanged(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String memberId,
             @NonNull String fromRole,
             @NonNull String toRole) {
@@ -339,7 +339,7 @@ public class AuditService {
                         AuditEventType.VAULT_MEMBER_ROLE_CHANGED.name(),
                         TARGET_VAULT_MEMBER,
                         memberId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"fromRole\":\""
@@ -353,7 +353,7 @@ public class AuditService {
     public void vaultMemberRemoved(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String memberId) {
         persist(
                 new StoredAuditEvent(
@@ -363,7 +363,7 @@ public class AuditService {
                         AuditEventType.VAULT_MEMBER_REMOVED.name(),
                         TARGET_VAULT_MEMBER,
                         memberId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"removed\":true}",
@@ -373,7 +373,7 @@ public class AuditService {
     public void automationPrincipalStored(
             @NonNull String ownerId,
             @NonNull String principalId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String keyAlgorithm) {
         appendAutomation(
                 ownerId,
@@ -381,26 +381,26 @@ public class AuditService {
                 AuditEventType.AUTOMATION_PRINCIPAL_STORED,
                 TARGET_AUTOMATION_PRINCIPAL,
                 principalId,
-                vaultId,
+                fingerprint,
                 "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}");
     }
 
     public void automationPrincipalRevoked(
-            @NonNull String ownerId, @NonNull String principalId, @NonNull String vaultId) {
+            @NonNull String ownerId, @NonNull String principalId, @NonNull String fingerprint) {
         appendAutomation(
                 ownerId,
                 ownerId,
                 AuditEventType.AUTOMATION_PRINCIPAL_REVOKED,
                 TARGET_AUTOMATION_PRINCIPAL,
                 principalId,
-                vaultId,
+                fingerprint,
                 "{\"revoked\":true}");
     }
 
     public void automationTokenIssued(
             @NonNull String ownerId,
             @NonNull String principalId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String scopes) {
         appendAutomation(
                 ownerId,
@@ -408,26 +408,26 @@ public class AuditService {
                 AuditEventType.AUTOMATION_TOKEN_ISSUED,
                 TARGET_AUTOMATION_TOKEN,
                 principalId,
-                vaultId,
+                fingerprint,
                 "{\"scopes\":\"" + escapeJson(scopes) + "\"}");
     }
 
     public void automationTokenRevoked(
-            @NonNull String ownerId, @NonNull String principalId, @NonNull String vaultId) {
+            @NonNull String ownerId, @NonNull String principalId, @NonNull String fingerprint) {
         appendAutomation(
                 ownerId,
                 ownerId,
                 AuditEventType.AUTOMATION_TOKEN_REVOKED,
                 TARGET_AUTOMATION_TOKEN,
                 principalId,
-                vaultId,
+                fingerprint,
                 "{\"revoked\":true}");
     }
 
     public void automationKeyPackageStored(
             @NonNull String ownerId,
             @NonNull String principalId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String vaultKeyId,
             @NonNull String keyAlgorithm) {
         appendAutomation(
@@ -436,7 +436,7 @@ public class AuditService {
                 AuditEventType.AUTOMATION_KEY_PACKAGE_STORED,
                 TARGET_KEY_PACKAGE,
                 principalId,
-                vaultId,
+                fingerprint,
                 safeKeyPackageDetails(vaultKeyId, keyAlgorithm));
     }
 
@@ -466,7 +466,7 @@ public class AuditService {
             @NonNull String username,
             @NonNull String actorId,
             @NonNull String enrollmentId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             long generation,
             @NonNull String vaultKeyId,
             @NonNull String keyAlgorithm) {
@@ -478,7 +478,7 @@ public class AuditService {
                         AuditEventType.RECOVERY_KEY_PACKAGE_STORED.name(),
                         TARGET_KEY_PACKAGE,
                         enrollmentId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         "{\"generation\":"
@@ -522,7 +522,7 @@ public class AuditService {
     public void recordRevisionConflict(
             @NonNull String ownerId,
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long latestRevision,
             long rejectedRevision) {
@@ -534,7 +534,7 @@ public class AuditService {
                         AuditEventType.RECORD_REVISION_CONFLICT.name(),
                         TARGET_RECORD,
                         secretId,
-                        vaultId,
+                        fingerprint,
                         rejectedRevision,
                         OUTCOME_CONFLICT,
                         safeConflictDetails(latestRevision, rejectedRevision),
@@ -562,7 +562,7 @@ public class AuditService {
             @NonNull String ownerId,
             @NonNull String actorId,
             @NonNull AuditEventType eventType,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String targetId,
             long revision,
             @NonNull String details) {
@@ -574,7 +574,7 @@ public class AuditService {
                         eventType.name(),
                         TARGET_RECORD,
                         targetId,
-                        vaultId,
+                        fingerprint,
                         revision,
                         OUTCOME_SUCCESS,
                         details,
@@ -587,7 +587,7 @@ public class AuditService {
             @NonNull AuditEventType eventType,
             @NonNull String targetType,
             @NonNull String targetId,
-            @Nullable String vaultId,
+            @Nullable String fingerprint,
             @NonNull String details) {
         persist(
                 new StoredAuditEvent(
@@ -597,7 +597,7 @@ public class AuditService {
                         eventType.name(),
                         targetType,
                         targetId,
-                        vaultId,
+                        fingerprint,
                         null,
                         OUTCOME_SUCCESS,
                         details,

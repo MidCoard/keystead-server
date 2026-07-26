@@ -24,15 +24,15 @@ public class VaultDeviceRevocationService {
             @NonNull String ownerId, @NonNull String deviceId, @NonNull Instant now) {
         List<AffectedVault> affected =
                 keyPackages.listCurrentForDevice(ownerId, deviceId).stream()
-                        .map(value -> new AffectedVault(value.id.ownerId, value.id.vaultId))
+                        .map(value -> new AffectedVault(value.id.ownerId, value.id.fingerprint))
                         .distinct()
                         .toList();
         keyPackages.deleteForDevice(ownerId, deviceId);
         for (AffectedVault vault : affected) {
             lifecycle.requireRotation(
-                    vault.ownerId, ownerId, vault.vaultId, "DEVICE_REVOKED", deviceId, now);
+                    vault.ownerId, ownerId, vault.fingerprint, "DEVICE_REVOKED", deviceId, now);
         }
     }
 
-    private record AffectedVault(@NonNull String ownerId, @NonNull String vaultId) {}
+    private record AffectedVault(@NonNull String ownerId, @NonNull String fingerprint) {}
 }

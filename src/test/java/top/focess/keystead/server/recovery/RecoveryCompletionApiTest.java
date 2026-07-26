@@ -63,8 +63,8 @@ class RecoveryCompletionApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountRecovered").value(true))
                 .andExpect(jsonPath("$.deviceId").value("replacement-laptop"))
-                .andExpect(jsonPath("$.recoveredVaultIds").isArray())
-                .andExpect(jsonPath("$.pendingVaultIds").isArray())
+                .andExpect(jsonPath("$.recoveredFingerprints").isArray())
+                .andExpect(jsonPath("$.pendingFingerprints").isArray())
                 .andExpect(jsonPath("$.replacementKitRequired").value(true))
                 .andExpect(jsonPath("$.newPassword").doesNotExist());
 
@@ -137,22 +137,22 @@ class RecoveryCompletionApiTest {
     @Test
     void staleVaultPackageRollsBackEveryCompletionMutation() throws Exception {
         String username = "completion-package-alice";
-        String vaultId = "completion-package-vault";
+        String fingerprint = "completion-package-vault";
         registerUser(username);
-        createVault(username, vaultId);
-        declareCurrentVaultKey(username, vaultId, "vault-key-current");
+        createVault(username, fingerprint);
+        declareCurrentVaultKey(username, fingerprint, "vault-key-current");
         String recoveryToken = createKitSession(username);
         KeyPair replacement = rsaKeyPair();
         String packages =
                 """
                 [{
-                  "vaultId": "%s",
+                  "fingerprint": "%s",
                   "vaultKeyId": "vault-key-stale",
                   "keyAlgorithm": "TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM",
                   "encryptedVaultKey": "opaque-replacement-package"
                 }]
                 """
-                        .formatted(vaultId);
+                        .formatted(fingerprint);
 
         mvc.perform(
                         post("/api/v1/auth/recovery/complete")
@@ -346,19 +346,19 @@ class RecoveryCompletionApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, OLD_PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"encryptedMetadata\":\"opaque\"}"))
                 .andExpect(status().isCreated());
     }
 
-    private void declareCurrentVaultKey(String username, String vaultId, String vaultKeyId)
+    private void declareCurrentVaultKey(String username, String fingerprint, String vaultKeyId)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/key-rotation", vaultId)
+                        put("/api/v1/vaults/{fingerprint}/key-rotation", fingerprint)
                                 .with(httpBasic(username, OLD_PASSWORD))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"vaultKeyId\":\"%s\"}".formatted(vaultKeyId)))

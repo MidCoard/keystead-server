@@ -62,13 +62,13 @@ class CollaborativeLifecycleMigrationTest {
         try (Connection connection = DriverManager.getConnection(database, "sa", "");
                 Statement statement = connection.createStatement()) {
             statement.executeUpdate(
-                    "insert into vaults (owner_id, vault_id, encrypted_metadata, created_at, updated_at) "
+                    "insert into vaults (owner_id, fingerprint, encrypted_metadata, created_at, updated_at) "
                             + "values ('owner', 'vault-legacy', 'opaque-metadata', current_timestamp, current_timestamp)");
             statement.executeUpdate(
-                    "insert into vault_members (vault_id, user_id, role, state, created_at, updated_at) "
+                    "insert into vault_members (fingerprint, user_id, role, state, created_at, updated_at) "
                             + "values ('vault-legacy', 'invitee', 'VIEWER', 'INVITED', current_timestamp, current_timestamp)");
             statement.executeUpdate(
-                    "insert into vault_key_rotations (owner_id, vault_id, vault_key_id, rotated_at) "
+                    "insert into vault_key_rotations (owner_id, fingerprint, vault_key_id, rotated_at) "
                             + "values ('owner', 'vault-legacy', 'key-legacy', current_timestamp)");
         }
 
@@ -80,17 +80,17 @@ class CollaborativeLifecycleMigrationTest {
                     "INVITED",
                     scalar(
                             statement,
-                            "select state from vault_members where vault_id = 'vault-legacy' and user_id = 'invitee'"));
+                            "select state from vault_members where fingerprint = 'vault-legacy' and user_id = 'invitee'"));
             assertEquals(
                     "key-legacy",
                     scalar(
                             statement,
-                            "select current_vault_key_id from vault_key_states where owner_id = 'owner' and vault_id = 'vault-legacy'"));
+                            "select current_vault_key_id from vault_key_states where owner_id = 'owner' and fingerprint = 'vault-legacy'"));
             assertEquals(
                     "STABLE",
                     scalar(
                             statement,
-                            "select lifecycle_state from vault_key_states where owner_id = 'owner' and vault_id = 'vault-legacy'"));
+                            "select lifecycle_state from vault_key_states where owner_id = 'owner' and fingerprint = 'vault-legacy'"));
             assertEquals(
                     "0",
                     scalar(

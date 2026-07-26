@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 
 final class RevisionConflictException extends RuntimeException {
 
-    private final String vaultId;
+    private final String fingerprint;
     private final String secretId;
     private final long latestRevision;
     private final long rejectedRevision;
@@ -16,7 +16,7 @@ final class RevisionConflictException extends RuntimeException {
 
     RevisionConflictException(
             @NonNull String message,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long latestRevision,
             long rejectedRevision,
@@ -24,7 +24,7 @@ final class RevisionConflictException extends RuntimeException {
             @NonNull Instant serverUpdatedAt) {
         this(
                 message,
-                vaultId,
+                fingerprint,
                 secretId,
                 latestRevision,
                 rejectedRevision,
@@ -35,7 +35,7 @@ final class RevisionConflictException extends RuntimeException {
 
     RevisionConflictException(
             @NonNull String message,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String secretId,
             long latestRevision,
             long rejectedRevision,
@@ -43,7 +43,7 @@ final class RevisionConflictException extends RuntimeException {
             @NonNull Instant serverUpdatedAt,
             @Nullable Throwable cause) {
         super(requireNotBlank(message, "message"), cause);
-        this.vaultId = requireNotBlank(vaultId, "vaultId");
+        this.fingerprint = requireNotBlank(fingerprint, "fingerprint");
         this.secretId = requireNotBlank(secretId, "secretId");
         if (latestRevision <= 0) {
             throw new IllegalArgumentException("latestRevision must be positive");
@@ -61,8 +61,8 @@ final class RevisionConflictException extends RuntimeException {
         this.serverUpdatedAt = Objects.requireNonNull(serverUpdatedAt, "serverUpdatedAt");
     }
 
-    @NonNull String vaultId() {
-        return vaultId;
+    @NonNull String fingerprint() {
+        return fingerprint;
     }
 
     @NonNull String secretId() {

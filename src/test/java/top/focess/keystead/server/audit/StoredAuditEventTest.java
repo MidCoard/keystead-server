@@ -139,7 +139,7 @@ class StoredAuditEventTest {
     }
 
     @Test
-    void rejectsBlankVaultIdWhenPresent() {
+    void rejectsBlankFingerprintWhenPresent() {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
@@ -296,7 +296,7 @@ class StoredAuditEventTest {
             AuditEventType eventType,
             String targetType,
             String targetId,
-            String vaultId,
+            String fingerprint,
             Long revision,
             String outcome) {
         return new StoredAuditEvent(
@@ -306,7 +306,7 @@ class StoredAuditEventTest {
                 eventType.name(),
                 targetType,
                 targetId,
-                vaultId,
+                fingerprint,
                 revision,
                 outcome,
                 "{}",

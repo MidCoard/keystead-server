@@ -91,9 +91,9 @@ class EncryptedRecordResponseTest {
     }
 
     private static EncryptedRecordResponse response(
-            String vaultId, String secretId, String secretType, boolean deleted) {
+            String fingerprint, String secretId, String secretType, boolean deleted) {
         return new EncryptedRecordResponse(
-                vaultId,
+                fingerprint,
                 secretId,
                 1L,
                 secretType,

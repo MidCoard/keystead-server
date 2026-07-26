@@ -4,7 +4,7 @@ import java.time.Instant;
 import org.jspecify.annotations.NonNull;
 
 public record VaultMemberResponse(
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String userId,
         @NonNull VaultMemberRole role,
         @NonNull VaultMemberState state,
@@ -12,7 +12,7 @@ public record VaultMemberResponse(
         @NonNull Instant updatedAt) {
     static @NonNull VaultMemberResponse from(@NonNull StoredVaultMember member) {
         return new VaultMemberResponse(
-                member.vaultId(),
+                member.fingerprint(),
                 member.userId(),
                 member.role(),
                 member.state(),

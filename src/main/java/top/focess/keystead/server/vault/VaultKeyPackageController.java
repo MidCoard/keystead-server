@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/vaults/{vaultId}")
+@RequestMapping("/api/v1/vaults/{fingerprint}")
 class VaultKeyPackageController {
 
     private final VaultKeyPackageService service;
@@ -25,33 +25,33 @@ class VaultKeyPackageController {
     @PutMapping("/key-packages/{deviceId}")
     @NonNull ResponseEntity<Void> put(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String deviceId,
             @RequestBody @NonNull VaultKeyPackageRequest request) {
-        service.put(principal.getName(), vaultId, deviceId, request);
+        service.put(principal.getName(), fingerprint, deviceId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PutMapping("/key-packages/recipients/{recipientId}/devices/{deviceId}")
     @NonNull ResponseEntity<Void> putForRecipient(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String recipientId,
             @PathVariable @NonNull String deviceId,
             @RequestBody @NonNull VaultKeyPackageRequest request) {
-        service.putForRecipient(principal.getName(), vaultId, recipientId, deviceId, request);
+        service.putForRecipient(principal.getName(), fingerprint, recipientId, deviceId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @GetMapping("/key-packages")
     @NonNull List<VaultKeyPackageResponse> list(
-            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
-        return service.list(principal.getName(), vaultId);
+            @NonNull Principal principal, @PathVariable @NonNull String fingerprint) {
+        return service.list(principal.getName(), fingerprint);
     }
 
     @GetMapping("/package-recipients")
     @NonNull VaultPackageCoverageResponse recipients(
-            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
-        return service.recipients(principal.getName(), vaultId);
+            @NonNull Principal principal, @PathVariable @NonNull String fingerprint) {
+        return service.recipients(principal.getName(), fingerprint);
     }
 }

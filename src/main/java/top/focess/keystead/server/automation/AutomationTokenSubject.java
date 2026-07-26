@@ -6,7 +6,7 @@ import org.jspecify.annotations.NonNull;
 public record AutomationTokenSubject(
         @NonNull String ownerId,
         @NonNull String principalId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull Set<AutomationScope> scopes,
         @NonNull String tokenId,
         @NonNull Set<String> grantedSecretIds) {

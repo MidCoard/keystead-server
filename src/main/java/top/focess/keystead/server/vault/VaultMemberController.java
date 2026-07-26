@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/vaults/{vaultId}/members")
+@RequestMapping("/api/v1/vaults/{fingerprint}/members")
 class VaultMemberController {
     private final VaultMemberService service;
 
@@ -18,50 +18,50 @@ class VaultMemberController {
 
     @GetMapping
     @NonNull List<VaultMemberResponse> list(
-            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
-        return service.list(principal.getName(), vaultId);
+            @NonNull Principal principal, @PathVariable @NonNull String fingerprint) {
+        return service.list(principal.getName(), fingerprint);
     }
 
     @PutMapping("/{userId}")
     @NonNull ResponseEntity<Void> invite(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String userId,
             @RequestBody @NonNull VaultMemberRequest request) {
-        service.invite(principal.getName(), vaultId, userId, request);
+        service.invite(principal.getName(), fingerprint, userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PostMapping("/accept")
     @NonNull ResponseEntity<Void> accept(
-            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
-        service.accept(principal.getName(), vaultId);
+            @NonNull Principal principal, @PathVariable @NonNull String fingerprint) {
+        service.accept(principal.getName(), fingerprint);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/decline")
     @NonNull ResponseEntity<Void> decline(
-            @NonNull Principal principal, @PathVariable @NonNull String vaultId) {
-        service.decline(principal.getName(), vaultId);
+            @NonNull Principal principal, @PathVariable @NonNull String fingerprint) {
+        service.decline(principal.getName(), fingerprint);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{userId}/role")
     @NonNull ResponseEntity<Void> role(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String userId,
             @RequestBody @NonNull VaultMemberRequest request) {
-        service.changeRole(principal.getName(), vaultId, userId, request);
+        service.changeRole(principal.getName(), fingerprint, userId, request);
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{userId}")
     @NonNull ResponseEntity<Void> remove(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String userId) {
-        service.remove(principal.getName(), vaultId, userId);
+        service.remove(principal.getName(), fingerprint, userId);
         return ResponseEntity.noContent().build();
     }
 }

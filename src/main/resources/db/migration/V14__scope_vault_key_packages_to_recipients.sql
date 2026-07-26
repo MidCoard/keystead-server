@@ -16,4 +16,4 @@ alter table vault_key_packages
     drop constraint pk_vault_key_packages;
 
 alter table vault_key_packages
-    add constraint pk_vault_key_packages primary key (owner_id, vault_id, recipient_id, device_id);
+    add constraint pk_vault_key_packages primary key (owner_id, fingerprint, recipient_id, device_id);

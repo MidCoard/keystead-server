@@ -27,7 +27,7 @@ class VaultResponseTest {
     }
 
     private static VaultResponse response(
-            String vaultId, String encryptedMetadata, Instant updatedAt) {
-        return new VaultResponse(vaultId, encryptedMetadata, CREATED_AT, updatedAt);
+            String fingerprint, String encryptedMetadata, Instant updatedAt) {
+        return new VaultResponse(fingerprint, encryptedMetadata, CREATED_AT, updatedAt);
     }
 }

@@ -12,8 +12,8 @@ public final class DeviceVaultSyncCursorEntityId implements Serializable {
     @Column(name = "owner_id", nullable = false)
     @NonNull String ownerId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     @Column(name = "device_id", nullable = false)
     @NonNull String deviceId = "";
@@ -21,9 +21,9 @@ public final class DeviceVaultSyncCursorEntityId implements Serializable {
     public DeviceVaultSyncCursorEntityId() {}
 
     public DeviceVaultSyncCursorEntityId(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String deviceId) {
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String deviceId) {
         this.ownerId = ownerId;
-        this.vaultId = vaultId;
+        this.fingerprint = fingerprint;
         this.deviceId = deviceId;
     }
 
@@ -36,12 +36,12 @@ public final class DeviceVaultSyncCursorEntityId implements Serializable {
             return false;
         }
         return ownerId.equals(other.ownerId)
-                && vaultId.equals(other.vaultId)
+                && fingerprint.equals(other.fingerprint)
                 && deviceId.equals(other.deviceId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(ownerId, vaultId, deviceId);
+        return Objects.hash(ownerId, fingerprint, deviceId);
     }
 }

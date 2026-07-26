@@ -7,7 +7,7 @@ import top.focess.keystead.server.crypto.ServerCryptoAlgorithmRegistry;
 
 record StoredVaultKeyPackage(
         @NonNull String ownerId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String recipientId,
         @NonNull String deviceId,
         @NonNull String vaultKeyId,
@@ -18,7 +18,7 @@ record StoredVaultKeyPackage(
 
     StoredVaultKeyPackage(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String deviceId,
             @NonNull String keyAlgorithm,
             @NonNull String encryptedVaultKey,
@@ -26,7 +26,7 @@ record StoredVaultKeyPackage(
             @NonNull Instant updatedAt) {
         this(
                 ownerId,
-                vaultId,
+                fingerprint,
                 ownerId,
                 deviceId,
                 "legacy",
@@ -38,7 +38,7 @@ record StoredVaultKeyPackage(
 
     StoredVaultKeyPackage {
         requireNotBlank(ownerId, "ownerId");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(recipientId, "recipientId");
         requireNotBlank(deviceId, "deviceId");
         requireNotBlank(vaultKeyId, "vaultKeyId");

@@ -6,7 +6,7 @@ import org.jspecify.annotations.NonNull;
 public record RecoveryVaultPackageResponse(
         @NonNull String enrollmentId,
         long generation,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String vaultKeyId,
         @NonNull String keyAlgorithm,
         @NonNull String encryptedVaultKey,
@@ -16,7 +16,7 @@ public record RecoveryVaultPackageResponse(
         return new RecoveryVaultPackageResponse(
                 entity.id.enrollmentId,
                 entity.id.generation,
-                entity.id.vaultId,
+                entity.id.fingerprint,
                 entity.vaultKeyId,
                 entity.keyAlgorithm,
                 entity.encryptedVaultKey,
@@ -25,11 +25,11 @@ public record RecoveryVaultPackageResponse(
 
     @Override
     public @NonNull String toString() {
-        return "RecoveryVaultPackageResponse[enrollmentId=%s, generation=%d, vaultId=%s, vaultKeyId=%s, keyAlgorithm=%s, encryptedVaultKey=[REDACTED %d chars], updatedAt=%s]"
+        return "RecoveryVaultPackageResponse[enrollmentId=%s, generation=%d, fingerprint=%s, vaultKeyId=%s, keyAlgorithm=%s, encryptedVaultKey=[REDACTED %d chars], updatedAt=%s]"
                 .formatted(
                         enrollmentId,
                         generation,
-                        vaultId,
+                        fingerprint,
                         vaultKeyId,
                         keyAlgorithm,
                         encryptedVaultKey.length(),

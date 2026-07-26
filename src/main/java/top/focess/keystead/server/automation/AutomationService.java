@@ -67,10 +67,10 @@ class AutomationService {
     @Transactional
     void putPrincipal(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull AutomationPrincipalRequest request) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         validate(request);
         request.validateShape();
         Instant now = clock.instant();
@@ -88,16 +88,16 @@ class AutomationService {
                         now,
                         null));
         audit.automationPrincipalStored(
-                ownerId, principalId, vaultId, request.publicKeyAlgorithm());
+                ownerId, principalId, fingerprint, request.publicKeyAlgorithm());
     }
 
     @Transactional
     @NonNull AutomationTokenResponse issueToken(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull IssueAutomationTokenRequest request) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         validate(request);
         AutomationPrincipal principal =
                 principals
@@ -124,7 +124,7 @@ class AutomationService {
                         hash(rawToken),
                         ownerId,
                         principal.principalId(),
-                        vaultId,
+                        fingerprint,
                         encodeScopes(scopes),
                         request.expiresAt(),
                         now,
@@ -132,35 +132,40 @@ class AutomationService {
                         null,
                         tokenId,
                         encodeSecretIds(grantedSecretIds)));
-        audit.automationTokenIssued(ownerId, principalId, vaultId, encodeScopes(scopes));
+        audit.automationTokenIssued(ownerId, principalId, fingerprint, encodeScopes(scopes));
         return new AutomationTokenResponse(
-                rawToken, tokenId, principalId, vaultId, Set.copyOf(scopes), request.expiresAt());
+                rawToken,
+                tokenId,
+                principalId,
+                fingerprint,
+                Set.copyOf(scopes),
+                request.expiresAt());
     }
 
     @Transactional
     void revokeToken(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull RevokeAutomationTokenRequest request) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         validate(request);
         tokens.find(hash(request.token()))
                 .filter(token -> token.ownerId().equals(ownerId))
-                .filter(token -> token.vaultId().equals(vaultId))
+                .filter(token -> token.fingerprint().equals(fingerprint))
                 .ifPresent(token -> revokeStoredToken(token));
     }
 
     @Transactional(readOnly = true)
     @NonNull List<AutomationTokenSummary> listTokens(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String principalId) {
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         principals
                 .find(ownerId, principalId)
                 .orElseThrow(
                         () ->
                                 new AutomationNotFoundException(
                                         "Automation principal does not exist"));
-        return tokens.list(ownerId, vaultId, principalId).stream()
+        return tokens.list(ownerId, fingerprint, principalId).stream()
                 .map(AutomationService::toSummary)
                 .toList();
     }
@@ -168,12 +173,12 @@ class AutomationService {
     @Transactional
     void revokeTokenById(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull String tokenId) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         AutomationToken token =
-                tokens.findByTokenId(ownerId, vaultId, principalId, tokenId)
+                tokens.findByTokenId(ownerId, fingerprint, principalId, tokenId)
                         .orElseThrow(
                                 () ->
                                         new AutomationNotFoundException(
@@ -186,8 +191,8 @@ class AutomationService {
 
     @Transactional
     void revokePrincipal(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String principalId) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String principalId) {
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         AutomationPrincipal principal =
                 principals
                         .find(ownerId, principalId)
@@ -199,7 +204,7 @@ class AutomationService {
             return;
         }
         Instant now = clock.instant();
-        var affectedVaultIds = keyPackages.listCurrentVaultIds(ownerId, principalId);
+        var affectedFingerprints = keyPackages.listCurrentFingerprints(ownerId, principalId);
         principals.persist(
                 new AutomationPrincipal(
                         principal.ownerId(),
@@ -211,20 +216,20 @@ class AutomationService {
                         now));
         tokens.revokeActiveForPrincipal(ownerId, principalId, now);
         keyPackages.deleteForPrincipal(ownerId, principalId);
-        vaultRevocations.requireRotation(ownerId, principalId, affectedVaultIds, now);
-        audit.automationPrincipalRevoked(ownerId, principalId, vaultId);
+        vaultRevocations.requireRotation(ownerId, principalId, affectedFingerprints, now);
+        audit.automationPrincipalRevoked(ownerId, principalId, fingerprint);
     }
 
     @Transactional
     void putKeyPackage(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String principalId,
             @NonNull AutomationVaultKeyPackageRequest request) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         validate(request);
         request.validateShape();
-        rotations.requireCurrentOrLegacy(ownerId, vaultId, request.vaultKeyId());
+        rotations.requireCurrentOrLegacy(ownerId, fingerprint, request.vaultKeyId());
         principals
                 .find(ownerId, principalId)
                 .filter(value -> value.revokedAt() == null)
@@ -234,11 +239,11 @@ class AutomationService {
                                         "Automation principal does not exist"));
         Instant now = clock.instant();
         AutomationVaultKeyPackage existing =
-                keyPackages.find(ownerId, vaultId, principalId).orElse(null);
+                keyPackages.find(ownerId, fingerprint, principalId).orElse(null);
         keyPackages.persist(
                 new AutomationVaultKeyPackage(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         principalId,
                         request.vaultKeyId(),
                         request.keyAlgorithm(),
@@ -246,7 +251,7 @@ class AutomationService {
                         existing == null ? now : existing.createdAt(),
                         now));
         audit.automationKeyPackageStored(
-                ownerId, principalId, vaultId, request.vaultKeyId(), request.keyAlgorithm());
+                ownerId, principalId, fingerprint, request.vaultKeyId(), request.keyAlgorithm());
     }
 
     @Transactional
@@ -268,7 +273,7 @@ class AutomationService {
                                                         new AutomationTokenSubject(
                                                                 token.ownerId(),
                                                                 token.principalId(),
-                                                                token.vaultId(),
+                                                                token.fingerprint(),
                                                                 decodeScopes(token.scopes()),
                                                                 token.tokenId(),
                                                                 decodeSecretIds(
@@ -280,7 +285,7 @@ class AutomationService {
     @NonNull AutomationVaultKeyPackageResponse keyPackage(@NonNull AutomationTokenSubject subject) {
         requireScope(subject, AutomationScope.READ_VAULT_KEY_PACKAGE);
         return keyPackages
-                .find(subject.ownerId(), subject.vaultId(), subject.principalId())
+                .find(subject.ownerId(), subject.fingerprint(), subject.principalId())
                 .map(AutomationVaultKeyPackageResponse::from)
                 .orElseThrow(
                         () -> new AutomationNotFoundException("Vault key package does not exist"));
@@ -306,7 +311,7 @@ class AutomationService {
                         token.tokenHash(),
                         token.ownerId(),
                         token.principalId(),
-                        token.vaultId(),
+                        token.fingerprint(),
                         token.scopes(),
                         token.expiresAt(),
                         token.createdAt(),
@@ -314,7 +319,7 @@ class AutomationService {
                         token.lastUsedAt(),
                         token.tokenId(),
                         token.grantedSecretIds()));
-        audit.automationTokenRevoked(token.ownerId(), token.principalId(), token.vaultId());
+        audit.automationTokenRevoked(token.ownerId(), token.principalId(), token.fingerprint());
     }
 
     private static @NonNull AutomationTokenSummary toSummary(@NonNull AutomationToken token) {

@@ -18,7 +18,7 @@ import top.focess.keystead.server.vault.VaultLifecycleConflictException;
 import top.focess.keystead.server.vault.VaultLifecycleConflictResponse;
 
 @RestController
-@RequestMapping("/api/v1/vaults/{vaultId}/records")
+@RequestMapping("/api/v1/vaults/{fingerprint}/records")
 class EncryptedRecordController {
 
     private final EncryptedRecordService service;
@@ -30,10 +30,11 @@ class EncryptedRecordController {
     @PutMapping("/{secretId}")
     @NonNull ResponseEntity<Void> put(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String secretId,
             @RequestBody @NonNull EncryptedRecordRequest request) {
-        StoreRecordResult result = service.store(principal.getName(), vaultId, secretId, request);
+        StoreRecordResult result =
+                service.store(principal.getName(), fingerprint, secretId, request);
         return ResponseEntity.status(
                         result == StoreRecordResult.CREATED ? HttpStatus.CREATED : HttpStatus.OK)
                 .build();
@@ -42,28 +43,28 @@ class EncryptedRecordController {
     @DeleteMapping("/{secretId}")
     @NonNull ResponseEntity<Void> delete(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String secretId,
             @RequestParam long revision) {
-        service.delete(principal.getName(), vaultId, secretId, revision);
+        service.delete(principal.getName(), fingerprint, secretId, revision);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/page")
     @NonNull EncryptedRecordPageResponse page(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @RequestParam(defaultValue = "0") long sinceRevision,
             @RequestParam(defaultValue = "100") int limit) {
-        return service.pageSince(principal.getName(), vaultId, sinceRevision, limit);
+        return service.pageSince(principal.getName(), fingerprint, sinceRevision, limit);
     }
 
     @GetMapping("/{secretId}")
     @NonNull ResponseEntity<EncryptedRecordResponse> get(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @PathVariable @NonNull String secretId) {
-        return service.find(principal.getName(), vaultId, secretId)
+        return service.find(principal.getName(), fingerprint, secretId)
                 .map(EncryptedRecordResponse::from)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
@@ -72,9 +73,9 @@ class EncryptedRecordController {
     @GetMapping
     @NonNull List<EncryptedRecordResponse> list(
             @NonNull Principal principal,
-            @PathVariable @NonNull String vaultId,
+            @PathVariable @NonNull String fingerprint,
             @RequestParam(defaultValue = "0") long sinceRevision) {
-        return service.listSince(principal.getName(), vaultId, sinceRevision);
+        return service.listSince(principal.getName(), fingerprint, sinceRevision);
     }
 
     @ExceptionHandler(RevisionConflictException.class)

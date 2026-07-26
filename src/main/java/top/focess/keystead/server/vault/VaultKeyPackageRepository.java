@@ -15,16 +15,16 @@ interface VaultKeyPackageRepository
                 VaultKeyPackageRepositoryWrites {
 
     default @NonNull Optional<StoredVaultKeyPackage> find(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String deviceId) {
-        return find(ownerId, vaultId, ownerId, deviceId);
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String deviceId) {
+        return find(ownerId, fingerprint, ownerId, deviceId);
     }
 
     default @NonNull Optional<StoredVaultKeyPackage> find(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String recipientId,
             @NonNull String deviceId) {
-        return findById(new VaultKeyPackageEntityId(ownerId, vaultId, recipientId, deviceId))
+        return findById(new VaultKeyPackageEntityId(ownerId, fingerprint, recipientId, deviceId))
                 .map(VaultKeyPackageEntity::toStored);
     }
 
@@ -61,7 +61,7 @@ interface VaultKeyPackageRepository
               join DeviceEntity d
                 on d.id.ownerId = k.id.recipientId
                and d.id.deviceId = k.id.deviceId
-             where k.id.ownerId = :ownerId and k.id.vaultId = :vaultId
+             where k.id.ownerId = :ownerId and k.id.fingerprint = :fingerprint
                and d.verifiedAt is not null
                and d.revokedAt is null
                and d.wrappingKeyAlgorithm is not null
@@ -71,15 +71,15 @@ interface VaultKeyPackageRepository
             """)
     @NonNull List<VaultKeyPackageEntity> listEntities(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("approvedWrappingKeyAlgorithms")
                     @NonNull List<String> approvedWrappingKeyAlgorithms);
 
     default @NonNull List<StoredVaultKeyPackage> list(
-            @NonNull String ownerId, @NonNull String vaultId) {
+            @NonNull String ownerId, @NonNull String fingerprint) {
         return listEntities(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms())
                 .stream()
                 .map(VaultKeyPackageEntity::toStored)
@@ -94,7 +94,7 @@ interface VaultKeyPackageRepository
                 on d.id.ownerId = k.id.recipientId
                and d.id.deviceId = k.id.deviceId
              where k.id.ownerId = :ownerId
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
                and k.id.recipientId = :recipientId
                and d.verifiedAt is not null
                and d.revokedAt is null
@@ -105,16 +105,16 @@ interface VaultKeyPackageRepository
             """)
     @NonNull List<VaultKeyPackageEntity> listRecipientEntities(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("recipientId") @NonNull String recipientId,
             @Param("approvedWrappingKeyAlgorithms")
                     @NonNull List<String> approvedWrappingKeyAlgorithms);
 
     default @NonNull List<StoredVaultKeyPackage> listForRecipient(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String recipientId) {
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String recipientId) {
         return listRecipientEntities(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         recipientId,
                         ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms())
                 .stream()
@@ -140,10 +140,10 @@ interface VaultKeyPackageRepository
               join DeviceEntity d on d.id.ownerId = m.id.userId
               left join VaultKeyPackageEntity k
                 on k.id.ownerId = :ownerId
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
                and k.id.recipientId = m.id.userId
                and k.id.deviceId = d.id.deviceId
-             where m.id.vaultId = :vaultId
+             where m.id.fingerprint = :fingerprint
                and m.state in (
                    top.focess.keystead.server.vault.VaultMemberState.ACCEPTED_PENDING_KEY,
                    top.focess.keystead.server.vault.VaultMemberState.ACTIVE)
@@ -156,16 +156,18 @@ interface VaultKeyPackageRepository
             """)
     @NonNull List<VaultPackageRecipientDeviceResponse> listRecipientDevices(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("currentVaultKeyId") @Nullable String currentVaultKeyId,
             @Param("approvedWrappingKeyAlgorithms")
                     @NonNull List<String> approvedWrappingKeyAlgorithms);
 
     default @NonNull List<VaultPackageRecipientDeviceResponse> listRecipientDevices(
-            @NonNull String ownerId, @NonNull String vaultId, @Nullable String currentVaultKeyId) {
+            @NonNull String ownerId,
+            @NonNull String fingerprint,
+            @Nullable String currentVaultKeyId) {
         return listRecipientDevices(
                 ownerId,
-                vaultId,
+                fingerprint,
                 currentVaultKeyId,
                 ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms());
     }
@@ -175,15 +177,15 @@ interface VaultKeyPackageRepository
             select count(k) from VaultKeyPackageEntity k
               join VaultKeyStateEntity s
                 on s.id.ownerId = k.id.ownerId
-               and s.id.vaultId = k.id.vaultId
+               and s.id.fingerprint = k.id.fingerprint
                and s.currentVaultKeyId = k.vaultKeyId
              where k.id.ownerId = :ownerId
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
                and k.id.recipientId = :recipientId
             """)
     long countCurrentForRecipient(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("recipientId") @NonNull String recipientId);
 
     @Query(
@@ -191,7 +193,7 @@ interface VaultKeyPackageRepository
             select k from VaultKeyPackageEntity k
               join VaultKeyStateEntity s
                 on s.id.ownerId = k.id.ownerId
-               and s.id.vaultId = k.id.vaultId
+               and s.id.fingerprint = k.id.fingerprint
                and s.currentVaultKeyId = k.vaultKeyId
              where k.id.recipientId = :recipientId
                and k.id.deviceId = :deviceId
@@ -205,12 +207,12 @@ interface VaultKeyPackageRepository
             """
             delete from VaultKeyPackageEntity k
              where k.id.ownerId = :ownerId
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
                and k.id.recipientId = :recipientId
             """)
     int deleteForRecipient(
             @Param("ownerId") @NonNull String ownerId,
-            @Param("vaultId") @NonNull String vaultId,
+            @Param("fingerprint") @NonNull String fingerprint,
             @Param("recipientId") @NonNull String recipientId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -229,8 +231,9 @@ interface VaultKeyPackageRepository
             """
             delete from VaultKeyPackageEntity k
              where k.id.ownerId = :ownerId
-               and k.id.vaultId = :vaultId
+               and k.id.fingerprint = :fingerprint
             """)
     int deleteForVault(
-            @Param("ownerId") @NonNull String ownerId, @Param("vaultId") @NonNull String vaultId);
+            @Param("ownerId") @NonNull String ownerId,
+            @Param("fingerprint") @NonNull String fingerprint);
 }

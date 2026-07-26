@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
         name = "audit_events",
         indexes = {
             @Index(name = "idx_audit_events_owner_created", columnList = "owner_id, created_at"),
-            @Index(name = "idx_audit_events_owner_vault", columnList = "owner_id, vault_id")
+            @Index(name = "idx_audit_events_owner_vault", columnList = "owner_id, fingerprint")
         })
 public class AuditEventEntity {
 
@@ -37,8 +37,8 @@ public class AuditEventEntity {
     @Column(name = "target_id", nullable = false)
     @NonNull String targetId = "";
 
-    @Column(name = "vault_id")
-    @Nullable String vaultId;
+    @Column(name = "fingerprint")
+    @Nullable String fingerprint;
 
     @Column(name = "revision")
     @Nullable Long revision;
@@ -70,7 +70,7 @@ public class AuditEventEntity {
         this.eventType = event.eventType();
         this.targetType = event.targetType();
         this.targetId = event.targetId();
-        this.vaultId = event.vaultId();
+        this.fingerprint = event.fingerprint();
         this.revision = event.revision();
         this.outcome = event.outcome();
         this.details = event.details();
@@ -94,7 +94,7 @@ public class AuditEventEntity {
                 eventType,
                 targetType,
                 targetId,
-                vaultId,
+                fingerprint,
                 revision,
                 outcome,
                 details,

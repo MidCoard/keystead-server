@@ -109,7 +109,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.RECORD_STORED.name());
         assertThat(event.ownerId()).isEqualTo("audit-write-alice");
         assertThat(event.actorId()).isEqualTo("audit-write-alice");
-        assertThat(event.vaultId()).isEqualTo("vault-audit");
+        assertThat(event.fingerprint()).isEqualTo("vault-audit");
         assertThat(event.targetType()).isEqualTo("record");
         assertThat(event.targetId()).isEqualTo("secret-audit");
         assertThat(event.revision()).isEqualTo(7);
@@ -143,7 +143,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.RECORD_DELETED.name());
         assertThat(event.ownerId()).isEqualTo("audit-delete-alice");
         assertThat(event.actorId()).isEqualTo("audit-delete-alice");
-        assertThat(event.vaultId()).isEqualTo("vault-delete-audit");
+        assertThat(event.fingerprint()).isEqualTo("vault-delete-audit");
         assertThat(event.targetType()).isEqualTo("record");
         assertThat(event.targetId()).isEqualTo("secret-delete-audit");
         assertThat(event.revision()).isEqualTo(2);
@@ -187,7 +187,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.RECORD_REVISION_CONFLICT.name());
         assertThat(event.ownerId()).isEqualTo("audit-conflict-alice");
         assertThat(event.actorId()).isEqualTo("audit-conflict-alice");
-        assertThat(event.vaultId()).isEqualTo("vault-conflict-audit");
+        assertThat(event.fingerprint()).isEqualTo("vault-conflict-audit");
         assertThat(event.targetType()).isEqualTo("record");
         assertThat(event.targetId()).isEqualTo("secret-conflict-audit");
         assertThat(event.revision()).isEqualTo(3);
@@ -224,7 +224,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.RECORD_REVISION_CONFLICT.name());
         assertThat(event.ownerId()).isEqualTo("audit-delete-conflict-alice");
         assertThat(event.actorId()).isEqualTo("audit-delete-conflict-alice");
-        assertThat(event.vaultId()).isEqualTo("vault-delete-conflict-audit");
+        assertThat(event.fingerprint()).isEqualTo("vault-delete-conflict-audit");
         assertThat(event.targetType()).isEqualTo("record");
         assertThat(event.targetId()).isEqualTo("secret-delete-conflict-audit");
         assertThat(event.revision()).isEqualTo(4);
@@ -264,7 +264,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.KEY_PACKAGE_STORED.name());
         assertThat(event.ownerId()).isEqualTo("audit-package-alice");
         assertThat(event.actorId()).isEqualTo("audit-package-alice");
-        assertThat(event.vaultId()).isEqualTo("vault-package-audit");
+        assertThat(event.fingerprint()).isEqualTo("vault-package-audit");
         assertThat(event.targetType()).isEqualTo("key_package");
         assertThat(event.targetId()).isEqualTo("audit-laptop-1");
         assertThat(event.revision()).isNull();
@@ -300,7 +300,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.DEVICE_REVOKED.name());
         assertThat(event.ownerId()).isEqualTo("audit-revoke-alice");
         assertThat(event.actorId()).isEqualTo("audit-revoke-alice");
-        assertThat(event.vaultId()).isNull();
+        assertThat(event.fingerprint()).isNull();
         assertThat(event.targetType()).isEqualTo("device");
         assertThat(event.targetId()).isEqualTo("audit-revoke-laptop");
         assertThat(event.revision()).isNull();
@@ -325,7 +325,7 @@ class AuditEventApiTest {
         assertThat(event.eventType()).isEqualTo(AuditEventType.LOGIN_FAILED.name());
         assertThat(event.ownerId()).isEqualTo("audit-login-alice");
         assertThat(event.actorId()).isEqualTo("audit-login-alice");
-        assertThat(event.vaultId()).isNull();
+        assertThat(event.fingerprint()).isNull();
         assertThat(event.targetType()).isEqualTo("auth");
         assertThat(event.targetId()).isEqualTo("audit-login-alice");
         assertThat(event.revision()).isNull();
@@ -409,15 +409,15 @@ class AuditEventApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "member-audit-owner-" + suffix;
         String invitee = "member-audit-invitee-" + suffix;
-        String vaultId = "member-audit-vault-" + suffix;
+        String fingerprint = "member-audit-vault-" + suffix;
         registerUser(owner);
         registerUser(invitee);
-        createVaultWithPasswordUser(owner, vaultId);
+        createVaultWithPasswordUser(owner, fingerprint);
 
-        invite(owner, invitee, vaultId, "VIEWER");
-        accept(invitee, vaultId);
-        changeRole(owner, invitee, vaultId, "EDITOR");
-        removeMember(owner, invitee, vaultId);
+        invite(owner, invitee, fingerprint, "VIEWER");
+        accept(invitee, fingerprint);
+        changeRole(owner, invitee, fingerprint, "EDITOR");
+        removeMember(owner, invitee, fingerprint);
 
         List<StoredAuditEvent> events = auditEvents.listForOwner(owner);
         assertThat(events).hasSize(4);
@@ -427,7 +427,7 @@ class AuditEventApiTest {
         assertThat(invited.actorId()).isEqualTo(owner);
         assertThat(invited.targetType()).isEqualTo("vault_member");
         assertThat(invited.targetId()).isEqualTo(invitee);
-        assertThat(invited.vaultId()).isEqualTo(vaultId);
+        assertThat(invited.fingerprint()).isEqualTo(fingerprint);
         assertThat(invited.revision()).isNull();
         assertThat(invited.outcome()).isEqualTo("SUCCESS");
         assertThat(invited.details()).contains("\"role\":\"VIEWER\"");
@@ -454,13 +454,13 @@ class AuditEventApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "decline-audit-owner-" + suffix;
         String invitee = "decline-audit-invitee-" + suffix;
-        String vaultId = "decline-audit-vault-" + suffix;
+        String fingerprint = "decline-audit-vault-" + suffix;
         registerUser(owner);
         registerUser(invitee);
-        createVaultWithPasswordUser(owner, vaultId);
+        createVaultWithPasswordUser(owner, fingerprint);
 
-        invite(owner, invitee, vaultId, "VIEWER");
-        decline(invitee, vaultId);
+        invite(owner, invitee, fingerprint, "VIEWER");
+        decline(invitee, fingerprint);
 
         List<StoredAuditEvent> events = auditEvents.listForOwner(owner);
         assertThat(events).hasSize(2);
@@ -473,7 +473,7 @@ class AuditEventApiTest {
         assertThat(declined.actorId()).isEqualTo(invitee);
         assertThat(declined.targetType()).isEqualTo("vault_member");
         assertThat(declined.targetId()).isEqualTo(invitee);
-        assertThat(declined.vaultId()).isEqualTo(vaultId);
+        assertThat(declined.fingerprint()).isEqualTo(fingerprint);
         assertThat(declined.outcome()).isEqualTo("SUCCESS");
         assertThat(declined.details()).contains("\"declined\":true");
     }
@@ -483,13 +483,13 @@ class AuditEventApiTest {
         String suffix = Long.toUnsignedString(System.nanoTime());
         String owner = "reinvite-audit-owner-" + suffix;
         String invitee = "reinvite-audit-invitee-" + suffix;
-        String vaultId = "reinvite-audit-vault-" + suffix;
+        String fingerprint = "reinvite-audit-vault-" + suffix;
         registerUser(owner);
         registerUser(invitee);
-        createVaultWithPasswordUser(owner, vaultId);
+        createVaultWithPasswordUser(owner, fingerprint);
 
-        invite(owner, invitee, vaultId, "VIEWER");
-        invite(owner, invitee, vaultId, "VIEWER");
+        invite(owner, invitee, fingerprint, "VIEWER");
+        invite(owner, invitee, fingerprint, "VIEWER");
 
         List<StoredAuditEvent> events = auditEvents.listForOwner(owner);
         assertThat(events).hasSize(1);
@@ -561,14 +561,14 @@ class AuditEventApiTest {
                                                 httpBasic(
                                                         "filter-alice",
                                                         "correct horse battery staple"))
-                                        .param("vaultId", "vault-filter-a"))
+                                        .param("fingerprint", "vault-filter-a"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.events.length()").value(1))
                         .andReturn()
                         .getResponse()
                         .getContentAsString();
-        List<String> vaultIds = JsonPath.read(json, "$.events[*].vaultId");
-        assertThat(vaultIds).containsOnly("vault-filter-a");
+        List<String> fingerprints = JsonPath.read(json, "$.events[*].fingerprint");
+        assertThat(fingerprints).containsOnly("vault-filter-a");
     }
 
     @Test
@@ -591,7 +591,7 @@ class AuditEventApiTest {
                         .andReturn()
                         .getResponse()
                         .getContentAsString();
-        List<String> aliceVaults = JsonPath.read(aliceJson, "$.events[*].vaultId");
+        List<String> aliceVaults = JsonPath.read(aliceJson, "$.events[*].fingerprint");
         assertThat(aliceVaults).containsOnly("vault-scope-a");
 
         String bobJson =
@@ -605,7 +605,7 @@ class AuditEventApiTest {
                         .andReturn()
                         .getResponse()
                         .getContentAsString();
-        List<String> bobVaults = JsonPath.read(bobJson, "$.events[*].vaultId");
+        List<String> bobVaults = JsonPath.read(bobJson, "$.events[*].fingerprint");
         assertThat(bobVaults).containsOnly("vault-scope-b");
     }
 
@@ -670,50 +670,56 @@ class AuditEventApiTest {
         return matches.getFirst();
     }
 
-    private void invite(String owner, String invitee, String vaultId, String role)
+    private void invite(String owner, String invitee, String fingerprint, String role)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, invitee)
+                        put("/api/v1/vaults/{fingerprint}/members/{userId}", fingerprint, invitee)
                                 .with(httpBasic(owner, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"%s\"}".formatted(role)))
                 .andExpect(status().isCreated());
     }
 
-    private void accept(String invitee, String vaultId) throws Exception {
+    private void accept(String invitee, String fingerprint) throws Exception {
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/accept", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/accept", fingerprint)
                                 .with(httpBasic(invitee, "correct horse battery staple")))
                 .andExpect(status().isNoContent());
     }
 
-    private void decline(String invitee, String vaultId) throws Exception {
+    private void decline(String invitee, String fingerprint) throws Exception {
         mvc.perform(
-                        post("/api/v1/vaults/{vaultId}/members/decline", vaultId)
+                        post("/api/v1/vaults/{fingerprint}/members/decline", fingerprint)
                                 .with(httpBasic(invitee, "correct horse battery staple")))
                 .andExpect(status().isNoContent());
     }
 
-    private void changeRole(String owner, String invitee, String vaultId, String role)
+    private void changeRole(String owner, String invitee, String fingerprint, String role)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/members/{userId}/role", vaultId, invitee)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/members/{userId}/role",
+                                        fingerprint,
+                                        invitee)
                                 .with(httpBasic(owner, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"role\":\"%s\"}".formatted(role)))
                 .andExpect(status().isNoContent());
     }
 
-    private void removeMember(String owner, String invitee, String vaultId) throws Exception {
+    private void removeMember(String owner, String invitee, String fingerprint) throws Exception {
         mvc.perform(
-                        delete("/api/v1/vaults/{vaultId}/members/{userId}", vaultId, invitee)
+                        delete(
+                                        "/api/v1/vaults/{fingerprint}/members/{userId}",
+                                        fingerprint,
+                                        invitee)
                                 .with(httpBasic(owner, "correct horse battery staple")))
                 .andExpect(status().isNoContent());
     }
 
     private void putRecord(
             String username,
-            String vaultId,
+            String fingerprint,
             String secretId,
             long revision,
             String secretType,
@@ -721,7 +727,10 @@ class AuditEventApiTest {
             String envelope)
             throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}/records/{secretId}", vaultId, secretId)
+                        put(
+                                        "/api/v1/vaults/{fingerprint}/records/{secretId}",
+                                        fingerprint,
+                                        secretId)
                                 .with(user(username))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -809,9 +818,9 @@ class AuditEventApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVault(String username, String vaultId) throws Exception {
+    private void createVault(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(user(username))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -823,9 +832,9 @@ class AuditEventApiTest {
                 .andExpect(status().isCreated());
     }
 
-    private void createVaultWithPasswordUser(String username, String vaultId) throws Exception {
+    private void createVaultWithPasswordUser(String username, String fingerprint) throws Exception {
         mvc.perform(
-                        put("/api/v1/vaults/{vaultId}", vaultId)
+                        put("/api/v1/vaults/{fingerprint}", fingerprint)
                                 .with(httpBasic(username, "correct horse battery staple"))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(

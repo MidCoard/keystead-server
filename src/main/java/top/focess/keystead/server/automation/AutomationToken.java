@@ -9,7 +9,7 @@ public record AutomationToken(
         @NonNull String tokenHash,
         @NonNull String ownerId,
         @NonNull String principalId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String scopes,
         @NonNull Instant expiresAt,
         @NonNull Instant createdAt,
@@ -22,7 +22,7 @@ public record AutomationToken(
         requireNotBlank(tokenHash, "tokenHash");
         requireNotBlank(ownerId, "ownerId");
         requireNotBlank(principalId, "principalId");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         requireNotBlank(scopes, "scopes");
         requireNotBlank(tokenId, "tokenId");
         Objects.requireNonNull(grantedSecretIds, "grantedSecretIds");

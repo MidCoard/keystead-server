@@ -9,8 +9,8 @@ interface DeviceVaultSyncCursorRepository
                 DeviceVaultSyncCursorRepositoryWrites {
 
     default @NonNull Optional<StoredDeviceVaultSyncCursor> find(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String deviceId) {
-        return findById(new DeviceVaultSyncCursorEntityId(ownerId, vaultId, deviceId))
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String deviceId) {
+        return findById(new DeviceVaultSyncCursorEntityId(ownerId, fingerprint, deviceId))
                 .map(DeviceVaultSyncCursorEntity::toStored);
     }
 }

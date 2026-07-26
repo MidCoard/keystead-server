@@ -12,25 +12,25 @@ public final class RecoveryRequestVaultPackageId implements Serializable {
     @Column(name = "request_id", nullable = false)
     @NonNull String requestId = "";
 
-    @Column(name = "vault_id", nullable = false)
-    @NonNull String vaultId = "";
+    @Column(name = "fingerprint", nullable = false)
+    @NonNull String fingerprint = "";
 
     public RecoveryRequestVaultPackageId() {}
 
-    public RecoveryRequestVaultPackageId(@NonNull String requestId, @NonNull String vaultId) {
+    public RecoveryRequestVaultPackageId(@NonNull String requestId, @NonNull String fingerprint) {
         this.requestId = requestId;
-        this.vaultId = vaultId;
+        this.fingerprint = fingerprint;
     }
 
     @Override
     public boolean equals(@NonNull Object object) {
         return object instanceof RecoveryRequestVaultPackageId other
                 && requestId.equals(other.requestId)
-                && vaultId.equals(other.vaultId);
+                && fingerprint.equals(other.fingerprint);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(requestId, vaultId);
+        return Objects.hash(requestId, fingerprint);
     }
 }

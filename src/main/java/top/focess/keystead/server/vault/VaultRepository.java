@@ -9,29 +9,31 @@ import org.springframework.data.repository.query.Param;
 
 interface VaultRepository extends JpaRepository<VaultEntity, VaultEntityId>, VaultRepositoryWrites {
 
-    default @NonNull Optional<StoredVault> find(@NonNull String ownerId, @NonNull String vaultId) {
-        return findById(new VaultEntityId(ownerId, vaultId)).map(VaultEntity::toStored);
+    default @NonNull Optional<StoredVault> find(
+            @NonNull String ownerId, @NonNull String fingerprint) {
+        return findById(new VaultEntityId(ownerId, fingerprint)).map(VaultEntity::toStored);
     }
 
-    @Query("select v from VaultEntity v where v.id.vaultId = :vaultId")
-    @NonNull Optional<VaultEntity> findEntityByVaultId(@Param("vaultId") @NonNull String vaultId);
+    @Query("select v from VaultEntity v where v.id.fingerprint = :fingerprint")
+    @NonNull Optional<VaultEntity> findEntityByFingerprint(
+            @Param("fingerprint") @NonNull String fingerprint);
 
-    default @NonNull Optional<StoredVault> findGlobally(@NonNull String vaultId) {
-        return findEntityByVaultId(vaultId).map(VaultEntity::toStored);
+    default @NonNull Optional<StoredVault> findGlobally(@NonNull String fingerprint) {
+        return findEntityByFingerprint(fingerprint).map(VaultEntity::toStored);
     }
 
-    default boolean exists(@NonNull String ownerId, @NonNull String vaultId) {
-        return existsById(new VaultEntityId(ownerId, vaultId));
+    default boolean exists(@NonNull String ownerId, @NonNull String fingerprint) {
+        return existsById(new VaultEntityId(ownerId, fingerprint));
     }
 
-    @Query("select count(v) from VaultEntity v where v.id.vaultId = :vaultId")
-    long countByVaultId(@Param("vaultId") @NonNull String vaultId);
+    @Query("select count(v) from VaultEntity v where v.id.fingerprint = :fingerprint")
+    long countByFingerprint(@Param("fingerprint") @NonNull String fingerprint);
 
-    default boolean existsGlobally(@NonNull String vaultId) {
-        return countByVaultId(vaultId) > 0;
+    default boolean existsGlobally(@NonNull String fingerprint) {
+        return countByFingerprint(fingerprint) > 0;
     }
 
-    @Query("select v from VaultEntity v where v.id.ownerId = :ownerId order by v.id.vaultId")
+    @Query("select v from VaultEntity v where v.id.ownerId = :ownerId order by v.id.fingerprint")
     @NonNull List<VaultEntity> listEntities(@Param("ownerId") @NonNull String ownerId);
 
     default @NonNull List<StoredVault> list(@NonNull String ownerId) {

@@ -64,13 +64,13 @@ public class VaultKeyRotationService {
     @Transactional
     void rotate(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull VaultKeyRotationRequest request) {
-        accessGuard.requireOwnedVault(ownerId, vaultId);
+        accessGuard.requireOwnedVault(ownerId, fingerprint);
         if (!validator.validate(request).isEmpty()) {
             throw new IllegalArgumentException("vaultKeyId is invalid");
         }
-        VaultEntityId id = new VaultEntityId(ownerId, vaultId);
+        VaultEntityId id = new VaultEntityId(ownerId, fingerprint);
         Optional<VaultKeyStateEntity> existing = keyStates.findById(id);
         existing.filter(state -> state.lifecycleState != VaultKeyLifecycleState.STABLE)
                 .ifPresent(
@@ -88,9 +88,9 @@ public class VaultKeyRotationService {
     }
 
     public void requireCurrentOrLegacy(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String vaultKeyId) {
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String vaultKeyId) {
         keyStates
-                .findById(new VaultEntityId(ownerId, vaultId))
+                .findById(new VaultEntityId(ownerId, fingerprint))
                 .map(state -> state.currentVaultKeyId)
                 .filter(currentVaultKeyId -> !currentVaultKeyId.equals(vaultKeyId))
                 .ifPresent(
@@ -103,10 +103,10 @@ public class VaultKeyRotationService {
     @Transactional
     @NonNull VaultRotationResponse begin(
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull VaultRotationBeginRequest request) {
-        accessGuard.requireMemberManager(actorId, vaultId);
-        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+        accessGuard.requireMemberManager(actorId, fingerprint);
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, fingerprint);
         validate(request);
         if (request.expectedCurrentVaultKeyId().equals(request.targetVaultKeyId())) {
             throw new InvalidVaultRotationRequestException(
@@ -114,7 +114,7 @@ public class VaultKeyRotationService {
         }
         VaultKeyStateEntity current =
                 keyStates
-                        .findById(new VaultEntityId(ownerId, vaultId))
+                        .findById(new VaultEntityId(ownerId, fingerprint))
                         .orElseThrow(
                                 () ->
                                         new VaultRotationConflictException(
@@ -125,13 +125,13 @@ public class VaultKeyRotationService {
                 || current.pendingGenerationId != null) {
             throw new VaultRotationConflictException("Vault key lifecycle changed");
         }
-        requireSelectedPendingMembers(vaultId, request.selectedPendingUsers());
+        requireSelectedPendingMembers(fingerprint, request.selectedPendingUsers());
         Instant now = clock.instant();
         String generationId = UUID.randomUUID().toString();
         VaultRotationGenerationEntity generation = new VaultRotationGenerationEntity();
         generation.generationId = generationId;
         generation.ownerId = ownerId;
-        generation.vaultId = vaultId;
+        generation.fingerprint = fingerprint;
         generation.sourceKeyId = current.currentVaultKeyId;
         generation.targetKeyId = request.targetVaultKeyId();
         generation.state = VaultRotationGenerationState.OPEN;
@@ -144,7 +144,7 @@ public class VaultKeyRotationService {
         generations.saveAndFlush(generation);
         if (keyStates.beginRotation(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         request.expectedCurrentVaultKeyId(),
                         request.expectedLifecycleVersion(),
                         generationId,
@@ -156,15 +156,15 @@ public class VaultKeyRotationService {
         manifest.addAll(
                 deviceTargets(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         current.currentVaultKeyId,
                         request.selectedPendingUsers(),
                         generationId));
         automationRotations
-                .targets(ownerId, vaultId, current.currentVaultKeyId)
+                .targets(ownerId, fingerprint, current.currentVaultKeyId)
                 .forEach(value -> manifest.add(automationTarget(generationId, value)));
         recoveryRotations
-                .targets(ownerId, vaultId, current.currentVaultKeyId)
+                .targets(ownerId, fingerprint, current.currentVaultKeyId)
                 .forEach(value -> manifest.add(recoveryTarget(generationId, ownerId, value)));
         if (manifest.stream()
                 .noneMatch(target -> target.targetType == VaultRotationTargetType.DEVICE)) {
@@ -176,10 +176,10 @@ public class VaultKeyRotationService {
 
     @Transactional
     @NonNull VaultRotationResponse status(
-            @NonNull String actorId, @NonNull String vaultId, @NonNull String generationId) {
-        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+            @NonNull String actorId, @NonNull String fingerprint, @NonNull String generationId) {
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, fingerprint);
         VaultRotationGenerationEntity generation =
-                requireGeneration(ownerId, vaultId, generationId);
+                requireGeneration(ownerId, fingerprint, generationId);
         pruneInvalidTargets(generation);
         return response(generation);
     }
@@ -187,13 +187,13 @@ public class VaultKeyRotationService {
     @Transactional
     @NonNull VaultRotationResponse putPackage(
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String generationId,
             @NonNull String targetId,
             @NonNull VaultRotationPackageRequest request) {
-        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, fingerprint);
         VaultRotationGenerationEntity generation =
-                requireGeneration(ownerId, vaultId, generationId);
+                requireGeneration(ownerId, fingerprint, generationId);
         if (generation.state == VaultRotationGenerationState.COMMITTED) {
             return response(generation);
         }
@@ -234,12 +234,12 @@ public class VaultKeyRotationService {
     @Transactional
     @NonNull VaultRotationPackageResponse selfPackage(
             @NonNull String actorId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String generationId,
             @NonNull String deviceId) {
-        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, fingerprint);
         VaultRotationGenerationEntity generation =
-                requireGeneration(ownerId, vaultId, generationId);
+                requireGeneration(ownerId, fingerprint, generationId);
         if (generation.state == VaultRotationGenerationState.COMMITTED) {
             throw new VaultNotFoundException("Rotation package does not exist");
         }
@@ -269,11 +269,12 @@ public class VaultKeyRotationService {
     }
 
     @Transactional
-    void cancel(@NonNull String actorId, @NonNull String vaultId, @NonNull String generationId) {
-        accessGuard.requireMemberManager(actorId, vaultId);
-        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+    void cancel(
+            @NonNull String actorId, @NonNull String fingerprint, @NonNull String generationId) {
+        accessGuard.requireMemberManager(actorId, fingerprint);
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, fingerprint);
         VaultRotationGenerationEntity generation =
-                requireGeneration(ownerId, vaultId, generationId);
+                requireGeneration(ownerId, fingerprint, generationId);
         if (generation.state == VaultRotationGenerationState.COMMITTED
                 || rotationPackages.countByGenerationId(generationId) != 0) {
             throw new VaultRotationConflictException("Rotation can no longer be canceled");
@@ -281,7 +282,7 @@ public class VaultKeyRotationService {
         Instant now = clock.instant();
         if (keyStates.cancelRotation(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         generationId,
                         generation.lifecycleVersion,
                         generation.priorLifecycleState,
@@ -296,10 +297,10 @@ public class VaultKeyRotationService {
 
     @Transactional
     @NonNull VaultRotationResponse commit(
-            @NonNull String actorId, @NonNull String vaultId, @NonNull String generationId) {
-        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, vaultId);
+            @NonNull String actorId, @NonNull String fingerprint, @NonNull String generationId) {
+        String ownerId = accessGuard.requireActiveMemberAndResolveOwner(actorId, fingerprint);
         VaultRotationGenerationEntity generation =
-                requireGeneration(ownerId, vaultId, generationId);
+                requireGeneration(ownerId, fingerprint, generationId);
         if (generation.state == VaultRotationGenerationState.COMMITTED) {
             return response(generation);
         }
@@ -319,7 +320,7 @@ public class VaultKeyRotationService {
         Instant now = clock.instant();
         if (keyStates.commitRotation(
                         ownerId,
-                        vaultId,
+                        fingerprint,
                         generationId,
                         generation.lifecycleVersion,
                         generation.targetKeyId,
@@ -327,7 +328,7 @@ public class VaultKeyRotationService {
                 != 1) {
             throw new VaultRotationConflictException("Vault key lifecycle changed");
         }
-        keyPackages.deleteForVault(ownerId, vaultId);
+        keyPackages.deleteForVault(ownerId, fingerprint);
         List<AutomationRotationBridge.Package> automationPackages = new java.util.ArrayList<>();
         List<RecoveryRotationBridge.Package> recoveryPackages = new java.util.ArrayList<>();
         for (VaultRotationTargetEntity target : manifest) {
@@ -337,7 +338,7 @@ public class VaultKeyRotationService {
                     keyPackages.insert(
                             new StoredVaultKeyPackage(
                                     ownerId,
-                                    vaultId,
+                                    fingerprint,
                                     Objects.requireNonNull(target.recipientId),
                                     Objects.requireNonNull(target.deviceId),
                                     generation.targetKeyId,
@@ -346,7 +347,7 @@ public class VaultKeyRotationService {
                                     now,
                                     now));
                     members.activatePending(
-                            vaultId, Objects.requireNonNull(target.recipientId), now);
+                            fingerprint, Objects.requireNonNull(target.recipientId), now);
                 }
                 case AUTOMATION ->
                         automationPackages.add(
@@ -364,8 +365,9 @@ public class VaultKeyRotationService {
             }
         }
         automationRotations.replace(
-                ownerId, vaultId, generation.targetKeyId, automationPackages, now);
-        recoveryRotations.replace(ownerId, vaultId, generation.targetKeyId, recoveryPackages, now);
+                ownerId, fingerprint, generation.targetKeyId, automationPackages, now);
+        recoveryRotations.replace(
+                ownerId, fingerprint, generation.targetKeyId, recoveryPackages, now);
         generation.state = VaultRotationGenerationState.COMMITTED;
         generation.lifecycleVersion++;
         generation.pendingMarker = null;
@@ -374,7 +376,7 @@ public class VaultKeyRotationService {
         audit.vaultRotationCommitted(
                 ownerId,
                 actorId,
-                vaultId,
+                fingerprint,
                 generationId,
                 Objects.requireNonNull(generation.sourceKeyId),
                 generation.targetKeyId,
@@ -384,11 +386,11 @@ public class VaultKeyRotationService {
 
     private @NonNull List<VaultRotationTargetEntity> deviceTargets(
             @NonNull String ownerId,
-            @NonNull String vaultId,
+            @NonNull String fingerprint,
             @NonNull String currentVaultKeyId,
             @NonNull Set<String> selectedPendingUsers,
             @NonNull String generationId) {
-        return keyPackages.listRecipientDevices(ownerId, vaultId, currentVaultKeyId).stream()
+        return keyPackages.listRecipientDevices(ownerId, fingerprint, currentVaultKeyId).stream()
                 .filter(
                         value ->
                                 value.memberState() == VaultMemberState.ACTIVE
@@ -448,15 +450,15 @@ public class VaultKeyRotationService {
         String sourceKeyId = Objects.requireNonNull(generation.sourceKeyId);
         Set<String> validDevices = new HashSet<>();
         keyPackages
-                .listRecipientDevices(generation.ownerId, generation.vaultId, sourceKeyId)
+                .listRecipientDevices(generation.ownerId, generation.fingerprint, sourceKeyId)
                 .forEach(value -> validDevices.add(value.userId() + "\u0000" + value.deviceId()));
         Set<String> validAutomations = new HashSet<>();
         automationRotations
-                .targets(generation.ownerId, generation.vaultId, sourceKeyId)
+                .targets(generation.ownerId, generation.fingerprint, sourceKeyId)
                 .forEach(value -> validAutomations.add(value.principalId()));
         Set<String> validRecoveries = new HashSet<>();
         recoveryRotations
-                .targets(generation.ownerId, generation.vaultId, sourceKeyId)
+                .targets(generation.ownerId, generation.fingerprint, sourceKeyId)
                 .forEach(
                         value ->
                                 validRecoveries.add(
@@ -499,10 +501,10 @@ public class VaultKeyRotationService {
     }
 
     private void requireSelectedPendingMembers(
-            @NonNull String vaultId, @NonNull Set<String> selectedPendingUsers) {
+            @NonNull String fingerprint, @NonNull Set<String> selectedPendingUsers) {
         for (String userId : selectedPendingUsers) {
             StoredVaultMember member =
-                    members.find(vaultId, userId)
+                    members.find(fingerprint, userId)
                             .orElseThrow(
                                     () ->
                                             new InvalidVaultRotationRequestException(
@@ -515,9 +517,9 @@ public class VaultKeyRotationService {
     }
 
     private @NonNull VaultRotationGenerationEntity requireGeneration(
-            @NonNull String ownerId, @NonNull String vaultId, @NonNull String generationId) {
+            @NonNull String ownerId, @NonNull String fingerprint, @NonNull String generationId) {
         return generations
-                .findByGenerationIdAndOwnerIdAndVaultId(generationId, ownerId, vaultId)
+                .findByGenerationIdAndOwnerIdAndFingerprint(generationId, ownerId, fingerprint)
                 .orElseThrow(() -> new VaultNotFoundException("Rotation does not exist"));
     }
 
@@ -550,7 +552,7 @@ public class VaultKeyRotationService {
                         .toList();
         return new VaultRotationResponse(
                 generation.generationId,
-                generation.vaultId,
+                generation.fingerprint,
                 Objects.requireNonNull(generation.sourceKeyId),
                 generation.targetKeyId,
                 generation.state,

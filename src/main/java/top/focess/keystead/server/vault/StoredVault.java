@@ -6,14 +6,14 @@ import org.jspecify.annotations.NonNull;
 
 record StoredVault(
         @NonNull String ownerId,
-        @NonNull String vaultId,
+        @NonNull String fingerprint,
         @NonNull String encryptedMetadata,
         @NonNull Instant createdAt,
         @NonNull Instant updatedAt) {
 
     StoredVault {
         requireNotBlank(ownerId, "ownerId");
-        requireNotBlank(vaultId, "vaultId");
+        requireNotBlank(fingerprint, "fingerprint");
         Objects.requireNonNull(encryptedMetadata, "encryptedMetadata");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
