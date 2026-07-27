@@ -56,6 +56,10 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers("/api/v1/auth/recovery/**")
                                         .permitAll()
+                                        .requestMatchers(
+                                                org.springframework.http.HttpMethod.GET,
+                                                "/api/v1/shares/{code}")
+                                        .permitAll()
                                         .requestMatchers("/api/v1/automation/**")
                                         .hasRole("AUTOMATION")
                                         .anyRequest()

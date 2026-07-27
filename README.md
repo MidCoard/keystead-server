@@ -135,6 +135,30 @@ Removing an active member changes the vault to `ROTATION_REQUIRED`, immediately
 rejects further writes, removes the former member's packages, and excludes the
 member from the next rotation snapshot.
 
+### Single-secret share links
+
+Beyond whole-vault membership, a client can share **one** secret as a
+self-contained encrypted string (see Keystead Core's `VAULT_PROTOCOL.md`). The
+server hosts these opaque blobs behind short codes so a recipient can redeem
+them without an account:
+
+- `POST /api/v1/shares` (authenticated) stores a `keystead-share:v1:...` blob
+  and returns a short code plus the hosting expiry. The request may carry an
+  optional `expiresAt` (capped at `keystead.share.max-ttl`, 30 days by default)
+  and `burnAfterReading` (defaults to `true`).
+- `GET /api/v1/shares/{code}` (public, no authentication) returns the blob and,
+  when `burnAfterReading` is set, deletes it in the same transaction. Expired
+  blobs are purged lazily on access and return `410 Gone`.
+- `GET /api/v1/shares` (authenticated) lists the caller's own codes with
+  creation and expiry times, never the payload.
+- `DELETE /api/v1/shares/{code}` (authenticated) removes a blob the caller owns.
+
+The server never sees the share passphrase, salt, or plaintext: the blob is
+opaque ciphertext, and all cryptographic work happens in the client. Minting is
+rate-limited per account and redemption per client IP (honoring the first
+`X-Forwarded-For` hop when present); both return `429 Too Many Requests` with
+`Retry-After: 60` when exceeded.
+
 ### Staged key rotation
 
 Rotation is coordinated without asking the server to generate or unwrap a key:
