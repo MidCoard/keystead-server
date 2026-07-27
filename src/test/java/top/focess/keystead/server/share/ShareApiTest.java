@@ -157,6 +157,24 @@ class ShareApiTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void mintRejectsMalformedExpiry() throws Exception {
+        String token = login(register("share-malformed"));
+        mvc.perform(
+                        post("/api/v1/shares")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"payload\":\"keystead-share:v1:x\",\"expiresAt\":\"not-a-date\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void redeemMalformedCodeReturnsBadRequest() throws Exception {
+        String tooLong = "a".repeat(100);
+        mvc.perform(get("/api/v1/shares/{code}", tooLong)).andExpect(status().isBadRequest());
+    }
+
     private String register(String username) throws Exception {
         mvc.perform(
                         post("/api/v1/users")

@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.ConcurrentHashMap;
 import org.jspecify.annotations.NonNull;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
@@ -55,7 +56,7 @@ class ShareRateLimiter {
 
     private boolean tryAcquire(
             @NonNull String key, int ceiling, @NonNull ConcurrentHashMap<String, Window> windows) {
-        long minute = clock.instant().truncatedTo(ChronoUnit.MINUTES).toEpochMilli();
+        long minute = currentMinute();
         Window current =
                 windows.compute(
                         key,
@@ -66,6 +67,28 @@ class ShareRateLimiter {
                             return new Window(minute, existing.count() + 1);
                         });
         return current.count() <= ceiling;
+    }
+
+    /**
+     * Periodically drops windows from previous minutes. Without this sweep, the public redeem
+     * endpoint (keyed by client IP) would let an attacker rotating {@code X-Forwarded-For} values
+     * accumulate one entry per request forever; the sweep bounds retention to roughly the current
+     * minute, which is itself bounded by request throughput.
+     */
+    @Scheduled(fixedDelayString = "${keystead.share.rate-limit-sweep-millis:60000}")
+    void sweepStaleWindows() {
+        long minute = currentMinute();
+        mintWindows.entrySet().removeIf(entry -> entry.getValue().minute() != minute);
+        redeemWindows.entrySet().removeIf(entry -> entry.getValue().minute() != minute);
+    }
+
+    private long currentMinute() {
+        return clock.instant().truncatedTo(ChronoUnit.MINUTES).toEpochMilli();
+    }
+
+    /** Returns the total number of tracked mint + redeem windows (observability/testing). */
+    int activeWindowCount() {
+        return mintWindows.size() + redeemWindows.size();
     }
 
     private record Window(long minute, int count) {}

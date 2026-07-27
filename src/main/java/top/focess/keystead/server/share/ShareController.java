@@ -1,11 +1,14 @@
 package top.focess.keystead.server.share;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 class ShareController {
 
     private static final String RETRY_AFTER_SECONDS = "60";
+    private static final int MAX_CODE_LENGTH = 64;
 
     private final ShareService service;
 
@@ -29,7 +33,7 @@ class ShareController {
 
     @PostMapping
     @NonNull ResponseEntity<MintShareResponse> mint(
-            @NonNull Principal principal, @RequestBody @NonNull MintShareRequest request) {
+            @NonNull Principal principal, @Valid @RequestBody @NonNull MintShareRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.mint(principal.getName(), request));
     }
@@ -37,6 +41,7 @@ class ShareController {
     @GetMapping("/{code}")
     @NonNull RedeemShareResponse redeem(
             @PathVariable @NonNull String code, @NonNull HttpServletRequest request) {
+        requireValidCode(code);
         return service.redeem(code, clientIp(request));
     }
 
@@ -48,12 +53,24 @@ class ShareController {
     @DeleteMapping("/{code}")
     @NonNull ResponseEntity<Void> delete(
             @NonNull Principal principal, @PathVariable @NonNull String code) {
+        requireValidCode(code);
         service.delete(principal.getName(), code);
         return ResponseEntity.noContent().build();
     }
 
     @ExceptionHandler(InvalidShareRequestException.class)
     @NonNull ResponseEntity<Void> invalidRequest(@NonNull InvalidShareRequestException exception) {
+        return ResponseEntity.badRequest().build();
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    @NonNull ResponseEntity<Void> validationError(
+            @NonNull MethodArgumentNotValidException exception) {
+        return ResponseEntity.badRequest().build();
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @NonNull ResponseEntity<Void> unreadable(@NonNull HttpMessageNotReadableException exception) {
         return ResponseEntity.badRequest().build();
     }
 
@@ -72,6 +89,26 @@ class ShareController {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", RETRY_AFTER_SECONDS)
                 .build();
+    }
+
+    private static void requireValidCode(@NonNull String code) {
+        if (code.length() < 1 || code.length() > MAX_CODE_LENGTH || !isBase64Url(code)) {
+            throw new InvalidShareRequestException("invalid share code");
+        }
+    }
+
+    private static boolean isBase64Url(@NonNull String code) {
+        for (int i = 0; i < code.length(); i++) {
+            char c = code.charAt(i);
+            if (!((c >= 'A' && c <= 'Z')
+                    || (c >= 'a' && c <= 'z')
+                    || (c >= '0' && c <= '9')
+                    || c == '-'
+                    || c == '_')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static @NonNull String clientIp(@NonNull HttpServletRequest request) {

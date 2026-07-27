@@ -9,6 +9,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import org.jspecify.annotations.NonNull;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,32 +78,52 @@ class ShareService {
         if (!rateLimiter.tryAcquireRedeem(clientIp)) {
             throw new ShareRateLimitedException();
         }
+        Instant now = clock.instant();
         Share share =
                 shares.find(code)
                         .orElseThrow(() -> new ShareNotFoundException("share does not exist"));
-        Instant now = clock.instant();
         if (!share.expiresAt().isAfter(now)) {
-            shares.remove(share);
+            // Expired: purge lazily and report. The atomic delete collapses concurrent
+            // expired-redeems onto a single row removal.
+            shares.deleteByCode(code);
             throw new ShareExpiredException("share has expired");
         }
         if (share.burnAfterReading()) {
-            shares.remove(share);
+            // Atomically burn: only the first concurrent redeemer wins the race. The loser sees
+            // zero rows affected (another transaction already deleted it) and gets a 404, so the
+            // burn-after-reading guarantee holds under contention.
+            if (shares.deleteByCode(code) == 0) {
+                throw new ShareNotFoundException("share does not exist");
+            }
         }
         return new RedeemShareResponse(share.payload());
     }
 
     @Transactional(readOnly = true)
     @NonNull List<ShareSummary> list(@NonNull String ownerId) {
-        return shares.listByOwner(ownerId).stream().map(ShareService::toSummary).toList();
+        Instant now = clock.instant();
+        return shares.listByOwner(ownerId).stream()
+                .filter(share -> share.expiresAt().isAfter(now))
+                .map(ShareService::toSummary)
+                .toList();
     }
 
     @Transactional
     void delete(@NonNull String ownerId, @NonNull String code) {
-        Share share =
-                shares.find(code)
-                        .filter(value -> value.ownerId().equals(ownerId))
-                        .orElseThrow(() -> new ShareNotFoundException("share does not exist"));
-        shares.remove(share);
+        if (shares.deleteByCodeAndOwner(code, ownerId) == 0) {
+            throw new ShareNotFoundException("share does not exist");
+        }
+    }
+
+    /**
+     * Periodically purges expired shares so the table does not grow without bound. Expired rows are
+     * also purged lazily on redeem, but a share that is never redeemed would otherwise persist
+     * forever; this sweep (backed by {@code idx_shares_expires_at}) reclaims them.
+     */
+    @Transactional
+    @Scheduled(fixedDelayString = "${keystead.share.expiry-sweep-millis:600000}")
+    void purgeExpiredShares() {
+        shares.deleteExpired(clock.instant());
     }
 
     private void validate(@NonNull Object request) {
