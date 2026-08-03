@@ -23,7 +23,7 @@ java {
 tasks.jar { enabled = false }
 
 dependencies {
-    implementation("top.focess:keystead-core:0.4.1")
+    implementation("top.focess:keystead-core:0.4.4")
     implementation("org.jspecify:jspecify:1.0.0")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -44,7 +44,11 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // keystead-core runs on the classpath here; its fail-closed native locked memory
     // requires native access to be granted to the unnamed module.
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    jvmArgs(
+        "--enable-native-access=ALL-UNNAMED",
+        "--sun-misc-unsafe-memory-access=allow",
+        "-Xshare:off",
+    )
     // Surface the full cause chain (e.g. Flyway -> PSQLException messages) so a
     // migration failure on a given database lane is self-diagnosing in CI logs
     // instead of showing only "class at File:line".
