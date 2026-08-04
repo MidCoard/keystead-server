@@ -9,7 +9,6 @@ import java.util.UUID;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -17,17 +16,8 @@ public class AuditService {
 
     private static final String OUTCOME_SUCCESS = "SUCCESS";
     private static final String OUTCOME_FAILURE = "FAILURE";
-    private static final String OUTCOME_CONFLICT = "CONFLICT";
     private static final String TARGET_AUTH = "auth";
-    private static final String TARGET_DEVICE = "device";
-    private static final String TARGET_KEY_PACKAGE = "key_package";
-    private static final String TARGET_AUTOMATION_PRINCIPAL = "automation_principal";
-    private static final String TARGET_AUTOMATION_TOKEN = "automation_token";
     private static final String TARGET_RECORD = "record";
-    private static final String TARGET_VAULT_LIFECYCLE = "vault_lifecycle";
-    private static final String TARGET_VAULT_MEMBER = "vault_member";
-    private static final String TARGET_RECOVERY_ENROLLMENT = "recovery_enrollment";
-    private static final String TARGET_RECOVERY_SESSION = "recovery_session";
 
     private final AuditEventRepository auditEvents;
     private final Clock clock;
@@ -48,50 +38,6 @@ public class AuditService {
         this.signer = signer;
     }
 
-    /**
-     * Persists an audit event stamped with the current request's correlation id (if any) and a
-     * tamper-evident signature (when signing is configured). Routing every append through here
-     * keeps correlation-id threading and signing out of the individual recording methods and lets
-     * events recorded outside a request context carry a {@code null} id.
-     *
-     * <p>The event's {@code createdAt} is truncated to millisecond precision before signing and
-     * storage. A signature is only reproducible by a verifier if the bytes it covers are
-     * byte-identical to what was stored; PostgreSQL {@code timestamp} keeps microsecond (not
-     * nanosecond) precision, so an untruncated {@link java.time.Clock#instant} could round-trip to
-     * a different value and make every legitimate signature unverifiable. Milliseconds are
-     * preserved exactly by both H2 and PostgreSQL.
-     */
-    private void persist(@NonNull StoredAuditEvent event) {
-        StoredAuditEvent stored = withStoragePrecision(event);
-        auditEvents.append(stored, correlationIds.current(), signer.sign(stored));
-        pruneRetained(stored.ownerId());
-    }
-
-    private static @NonNull StoredAuditEvent withStoragePrecision(@NonNull StoredAuditEvent event) {
-        Instant truncated = event.createdAt().truncatedTo(ChronoUnit.MILLIS);
-        if (truncated.equals(event.createdAt())) {
-            return event;
-        }
-        return new StoredAuditEvent(
-                event.eventId(),
-                event.ownerId(),
-                event.actorId(),
-                event.eventType(),
-                event.targetType(),
-                event.targetId(),
-                event.fingerprint(),
-                event.revision(),
-                event.outcome(),
-                event.details(),
-                truncated);
-    }
-
-    /**
-     * Pages one owner's audit trail newest-first. The page is bounded by {@link AuditProperties}'s
-     * {@code queryMaxLimit}; the {@code (before, beforeId)} cursor is the oldest row of the prior
-     * page, so callers can chain requests without skipping or repeating rows that share a
-     * timestamp.
-     */
     @Transactional(readOnly = true)
     public @NonNull AuditEventPageResponse pageForOwner(
             @NonNull String ownerId,
@@ -123,46 +69,28 @@ public class AuditService {
         return new AuditEventPageResponse(page, limit, hasMore, nextBefore, nextBeforeId);
     }
 
-    /**
-     * Prunes audit events for one owner that have aged out of the configured retention window. Runs
-     * lazily on each append so retention stays deterministic and testable without a background
-     * scheduler; when retention is disabled (the default test profile) this is a no-op.
-     */
-    private void pruneRetained(@NonNull String ownerId) {
-        Duration retention = auditProperties.retention();
-        if (retention == null) {
-            return;
-        }
-        auditEvents.deleteOlderThan(ownerId, clock.instant().minus(retention));
-    }
-
     public void recordStored(
             @NonNull String ownerId,
-            @NonNull String actorId,
             @NonNull String fingerprint,
             @NonNull String secretId,
             long revision,
-            @NonNull String secretType,
-            boolean deleted) {
-        append(
+            @NonNull String secretType) {
+        appendRecord(
                 ownerId,
-                actorId,
                 AuditEventType.RECORD_STORED,
                 fingerprint,
                 secretId,
                 revision,
-                safeRecordDetails(secretType, deleted));
+                "{\"secretType\":\"" + escapeJson(secretType) + "\",\"deleted\":false}");
     }
 
     public void recordDeleted(
             @NonNull String ownerId,
-            @NonNull String actorId,
             @NonNull String fingerprint,
             @NonNull String secretId,
             long revision) {
-        append(
+        appendRecord(
                 ownerId,
-                actorId,
                 AuditEventType.RECORD_DELETED,
                 fingerprint,
                 secretId,
@@ -170,378 +98,27 @@ public class AuditService {
                 "{\"deleted\":true}");
     }
 
-    public void keyPackageStored(
+    public void recordPurged(
             @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String deviceId,
-            @NonNull String vaultKeyId,
-            @NonNull String keyAlgorithm) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.KEY_PACKAGE_STORED.name(),
-                        TARGET_KEY_PACKAGE,
-                        deviceId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        safeKeyPackageDetails(vaultKeyId, keyAlgorithm),
-                        clock.instant()));
-    }
-
-    public void deviceRevoked(
-            @NonNull String ownerId, @NonNull String actorId, @NonNull String deviceId) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.DEVICE_REVOKED.name(),
-                        TARGET_DEVICE,
-                        deviceId,
-                        null,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"revoked\":true}",
-                        clock.instant()));
-    }
-
-    public void vaultRotationRequired(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String reason,
-            @NonNull String subjectId) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_ROTATION_REQUIRED.name(),
-                        TARGET_VAULT_LIFECYCLE,
-                        fingerprint,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"reason\":\""
-                                + escapeJson(reason)
-                                + "\",\"subjectId\":\""
-                                + escapeJson(subjectId)
-                                + "\"}",
-                        clock.instant()));
-    }
-
-    public void vaultRotationCommitted(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String generationId,
-            @NonNull String sourceVaultKeyId,
-            @NonNull String targetVaultKeyId,
-            long targetCount) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_ROTATION_COMMITTED.name(),
-                        TARGET_VAULT_LIFECYCLE,
-                        generationId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"sourceVaultKeyId\":\""
-                                + escapeJson(sourceVaultKeyId)
-                                + "\",\"targetVaultKeyId\":\""
-                                + escapeJson(targetVaultKeyId)
-                                + "\",\"targetCount\":"
-                                + targetCount
-                                + "}",
-                        clock.instant()));
-    }
-
-    public void vaultMemberInvited(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String memberId,
-            @NonNull String role) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_MEMBER_INVITED.name(),
-                        TARGET_VAULT_MEMBER,
-                        memberId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"role\":\"" + escapeJson(role) + "\"}",
-                        clock.instant()));
-    }
-
-    public void vaultMemberAccepted(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String memberId) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_MEMBER_ACCEPTED.name(),
-                        TARGET_VAULT_MEMBER,
-                        memberId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"accepted\":true}",
-                        clock.instant()));
-    }
-
-    public void vaultMemberDeclined(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String memberId) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_MEMBER_DECLINED.name(),
-                        TARGET_VAULT_MEMBER,
-                        memberId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"declined\":true}",
-                        clock.instant()));
-    }
-
-    public void vaultMemberRoleChanged(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String memberId,
-            @NonNull String fromRole,
-            @NonNull String toRole) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_MEMBER_ROLE_CHANGED.name(),
-                        TARGET_VAULT_MEMBER,
-                        memberId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"fromRole\":\""
-                                + escapeJson(fromRole)
-                                + "\",\"toRole\":\""
-                                + escapeJson(toRole)
-                                + "\"}",
-                        clock.instant()));
-    }
-
-    public void vaultMemberRemoved(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull String fingerprint,
-            @NonNull String memberId) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        AuditEventType.VAULT_MEMBER_REMOVED.name(),
-                        TARGET_VAULT_MEMBER,
-                        memberId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"removed\":true}",
-                        clock.instant()));
-    }
-
-    public void automationPrincipalStored(
-            @NonNull String ownerId,
-            @NonNull String principalId,
-            @NonNull String fingerprint,
-            @NonNull String keyAlgorithm) {
-        appendAutomation(
-                ownerId,
-                ownerId,
-                AuditEventType.AUTOMATION_PRINCIPAL_STORED,
-                TARGET_AUTOMATION_PRINCIPAL,
-                principalId,
-                fingerprint,
-                "{\"keyAlgorithm\":\"" + escapeJson(keyAlgorithm) + "\"}");
-    }
-
-    public void automationPrincipalRevoked(
-            @NonNull String ownerId, @NonNull String principalId, @NonNull String fingerprint) {
-        appendAutomation(
-                ownerId,
-                ownerId,
-                AuditEventType.AUTOMATION_PRINCIPAL_REVOKED,
-                TARGET_AUTOMATION_PRINCIPAL,
-                principalId,
-                fingerprint,
-                "{\"revoked\":true}");
-    }
-
-    public void automationTokenIssued(
-            @NonNull String ownerId,
-            @NonNull String principalId,
-            @NonNull String fingerprint,
-            @NonNull String scopes) {
-        appendAutomation(
-                ownerId,
-                ownerId,
-                AuditEventType.AUTOMATION_TOKEN_ISSUED,
-                TARGET_AUTOMATION_TOKEN,
-                principalId,
-                fingerprint,
-                "{\"scopes\":\"" + escapeJson(scopes) + "\"}");
-    }
-
-    public void automationTokenRevoked(
-            @NonNull String ownerId, @NonNull String principalId, @NonNull String fingerprint) {
-        appendAutomation(
-                ownerId,
-                ownerId,
-                AuditEventType.AUTOMATION_TOKEN_REVOKED,
-                TARGET_AUTOMATION_TOKEN,
-                principalId,
-                fingerprint,
-                "{\"revoked\":true}");
-    }
-
-    public void automationKeyPackageStored(
-            @NonNull String ownerId,
-            @NonNull String principalId,
-            @NonNull String fingerprint,
-            @NonNull String vaultKeyId,
-            @NonNull String keyAlgorithm) {
-        appendAutomation(
-                ownerId,
-                ownerId,
-                AuditEventType.AUTOMATION_KEY_PACKAGE_STORED,
-                TARGET_KEY_PACKAGE,
-                principalId,
-                fingerprint,
-                safeKeyPackageDetails(vaultKeyId, keyAlgorithm));
-    }
-
-    public void recoveryEnrollmentCreated(
-            @NonNull String username, @NonNull String enrollmentId, long generation) {
-        appendRecoveryEnrollment(
-                username,
-                username,
-                AuditEventType.RECOVERY_ENROLLMENT_CREATED,
-                enrollmentId,
-                generation,
-                "PENDING");
-    }
-
-    public void recoveryEnrollmentCommitted(
-            @NonNull String username, @NonNull String enrollmentId, long generation) {
-        appendRecoveryEnrollment(
-                username,
-                username,
-                AuditEventType.RECOVERY_ENROLLMENT_COMMITTED,
-                enrollmentId,
-                generation,
-                "ACTIVE");
-    }
-
-    public void recoveryKeyPackageStored(
-            @NonNull String username,
-            @NonNull String actorId,
-            @NonNull String enrollmentId,
-            @NonNull String fingerprint,
-            long generation,
-            @NonNull String vaultKeyId,
-            @NonNull String keyAlgorithm) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        username,
-                        actorId,
-                        AuditEventType.RECOVERY_KEY_PACKAGE_STORED.name(),
-                        TARGET_KEY_PACKAGE,
-                        enrollmentId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"generation\":"
-                                + generation
-                                + ",\"vaultKeyId\":\""
-                                + escapeJson(vaultKeyId)
-                                + "\",\"keyAlgorithm\":\""
-                                + escapeJson(keyAlgorithm)
-                                + "\"}",
-                        clock.instant()));
-    }
-
-    public void recoveryCompleted(
-            @NonNull String username,
-            @NonNull String deviceId,
-            @NonNull String authority,
-            int recoveredVaults,
-            int pendingVaults) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        username,
-                        username,
-                        AuditEventType.RECOVERY_COMPLETED.name(),
-                        TARGET_RECOVERY_SESSION,
-                        deviceId,
-                        null,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"authority\":\""
-                                + escapeJson(authority)
-                                + "\",\"recoveredVaults\":"
-                                + recoveredVaults
-                                + ",\"pendingVaults\":"
-                                + pendingVaults
-                                + "}",
-                        clock.instant()));
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordRevisionConflict(
-            @NonNull String ownerId,
-            @NonNull String actorId,
             @NonNull String fingerprint,
             @NonNull String secretId,
-            long latestRevision,
-            long rejectedRevision) {
+            long deletedEvents) {
         persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
-                        actorId,
-                        AuditEventType.RECORD_REVISION_CONFLICT.name(),
+                        ownerId,
+                        AuditEventType.RECORD_PURGED.name(),
                         TARGET_RECORD,
                         secretId,
                         fingerprint,
-                        rejectedRevision,
-                        OUTCOME_CONFLICT,
-                        safeConflictDetails(latestRevision, rejectedRevision),
+                        null,
+                        OUTCOME_SUCCESS,
+                        "{\"deletedEvents\":" + deletedEvents + "}",
                         clock.instant()));
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     public void loginFailed(@NonNull String username) {
         persist(
                 new StoredAuditEvent(
@@ -558,22 +135,21 @@ public class AuditService {
                         clock.instant()));
     }
 
-    private void append(
+    private void appendRecord(
             @NonNull String ownerId,
-            @NonNull String actorId,
             @NonNull AuditEventType eventType,
             @NonNull String fingerprint,
-            @NonNull String targetId,
+            @NonNull String secretId,
             long revision,
             @NonNull String details) {
         persist(
                 new StoredAuditEvent(
                         UUID.randomUUID().toString(),
                         ownerId,
-                        actorId,
+                        ownerId,
                         eventType.name(),
                         TARGET_RECORD,
-                        targetId,
+                        secretId,
                         fingerprint,
                         revision,
                         OUTCOME_SUCCESS,
@@ -581,74 +157,32 @@ public class AuditService {
                         clock.instant()));
     }
 
-    private void appendAutomation(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull AuditEventType eventType,
-            @NonNull String targetType,
-            @NonNull String targetId,
-            @Nullable String fingerprint,
-            @NonNull String details) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        eventType.name(),
-                        targetType,
-                        targetId,
-                        fingerprint,
-                        null,
-                        OUTCOME_SUCCESS,
-                        details,
-                        clock.instant()));
+    private void persist(@NonNull StoredAuditEvent event) {
+        StoredAuditEvent stored = withStoragePrecision(event);
+        auditEvents.append(stored, correlationIds.current(), signer.sign(stored));
+        Duration retention = auditProperties.retention();
+        if (retention != null) {
+            auditEvents.deleteOlderThan(stored.ownerId(), clock.instant().minus(retention));
+        }
     }
 
-    private void appendRecoveryEnrollment(
-            @NonNull String ownerId,
-            @NonNull String actorId,
-            @NonNull AuditEventType eventType,
-            @NonNull String enrollmentId,
-            long generation,
-            @NonNull String state) {
-        persist(
-                new StoredAuditEvent(
-                        UUID.randomUUID().toString(),
-                        ownerId,
-                        actorId,
-                        eventType.name(),
-                        TARGET_RECOVERY_ENROLLMENT,
-                        enrollmentId,
-                        null,
-                        null,
-                        OUTCOME_SUCCESS,
-                        "{\"generation\":"
-                                + generation
-                                + ",\"state\":\""
-                                + escapeJson(state)
-                                + "\"}",
-                        clock.instant()));
-    }
-
-    private static @NonNull String safeRecordDetails(@NonNull String secretType, boolean deleted) {
-        return "{\"secretType\":\"" + escapeJson(secretType) + "\",\"deleted\":" + deleted + "}";
-    }
-
-    private static @NonNull String safeKeyPackageDetails(
-            @NonNull String vaultKeyId, @NonNull String keyAlgorithm) {
-        return "{\"vaultKeyId\":\""
-                + escapeJson(vaultKeyId)
-                + "\",\"keyAlgorithm\":\""
-                + escapeJson(keyAlgorithm)
-                + "\"}";
-    }
-
-    private static @NonNull String safeConflictDetails(long latestRevision, long rejectedRevision) {
-        return "{\"latestRevision\":"
-                + latestRevision
-                + ",\"rejectedRevision\":"
-                + rejectedRevision
-                + "}";
+    private static @NonNull StoredAuditEvent withStoragePrecision(@NonNull StoredAuditEvent event) {
+        Instant createdAt = event.createdAt().truncatedTo(ChronoUnit.MILLIS);
+        if (createdAt.equals(event.createdAt())) {
+            return event;
+        }
+        return new StoredAuditEvent(
+                event.eventId(),
+                event.ownerId(),
+                event.actorId(),
+                event.eventType(),
+                event.targetType(),
+                event.targetId(),
+                event.fingerprint(),
+                event.revision(),
+                event.outcome(),
+                event.details(),
+                createdAt);
     }
 
     private static @NonNull String escapeJson(@NonNull String value) {

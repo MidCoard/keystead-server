@@ -41,27 +41,6 @@ class NoDirectJdbcAccessTest {
     }
 
     @Test
-    void encryptedRecordWritesFlushJpaConstraintsInsideServiceBoundary() throws IOException {
-        String repository =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/record/EncryptedRecordRepository.java"));
-        String writes =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/record/EncryptedRecordRepositoryWritesImpl.java"));
-
-        assertEquals(
-                false, repository.contains("saveAndFlush(EncryptedRecordEntity.from(record))"));
-        assertEquals(false, repository.contains("save(EncryptedRecordEntity.from(record))"));
-        assertEquals(
-                true, writes.contains("entityManager.persist(EncryptedRecordEntity.from(record))"));
-        assertEquals(
-                true, writes.contains("entityManager.merge(EncryptedRecordEntity.from(record))"));
-        assertEquals(true, writes.contains("entityManager.flush()"));
-    }
-
-    @Test
     void auditEventAppendFlushesJpaConstraintsInsideServiceBoundary() throws IOException {
         String repository =
                 Files.readString(
@@ -104,97 +83,31 @@ class NoDirectJdbcAccessTest {
                 Files.readString(
                         Path.of(
                                 "src/main/java/top/focess/keystead/server/identity/UserRepository.java"));
-        String deviceRepository =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/identity/DeviceRepository.java"));
-        String challengeRepository =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/identity/DeviceChallengeRepository.java"));
         String userWrites =
                 Files.readString(
                         Path.of(
                                 "src/main/java/top/focess/keystead/server/identity/UserRepositoryWritesImpl.java"));
-        String deviceWrites =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/identity/DeviceRepositoryWritesImpl.java"));
-        String challengeWrites =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/identity/DeviceChallengeRepositoryWritesImpl.java"));
-        String cursorRepository =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/identity/DeviceVaultSyncCursorRepository.java"));
-        String cursorWrites =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/identity/DeviceVaultSyncCursorRepositoryWritesImpl.java"));
-
         assertEquals(false, userRepository.contains("save(UserEntity.from(user))"));
-        assertEquals(false, deviceRepository.contains("save(DeviceEntity.from(device))"));
-        assertEquals(
-                false, challengeRepository.contains("save(DeviceChallengeEntity.from(challenge))"));
-        assertEquals(
-                false, cursorRepository.contains("save(DeviceVaultSyncCursorEntity.from(cursor))"));
         assertEquals(true, userWrites.contains("entityManager.persist(UserEntity.from(user))"));
         assertEquals(true, userWrites.contains("entityManager.flush()"));
-        assertEquals(
-                true, deviceWrites.contains("entityManager.persist(DeviceEntity.from(device))"));
-        assertEquals(true, deviceWrites.contains("entityManager.merge(DeviceEntity.from(device))"));
-        assertEquals(true, deviceWrites.contains("entityManager.flush()"));
-        assertEquals(
-                true,
-                challengeWrites.contains(
-                        "entityManager.persist(DeviceChallengeEntity.from(challenge))"));
-        assertEquals(true, challengeWrites.contains("entityManager.flush()"));
-        assertEquals(
-                true,
-                cursorWrites.contains(
-                        "entityManager.persist(DeviceVaultSyncCursorEntity.from(cursor))"));
-        assertEquals(
-                true,
-                cursorWrites.contains(
-                        "entityManager.merge(DeviceVaultSyncCursorEntity.from(cursor))"));
-        assertEquals(true, cursorWrites.contains("entityManager.flush()"));
     }
 
     @Test
-    void vaultWritesFlushJpaConstraintsInsideServiceBoundary() throws IOException {
-        String vaultRepository =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/vault/VaultRepository.java"));
-        String keyPackageRepository =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/vault/VaultKeyPackageRepository.java"));
-        String vaultWrites =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/vault/VaultRepositoryWritesImpl.java"));
-        String keyPackageWrites =
-                Files.readString(
-                        Path.of(
-                                "src/main/java/top/focess/keystead/server/vault/VaultKeyPackageRepositoryWritesImpl.java"));
-
-        assertEquals(false, vaultRepository.contains("saveAndFlush(VaultEntity.from(vault))"));
+    void legacyServerIdentityAndCollaborationPackagesAreAbsent() {
         assertEquals(
                 false,
-                keyPackageRepository.contains("save(VaultKeyPackageEntity.from(keyPackage))"));
-        assertEquals(true, vaultWrites.contains("entityManager.persist(VaultEntity.from(vault))"));
-        assertEquals(true, vaultWrites.contains("entityManager.merge(VaultEntity.from(vault))"));
-        assertEquals(true, vaultWrites.contains("entityManager.flush()"));
+                Files.exists(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/automation/AutomationController.java")));
         assertEquals(
-                true,
-                keyPackageWrites.contains(
-                        "entityManager.persist(VaultKeyPackageEntity.from(keyPackage))"));
+                false,
+                Files.exists(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/vault/VaultMemberController.java")));
         assertEquals(
-                true,
-                keyPackageWrites.contains(
-                        "entityManager.merge(VaultKeyPackageEntity.from(keyPackage))"));
-        assertEquals(true, keyPackageWrites.contains("entityManager.flush()"));
+                false,
+                Files.exists(
+                        Path.of(
+                                "src/main/java/top/focess/keystead/server/identity/DeviceController.java")));
     }
 }

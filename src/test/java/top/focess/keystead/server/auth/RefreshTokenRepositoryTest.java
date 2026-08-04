@@ -52,6 +52,6 @@ class RefreshTokenRepositoryTest {
 
     private static StoredRefreshToken token(String tokenHash, String username) {
         return new StoredRefreshToken(
-                tokenHash, username, "device-a", EXPIRES_AT, null, CREATED_AT, LAST_USED_AT);
+                tokenHash, username, EXPIRES_AT, null, CREATED_AT, LAST_USED_AT);
     }
 }

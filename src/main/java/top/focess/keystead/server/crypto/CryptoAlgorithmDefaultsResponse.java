@@ -4,12 +4,16 @@ import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 
 record CryptoAlgorithmDefaultsResponse(
-        @NonNull String payloadAead, @NonNull String vaultKeyKdf, @NonNull String vaultKeyPackage) {
+        @NonNull String payloadAead,
+        @NonNull String vaultKeyKdf,
+        @NonNull String vaultAccessExchangeKey,
+        @NonNull String vaultAccessWrappedKey) {
 
     CryptoAlgorithmDefaultsResponse {
         requireNotBlank(payloadAead, "payloadAead");
         requireNotBlank(vaultKeyKdf, "vaultKeyKdf");
-        requireNotBlank(vaultKeyPackage, "vaultKeyPackage");
+        requireNotBlank(vaultAccessExchangeKey, "vaultAccessExchangeKey");
+        requireNotBlank(vaultAccessWrappedKey, "vaultAccessWrappedKey");
     }
 
     private static void requireNotBlank(@NonNull String value, @NonNull String field) {

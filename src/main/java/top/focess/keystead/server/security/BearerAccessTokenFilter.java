@@ -12,9 +12,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import top.focess.keystead.server.identity.DeviceSessionEligibilityService;
 import top.focess.keystead.server.identity.UserTokenVersionService;
-import top.focess.keystead.server.security.AccessTokenService.AccessTokenSubject;
 
 @Component
 public final class BearerAccessTokenFilter extends OncePerRequestFilter {
@@ -23,15 +21,12 @@ public final class BearerAccessTokenFilter extends OncePerRequestFilter {
 
     private final AccessTokenService accessTokens;
     private final UserTokenVersionService tokenVersions;
-    private final DeviceSessionEligibilityService deviceSessions;
 
     public BearerAccessTokenFilter(
             @NonNull AccessTokenService accessTokens,
-            @NonNull UserTokenVersionService tokenVersions,
-            @NonNull DeviceSessionEligibilityService deviceSessions) {
+            @NonNull UserTokenVersionService tokenVersions) {
         this.accessTokens = accessTokens;
         this.tokenVersions = tokenVersions;
-        this.deviceSessions = deviceSessions;
     }
 
     @Override
@@ -49,8 +44,7 @@ public final class BearerAccessTokenFilter extends OncePerRequestFilter {
                     .filter(
                             subject ->
                                     tokenVersions.tokenVersion(subject.username())
-                                                    == subject.tokenVersion()
-                                            && canUseDeviceSession(subject))
+                                            == subject.tokenVersion())
                     .ifPresent(
                             subject ->
                                     SecurityContextHolder.getContext()
@@ -62,10 +56,5 @@ public final class BearerAccessTokenFilter extends OncePerRequestFilter {
                                                                     "ROLE_USER"))));
         }
         filterChain.doFilter(request, response);
-    }
-
-    private boolean canUseDeviceSession(@NonNull AccessTokenSubject subject) {
-        return subject.deviceId() == null
-                || deviceSessions.canStartSession(subject.username(), subject.deviceId());
     }
 }

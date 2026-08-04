@@ -25,19 +25,8 @@ public record StoredAuditEvent(
         @NonNull Instant createdAt) {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final Set<String> ALLOWED_OUTCOMES = Set.of("SUCCESS", "FAILURE", "CONFLICT");
-    private static final Set<String> ALLOWED_TARGET_TYPES =
-            Set.of(
-                    "auth",
-                    "device",
-                    "key_package",
-                    "record",
-                    "vault_lifecycle",
-                    "vault_member",
-                    "recovery_enrollment",
-                    "recovery_session",
-                    "automation_principal",
-                    "automation_token");
+    private static final Set<String> ALLOWED_OUTCOMES = Set.of("SUCCESS", "FAILURE");
+    private static final Set<String> ALLOWED_TARGET_TYPES = Set.of("auth", "record");
     private static final Set<String> FORBIDDEN_DETAIL_KEYS =
             Set.of(
                     "encryptedprofile",
@@ -139,56 +128,8 @@ public record StoredAuditEvent(
                 requireShape(targetType, "record", outcome, "SUCCESS");
                 requireVaultAndRevision(fingerprint, revision);
             }
-            case RECORD_REVISION_CONFLICT -> {
-                requireShape(targetType, "record", outcome, "CONFLICT");
-                requireVaultAndRevision(fingerprint, revision);
-            }
-            case KEY_PACKAGE_STORED -> {
-                requireShape(targetType, "key_package", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
-            case DEVICE_REVOKED -> {
-                requireShape(targetType, "device", outcome, "SUCCESS");
-                requireNoVaultOrRevision(fingerprint, revision);
-            }
-            case VAULT_ROTATION_REQUIRED, VAULT_ROTATION_COMMITTED -> {
-                requireShape(targetType, "vault_lifecycle", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
-            case VAULT_MEMBER_INVITED,
-                    VAULT_MEMBER_ACCEPTED,
-                    VAULT_MEMBER_DECLINED,
-                    VAULT_MEMBER_ROLE_CHANGED,
-                    VAULT_MEMBER_REMOVED -> {
-                requireShape(targetType, "vault_member", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
             case LOGIN_FAILED -> {
                 requireShape(targetType, "auth", outcome, "FAILURE");
-                requireNoVaultOrRevision(fingerprint, revision);
-            }
-            case AUTOMATION_PRINCIPAL_STORED, AUTOMATION_PRINCIPAL_REVOKED -> {
-                requireShape(targetType, "automation_principal", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
-            case AUTOMATION_TOKEN_ISSUED, AUTOMATION_TOKEN_REVOKED -> {
-                requireShape(targetType, "automation_token", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
-            case AUTOMATION_KEY_PACKAGE_STORED -> {
-                requireShape(targetType, "key_package", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
-            case RECOVERY_ENROLLMENT_CREATED, RECOVERY_ENROLLMENT_COMMITTED -> {
-                requireShape(targetType, "recovery_enrollment", outcome, "SUCCESS");
-                requireNoVaultOrRevision(fingerprint, revision);
-            }
-            case RECOVERY_KEY_PACKAGE_STORED -> {
-                requireShape(targetType, "key_package", outcome, "SUCCESS");
-                requireVaultWithoutRevision(fingerprint, revision);
-            }
-            case RECOVERY_COMPLETED -> {
-                requireShape(targetType, "recovery_session", outcome, "SUCCESS");
                 requireNoVaultOrRevision(fingerprint, revision);
             }
         }
@@ -211,16 +152,6 @@ public record StoredAuditEvent(
             @Nullable String fingerprint, @Nullable Long revision) {
         if (fingerprint == null || revision == null) {
             throw new IllegalArgumentException("Audit event requires vault and revision");
-        }
-    }
-
-    private static void requireVaultWithoutRevision(
-            @Nullable String fingerprint, @Nullable Long revision) {
-        if (fingerprint == null) {
-            throw new IllegalArgumentException("Audit event requires vault");
-        }
-        if (revision != null) {
-            throw new IllegalArgumentException("Audit event must not carry revision");
         }
     }
 

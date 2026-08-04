@@ -8,7 +8,6 @@ import org.jspecify.annotations.Nullable;
 record StoredRefreshToken(
         @NonNull String tokenHash,
         @NonNull String username,
-        @Nullable String deviceId,
         @NonNull Instant refreshExpiresAt,
         @Nullable Instant revokedAt,
         @NonNull Instant createdAt,
@@ -26,9 +25,6 @@ record StoredRefreshToken(
         if (username.isBlank()) {
             throw new IllegalArgumentException("Refresh token username must not be blank");
         }
-        if (deviceId != null && deviceId.isBlank()) {
-            throw new IllegalArgumentException("Refresh token device id must not be blank");
-        }
         if (!refreshExpiresAt.isAfter(createdAt)) {
             throw new IllegalArgumentException("Refresh token expiry must be after creation");
         }
@@ -42,12 +38,12 @@ record StoredRefreshToken(
 
     @NonNull StoredRefreshToken withLastUsedAt(@NonNull Instant value) {
         return new StoredRefreshToken(
-                tokenHash, username, deviceId, refreshExpiresAt, revokedAt, createdAt, value);
+                tokenHash, username, refreshExpiresAt, revokedAt, createdAt, value);
     }
 
     @NonNull StoredRefreshToken revoked(@NonNull Instant value) {
         return new StoredRefreshToken(
-                tokenHash, username, deviceId, refreshExpiresAt, value, createdAt, lastUsedAt);
+                tokenHash, username, refreshExpiresAt, value, createdAt, lastUsedAt);
     }
 
     private static void requireNotBeforeCreated(

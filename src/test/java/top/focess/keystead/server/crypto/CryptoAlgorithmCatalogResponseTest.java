@@ -10,82 +10,47 @@ import org.junit.jupiter.api.Test;
 class CryptoAlgorithmCatalogResponseTest {
 
     @Test
-    void rejectsBlankDefaultAlgorithms() {
+    void rejectsBlankDefaultsAndMissingDefaultAlgorithms() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new CryptoAlgorithmDefaultsResponse(" ", "ARGON2ID", "exchange", "wrapped"));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
-                        new CryptoAlgorithmDefaultsResponse(
-                                " ", "PBKDF2WithHmacSHA256", "RSA_OAEP_SHA256"));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> new CryptoAlgorithmDefaultsResponse("AES-256-GCM", " ", "RSA_OAEP_SHA256"));
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        new CryptoAlgorithmDefaultsResponse(
-                                "AES-256-GCM", "PBKDF2WithHmacSHA256", " "));
+                        new CryptoAlgorithmCatalogResponse(
+                                defaults(),
+                                List.of("CHACHA20-POLY1305"),
+                                List.of("ARGON2ID"),
+                                List.of("exchange"),
+                                List.of("wrapped")));
     }
 
     @Test
-    void rejectsEmptyCatalogLists() {
+    void rejectsEmptyBlankAndDuplicateCatalogLists() {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         catalog(
                                 List.of(),
-                                List.of("PBKDF2WithHmacSHA256"),
-                                List.of("RSA_PSS_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                defaults()));
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        catalog(
-                                List.of("AES-256-GCM"),
-                                List.of("PBKDF2WithHmacSHA256"),
-                                List.of("RSA_PSS_SHA256"),
-                                List.of(),
-                                List.of("RSA_OAEP_SHA256"),
-                                defaults()));
-    }
-
-    @Test
-    void rejectsBlankAndDuplicateCatalogAlgorithms() {
+                                List.of("ARGON2ID"),
+                                List.of("exchange"),
+                                List.of("wrapped")));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         catalog(
                                 List.of("AES-256-GCM", " "),
-                                List.of("PBKDF2WithHmacSHA256"),
-                                List.of("RSA_PSS_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                defaults()));
+                                List.of("ARGON2ID"),
+                                List.of("exchange"),
+                                List.of("wrapped")));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         catalog(
                                 List.of("AES-256-GCM", "AES-256-GCM"),
-                                List.of("PBKDF2WithHmacSHA256"),
-                                List.of("RSA_PSS_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                defaults()));
-    }
-
-    @Test
-    void rejectsDefaultsOutsideCatalogLists() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        catalog(
-                                List.of("CHACHA20-POLY1305"),
-                                List.of("PBKDF2WithHmacSHA256"),
-                                List.of("RSA_PSS_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                List.of("RSA_OAEP_SHA256"),
-                                defaults()));
+                                List.of("ARGON2ID"),
+                                List.of("exchange"),
+                                List.of("wrapped")));
     }
 
     @Test
@@ -94,11 +59,9 @@ class CryptoAlgorithmCatalogResponseTest {
         CryptoAlgorithmCatalogResponse response =
                 catalog(
                         payloadAlgorithms,
-                        List.of("PBKDF2WithHmacSHA256"),
-                        List.of("RSA_PSS_SHA256"),
-                        List.of("RSA_OAEP_SHA256"),
-                        List.of("RSA_OAEP_SHA256"),
-                        defaults());
+                        List.of("ARGON2ID"),
+                        List.of("exchange"),
+                        List.of("wrapped"));
 
         payloadAlgorithms.add("CHACHA20-POLY1305");
 
@@ -111,21 +74,18 @@ class CryptoAlgorithmCatalogResponseTest {
     private static CryptoAlgorithmCatalogResponse catalog(
             List<String> payloadAeadAlgorithms,
             List<String> vaultKeyKdfAlgorithms,
-            List<String> deviceProofAlgorithms,
-            List<String> deviceWrappingPublicKeyAlgorithms,
-            List<String> vaultKeyPackageAlgorithms,
-            CryptoAlgorithmDefaultsResponse defaults) {
+            List<String> exchangeAlgorithms,
+            List<String> wrappedAlgorithms) {
         return new CryptoAlgorithmCatalogResponse(
-                defaults,
+                defaults(),
                 payloadAeadAlgorithms,
                 vaultKeyKdfAlgorithms,
-                deviceProofAlgorithms,
-                deviceWrappingPublicKeyAlgorithms,
-                vaultKeyPackageAlgorithms);
+                exchangeAlgorithms,
+                wrappedAlgorithms);
     }
 
     private static CryptoAlgorithmDefaultsResponse defaults() {
         return new CryptoAlgorithmDefaultsResponse(
-                "AES-256-GCM", "PBKDF2WithHmacSHA256", "RSA_OAEP_SHA256");
+                "AES-256-GCM", "ARGON2ID", "exchange", "wrapped");
     }
 }

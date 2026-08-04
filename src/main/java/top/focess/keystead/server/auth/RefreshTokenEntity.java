@@ -22,9 +22,6 @@ public class RefreshTokenEntity {
     @Column(name = "username", nullable = false)
     @NonNull String username = "";
 
-    @Column(name = "device_id")
-    @Nullable String deviceId;
-
     @Column(name = "refresh_expires_at", nullable = false)
     @NonNull Instant refreshExpiresAt = Instant.EPOCH;
 
@@ -42,7 +39,6 @@ public class RefreshTokenEntity {
     private RefreshTokenEntity(@NonNull StoredRefreshToken token) {
         this.tokenHash = token.tokenHash();
         this.username = token.username();
-        this.deviceId = token.deviceId();
         this.refreshExpiresAt = token.refreshExpiresAt();
         this.revokedAt = token.revokedAt();
         this.createdAt = token.createdAt();
@@ -55,6 +51,6 @@ public class RefreshTokenEntity {
 
     @NonNull StoredRefreshToken toStored() {
         return new StoredRefreshToken(
-                tokenHash, username, deviceId, refreshExpiresAt, revokedAt, createdAt, lastUsedAt);
+                tokenHash, username, refreshExpiresAt, revokedAt, createdAt, lastUsedAt);
     }
 }

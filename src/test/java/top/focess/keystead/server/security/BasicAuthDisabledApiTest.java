@@ -35,7 +35,7 @@ class BasicAuthDisabledApiTest {
                 .andExpect(status().isCreated());
 
         mvc.perform(
-                        get("/api/v1/vaults")
+                        get("/api/v1/vault/records")
                                 .with(
                                         httpBasic(
                                                 "basic-disabled-alice",

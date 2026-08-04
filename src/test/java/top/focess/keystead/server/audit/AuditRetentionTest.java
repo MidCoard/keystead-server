@@ -51,7 +51,9 @@ class AuditRetentionTest {
                 .extracting(StoredAuditEvent::eventId)
                 .contains("retention-old-event");
 
-        mvc.perform(get("/api/v1/devices").with(httpBasic("retention-alice", "wrong-password")))
+        mvc.perform(
+                        get("/api/v1/vault/records")
+                                .with(httpBasic("retention-alice", "wrong-password")))
                 .andExpect(status().isUnauthorized());
 
         List<StoredAuditEvent> events = auditEvents.listForOwner("retention-alice");

@@ -9,38 +9,42 @@ record CryptoAlgorithmCatalogResponse(
         @NonNull CryptoAlgorithmDefaultsResponse defaults,
         @NonNull List<String> payloadAeadAlgorithms,
         @NonNull List<String> vaultKeyKdfAlgorithms,
-        @NonNull List<String> deviceProofAlgorithms,
-        @NonNull List<String> deviceWrappingPublicKeyAlgorithms,
-        @NonNull List<String> vaultKeyPackageAlgorithms) {
+        @NonNull List<String> vaultAccessExchangeKeyAlgorithms,
+        @NonNull List<String> vaultAccessWrappedKeyAlgorithms) {
 
     CryptoAlgorithmCatalogResponse {
         Objects.requireNonNull(defaults, "defaults");
         payloadAeadAlgorithms = validateAlgorithms(payloadAeadAlgorithms, "payloadAeadAlgorithms");
         vaultKeyKdfAlgorithms = validateAlgorithms(vaultKeyKdfAlgorithms, "vaultKeyKdfAlgorithms");
-        deviceProofAlgorithms = validateAlgorithms(deviceProofAlgorithms, "deviceProofAlgorithms");
-        deviceWrappingPublicKeyAlgorithms =
+        vaultAccessExchangeKeyAlgorithms =
                 validateAlgorithms(
-                        deviceWrappingPublicKeyAlgorithms, "deviceWrappingPublicKeyAlgorithms");
-        vaultKeyPackageAlgorithms =
-                validateAlgorithms(vaultKeyPackageAlgorithms, "vaultKeyPackageAlgorithms");
+                        vaultAccessExchangeKeyAlgorithms, "vaultAccessExchangeKeyAlgorithms");
+        vaultAccessWrappedKeyAlgorithms =
+                validateAlgorithms(
+                        vaultAccessWrappedKeyAlgorithms, "vaultAccessWrappedKeyAlgorithms");
         requireDefault(payloadAeadAlgorithms, defaults.payloadAead(), "defaults.payloadAead");
         requireDefault(vaultKeyKdfAlgorithms, defaults.vaultKeyKdf(), "defaults.vaultKeyKdf");
         requireDefault(
-                vaultKeyPackageAlgorithms, defaults.vaultKeyPackage(), "defaults.vaultKeyPackage");
+                vaultAccessExchangeKeyAlgorithms,
+                defaults.vaultAccessExchangeKey(),
+                "defaults.vaultAccessExchangeKey");
+        requireDefault(
+                vaultAccessWrappedKeyAlgorithms,
+                defaults.vaultAccessWrappedKey(),
+                "defaults.vaultAccessWrappedKey");
     }
 
     static @NonNull CryptoAlgorithmCatalogResponse fromRegistry() {
         return new CryptoAlgorithmCatalogResponse(
                 new CryptoAlgorithmDefaultsResponse(
                         ServerCryptoAlgorithmRegistry.PAYLOAD_AEAD_AES_256_GCM,
-                        ServerCryptoAlgorithmRegistry.KDF_PBKDF2_HMAC_SHA256,
-                        ServerCryptoAlgorithmRegistry
-                                .DEVICE_TINK_ECIES_P256_HKDF_HMAC_SHA256_AES128_GCM),
+                        ServerCryptoAlgorithmRegistry.KDF_ARGON2ID,
+                        ServerCryptoAlgorithmRegistry.VAULT_ACCESS_EXCHANGE_KEY,
+                        ServerCryptoAlgorithmRegistry.VAULT_ACCESS_WRAPPED_KEY),
                 ServerCryptoAlgorithmRegistry.approvedPayloadAeadAlgorithms(),
                 ServerCryptoAlgorithmRegistry.approvedVaultKeyKdfAlgorithms(),
-                ServerCryptoAlgorithmRegistry.approvedDeviceProofAlgorithms(),
-                ServerCryptoAlgorithmRegistry.approvedDeviceWrappingPublicKeyAlgorithms(),
-                ServerCryptoAlgorithmRegistry.approvedVaultKeyPackageAlgorithms());
+                ServerCryptoAlgorithmRegistry.approvedVaultAccessExchangeKeyAlgorithms(),
+                ServerCryptoAlgorithmRegistry.approvedVaultAccessWrappedKeyAlgorithms());
     }
 
     private static @NonNull List<String> validateAlgorithms(

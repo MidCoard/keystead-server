@@ -13,11 +13,6 @@ class StoredRefreshTokenTest {
     private static final Instant BEFORE_CREATED_AT = Instant.parse("2026-07-08T23:59:59Z");
 
     @Test
-    void rejectsBlankDeviceBinding() {
-        assertThrows(IllegalArgumentException.class, () -> token(" "));
-    }
-
-    @Test
     void rejectsUsageAfterRevocation() {
         assertThrows(
                 IllegalArgumentException.class,
@@ -25,7 +20,6 @@ class StoredRefreshTokenTest {
                         new StoredRefreshToken(
                                 "token-hash",
                                 "alice",
-                                "device-a",
                                 EXPIRES_AT,
                                 CREATED_AT,
                                 CREATED_AT,
@@ -40,7 +34,6 @@ class StoredRefreshTokenTest {
                         new StoredRefreshToken(
                                 "token-hash",
                                 "alice",
-                                null,
                                 EXPIRES_AT,
                                 BEFORE_CREATED_AT,
                                 CREATED_AT,
@@ -51,7 +44,6 @@ class StoredRefreshTokenTest {
                         new StoredRefreshToken(
                                 "token-hash",
                                 "alice",
-                                null,
                                 EXPIRES_AT,
                                 null,
                                 CREATED_AT,
@@ -59,53 +51,21 @@ class StoredRefreshTokenTest {
     }
 
     @Test
-    void rejectsBlankTokenHashAndUsername() {
+    void rejectsBlankIdentityAndInvalidExpiry() {
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         new StoredRefreshToken(
-                                " ", "alice", null, EXPIRES_AT, null, CREATED_AT, LAST_USED_AT));
+                                " ", "alice", EXPIRES_AT, null, CREATED_AT, LAST_USED_AT));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         new StoredRefreshToken(
-                                "token-hash",
-                                " ",
-                                null,
-                                EXPIRES_AT,
-                                null,
-                                CREATED_AT,
-                                LAST_USED_AT));
-    }
-
-    @Test
-    void rejectsExpiryNotAfterCreation() {
+                                "token-hash", " ", EXPIRES_AT, null, CREATED_AT, LAST_USED_AT));
         assertThrows(
                 IllegalArgumentException.class,
                 () ->
                         new StoredRefreshToken(
-                                "token-hash",
-                                "alice",
-                                null,
-                                CREATED_AT,
-                                null,
-                                CREATED_AT,
-                                LAST_USED_AT));
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        new StoredRefreshToken(
-                                "token-hash",
-                                "alice",
-                                null,
-                                BEFORE_CREATED_AT,
-                                null,
-                                CREATED_AT,
-                                LAST_USED_AT));
-    }
-
-    private static StoredRefreshToken token(String deviceId) {
-        return new StoredRefreshToken(
-                "token-hash", "alice", deviceId, EXPIRES_AT, null, CREATED_AT, LAST_USED_AT);
+                                "token-hash", "alice", CREATED_AT, null, CREATED_AT, LAST_USED_AT));
     }
 }
