@@ -14,7 +14,8 @@ public record PersonalVaultRecordRequest(
         @NotBlank @Size(max = 64) @NonNull String secretType,
         @Size(max = 262144) @NonNull String encryptedProfile,
         @Size(max = 262144) @NonNull String envelope,
-        boolean deleted) {
+        boolean deleted,
+        @NotBlank @Size(max = 128) @NonNull String contentKey) {
 
     void validateShape() {
         try {

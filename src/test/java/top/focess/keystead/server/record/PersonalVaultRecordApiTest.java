@@ -45,6 +45,34 @@ class PersonalVaultRecordApiTest {
     }
 
     @Test
+    void reuploadingAnUnchangedRecordWithAFreshProfileNonceIsANoOp() throws Exception {
+        append("idempotent-alice", "secret-1", 1, "profile-nonce-1", "payload-1", "content-key-1")
+                .andExpect(status().isCreated());
+        // KVE2 hashes the content key, not the ciphertext, so re-exporting the same logical
+        // record with a fresh profile nonce yields the same event id: the second push is
+        // deduplicated and returns the originally stored event.
+        append("idempotent-alice", "secret-1", 1, "profile-nonce-2", "payload-1", "content-key-1")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.encryptedProfile").value("profile-nonce-1"));
+
+        mvc.perform(get("/api/v1/vault/records").with(user("idempotent-alice")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.records.length()").value(1));
+    }
+
+    @Test
+    void sameRevisionWithDifferentPayloadStillAppends() throws Exception {
+        append("diverged-alice", "secret-1", 1, "profile-1", "payload-1", "content-key-1")
+                .andExpect(status().isCreated());
+        append("diverged-alice", "secret-1", 1, "profile-1", "payload-diverged", "content-key-2")
+                .andExpect(status().isCreated());
+
+        mvc.perform(get("/api/v1/vault/records").with(user("diverged-alice")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.records.length()").value(2));
+    }
+
+    @Test
     void equalLocalRevisionsForDifferentSecretsDoNotConflict() throws Exception {
         append("equal-revision", "secret-a", 7, "profile-a", "payload-a")
                 .andExpect(status().isCreated());
@@ -106,12 +134,14 @@ class PersonalVaultRecordApiTest {
                                                         "replacement-secret",
                                                         1,
                                                         "replacement-profile",
-                                                        "replacement-payload"),
+                                                        "replacement-payload",
+                                                        "replacement-content-key"),
                                                 "replacement-secret",
                                                 1,
                                                 replacementFingerprint,
                                                 "replacement-profile",
-                                                "replacement-payload")))
+                                                "replacement-payload",
+                                                "replacement-content-key")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.fingerprint").value(replacementFingerprint));
     }
@@ -136,12 +166,14 @@ class PersonalVaultRecordApiTest {
                                                         "secret-wrong",
                                                         2,
                                                         "p",
-                                                        "e"),
+                                                        "e",
+                                                        "key-e"),
                                                 "secret-wrong",
                                                 2,
                                                 "wrong-fingerprint",
                                                 "p",
-                                                "e")))
+                                                "e",
+                                                "key-e")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PERSONAL_VAULT_MISMATCH"))
                 .andExpect(jsonPath("$.serverFingerprint").value("6000000000000001"))
@@ -164,7 +196,8 @@ class PersonalVaultRecordApiTest {
                                           "secretType":"SECURE_NOTE",
                                           "encryptedProfile":"",
                                           "envelope":"",
-                                          "deleted":true
+                                          "deleted":true,
+                                          "contentKey":"key-delete"
                                         }
                                         """))
                 .andExpect(status().isBadRequest());
@@ -183,12 +216,53 @@ class PersonalVaultRecordApiTest {
                                                 1,
                                                 "6000000000000001",
                                                 "profile",
-                                                "payload")))
+                                                "payload",
+                                                "content-key")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void appendRejectsAContentKeyThatDoesNotMatchTheClaimedEventId() throws Exception {
+        append("content-key-alice", "secret-key", 1, "profile", "payload", "content-key-real")
+                .andExpect(status().isCreated());
+
+        // The event id is the valid KVE2 hash of a different content key than the one
+        // submitted, so the append is rejected.
+        mvc.perform(
+                        post("/api/v1/vault/records")
+                                .with(user("content-key-alice"))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        body(
+                                                eventId(
+                                                        "6000000000000001",
+                                                        "secret-key",
+                                                        2,
+                                                        "profile",
+                                                        "payload",
+                                                        "content-key-real"),
+                                                "secret-key",
+                                                2,
+                                                "6000000000000001",
+                                                "profile",
+                                                "payload",
+                                                "content-key-forged")))
                 .andExpect(status().isBadRequest());
     }
 
     private org.springframework.test.web.servlet.ResultActions append(
             String username, String secretId, long revision, String profile, String envelope)
+            throws Exception {
+        return append(username, secretId, revision, profile, envelope, "key-" + envelope);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions append(
+            String username,
+            String secretId,
+            long revision,
+            String profile,
+            String envelope,
+            String contentKey)
             throws Exception {
         return mvc.perform(
                 post("/api/v1/vault/records")
@@ -201,19 +275,33 @@ class PersonalVaultRecordApiTest {
                                                 secretId,
                                                 revision,
                                                 profile,
-                                                envelope),
+                                                envelope,
+                                                contentKey),
                                         secretId,
                                         revision,
                                         "6000000000000001",
                                         profile,
-                                        envelope)));
+                                        envelope,
+                                        contentKey)));
     }
 
     private static String eventId(
-            String fingerprint, String secretId, long revision, String profile, String envelope) {
+            String fingerprint,
+            String secretId,
+            long revision,
+            String profile,
+            String envelope,
+            String contentKey) {
         return SyncRecordEventId.of(
                 new EncryptedSyncRecord(
-                        fingerprint, secretId, revision, "SECURE_NOTE", profile, envelope, false));
+                        fingerprint,
+                        secretId,
+                        revision,
+                        "SECURE_NOTE",
+                        profile,
+                        envelope,
+                        false,
+                        contentKey));
     }
 
     private static String body(
@@ -222,7 +310,8 @@ class PersonalVaultRecordApiTest {
             long revision,
             String fingerprint,
             String profile,
-            String envelope) {
+            String envelope,
+            String contentKey) {
         return """
                 {
                   "eventId":"%s",
@@ -232,9 +321,10 @@ class PersonalVaultRecordApiTest {
                   "secretType":"SECURE_NOTE",
                   "encryptedProfile":"%s",
                   "envelope":"%s",
-                  "deleted":false
+                  "deleted":false,
+                  "contentKey":"%s"
                 }
                 """
-                .formatted(eventId, fingerprint, secretId, revision, profile, envelope);
+                .formatted(eventId, fingerprint, secretId, revision, profile, envelope, contentKey);
     }
 }

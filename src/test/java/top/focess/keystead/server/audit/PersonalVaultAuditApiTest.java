@@ -35,7 +35,8 @@ class PersonalVaultAuditApiTest {
                                 "LOGIN_PASSWORD",
                                 "opaque-profile",
                                 "opaque-envelope",
-                                false));
+                                false,
+                                "opaque-content-key"));
 
         mvc.perform(
                         post("/api/v1/vault/records")
@@ -54,7 +55,8 @@ class PersonalVaultAuditApiTest {
                                           "secretType": "LOGIN_PASSWORD",
                                           "encryptedProfile": "opaque-profile",
                                           "envelope": "opaque-envelope",
-                                          "deleted": false
+                                          "deleted": false,
+                                          "contentKey": "opaque-content-key"
                                         }
                                         """
                                                 .formatted(eventId)))

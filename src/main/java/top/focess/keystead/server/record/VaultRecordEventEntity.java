@@ -42,6 +42,9 @@ class VaultRecordEventEntity {
     @Column(name = "envelope", nullable = false, columnDefinition = "text")
     @NonNull String envelope = "";
 
+    @Column(name = "content_key", nullable = false, length = 128)
+    @NonNull String contentKey = "";
+
     @Column(name = "deleted", nullable = false)
     boolean deleted;
 

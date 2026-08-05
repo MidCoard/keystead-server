@@ -12,6 +12,7 @@ public record PersonalVaultRecordResponse(
         @NonNull String secretType,
         @NonNull String encryptedProfile,
         @NonNull String envelope,
+        @NonNull String contentKey,
         boolean deleted,
         @NonNull Instant createdAt) {
 
@@ -25,6 +26,7 @@ public record PersonalVaultRecordResponse(
                 entity.secretType,
                 entity.encryptedProfile,
                 entity.envelope,
+                entity.contentKey,
                 entity.deleted,
                 entity.createdAt);
     }

@@ -66,6 +66,7 @@ class PersonalVaultRecordService {
         entity.secretType = request.secretType();
         entity.encryptedProfile = request.encryptedProfile();
         entity.envelope = request.envelope();
+        entity.contentKey = request.contentKey();
         entity.deleted = request.deleted();
         entity.createdAt = now;
         PersonalVaultRecordResponse stored =
@@ -140,7 +141,8 @@ class PersonalVaultRecordService {
                         request.secretType(),
                         request.encryptedProfile(),
                         request.envelope(),
-                        request.deleted());
+                        request.deleted(),
+                        request.contentKey());
         if (!SyncRecordEventId.of(record).equals(request.eventId())) {
             throw new InvalidPersonalVaultRecordException(
                     "Record event id does not match its encrypted content");
