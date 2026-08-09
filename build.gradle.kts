@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "top.focess"
-version = "0.4.2"
+version = "0.4.3-SNAPSHOT"
 
 java {
     toolchain {
