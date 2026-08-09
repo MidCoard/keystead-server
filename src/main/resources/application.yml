@@ -1,3 +1,5 @@
+server:
+  port: 22144
 spring:
   application:
     name: keystead-server
