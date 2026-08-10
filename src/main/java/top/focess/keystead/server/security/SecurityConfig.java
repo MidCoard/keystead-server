@@ -2,12 +2,10 @@ package top.focess.keystead.server.security;
 
 import jakarta.servlet.DispatcherType;
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -22,10 +20,7 @@ public class SecurityConfig {
 
     @Bean
     public @NonNull SecurityFilterChain securityFilterChain(
-            @NonNull HttpSecurity http,
-            @NonNull LoginFailureAuditFilter loginFailureAuditFilter,
-            @NonNull BearerAccessTokenFilter bearerAccessTokenFilter,
-            @Value("${keystead.security.basic-auth-enabled:false}") boolean basicAuthEnabled)
+            @NonNull HttpSecurity http, @NonNull BearerAccessTokenFilter bearerAccessTokenFilter)
             throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(
@@ -61,13 +56,8 @@ public class SecurityConfig {
                                         .permitAll()
                                         .anyRequest()
                                         .hasRole("USER"));
-        if (basicAuthEnabled) {
-            http.httpBasic(Customizer.withDefaults());
-        } else {
-            http.httpBasic(AbstractHttpConfigurer::disable);
-        }
-        http.addFilterBefore(bearerAccessTokenFilter, BasicAuthenticationFilter.class)
-                .addFilterBefore(loginFailureAuditFilter, BasicAuthenticationFilter.class);
+        http.httpBasic(AbstractHttpConfigurer::disable);
+        http.addFilterBefore(bearerAccessTokenFilter, BasicAuthenticationFilter.class);
         return http.build();
     }
 

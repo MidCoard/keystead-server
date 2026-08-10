@@ -2,7 +2,6 @@ package top.focess.keystead.server.vaultaccess;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -37,8 +37,9 @@ class VaultAccessApiTest {
         String username = "ephemeral-access-alice";
         byte[] publicKey = "one-login-only-public-key".getBytes(StandardCharsets.UTF_8);
         registerUser(username);
+        String token = login(username);
 
-        String created = createRequest(username, publicKey);
+        String created = createRequest(token, publicKey);
         byte[] canonical =
                 Base64.getUrlDecoder()
                         .decode((String) JsonPath.read(created, "$.canonicalRequest"));
@@ -50,14 +51,16 @@ class VaultAccessApiTest {
                 VaultAccessRequestCodec.fingerprint(decoded),
                 JsonPath.read(created, "$.fingerprint"));
 
-        mvc.perform(get("/api/v1/vault-access-requests").with(httpBasic(username, PASSWORD)))
+        mvc.perform(
+                        get("/api/v1/vault-access-requests")
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].requestId").value(REQUEST_ID))
                 .andExpect(jsonPath("$[0].state").value("PENDING"));
 
         mvc.perform(
                         post("/api/v1/vault-access-requests/{requestId}/approve", REQUEST_ID)
-                                .with(httpBasic(username, PASSWORD))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -72,7 +75,7 @@ class VaultAccessApiTest {
 
         mvc.perform(
                         get("/api/v1/vault-access-requests/{requestId}", REQUEST_ID)
-                                .with(httpBasic(username, PASSWORD)))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("APPROVED"))
                 .andExpect(jsonPath("$.approvedPackage.vaultFingerprint").value("6000000000000001"))
@@ -86,6 +89,7 @@ class VaultAccessApiTest {
     void accessRequestNeedsOnlyAccountLoginAndEphemeralPublicMaterial() throws Exception {
         String username = "ephemeral-access-guards";
         registerUser(username);
+        String token = login(username);
         String body = requestBody("temporary-public-key".getBytes(StandardCharsets.UTF_8));
 
         mvc.perform(
@@ -96,7 +100,7 @@ class VaultAccessApiTest {
 
         mvc.perform(
                         post("/api/v1/vault-access-requests")
-                                .with(httpBasic(username, PASSWORD))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isCreated())
@@ -109,16 +113,18 @@ class VaultAccessApiTest {
         String outsider = "ephemeral-access-outsider";
         registerUser(owner);
         registerUser(outsider);
-        createRequest(owner, "owner-public-key".getBytes(StandardCharsets.UTF_8));
+        String ownerToken = login(owner);
+        String outsiderToken = login(outsider);
+        createRequest(ownerToken, "owner-public-key".getBytes(StandardCharsets.UTF_8));
 
         mvc.perform(
                         get("/api/v1/vault-access-requests/{requestId}", REQUEST_ID)
-                                .with(httpBasic(outsider, PASSWORD)))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + outsiderToken))
                 .andExpect(status().isNotFound());
 
         mvc.perform(
                         post("/api/v1/vault-access-requests/{requestId}/approve", REQUEST_ID)
-                                .with(httpBasic(outsider, PASSWORD))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + outsiderToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         """
@@ -127,10 +133,10 @@ class VaultAccessApiTest {
                 .andExpect(status().isNotFound());
     }
 
-    private String createRequest(String username, byte[] publicKey) throws Exception {
+    private String createRequest(String token, byte[] publicKey) throws Exception {
         return mvc.perform(
                         post("/api/v1/vault-access-requests")
-                                .with(httpBasic(username, PASSWORD))
+                                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(requestBody(publicKey)))
                 .andExpect(status().isCreated())
@@ -163,5 +169,19 @@ class VaultAccessApiTest {
                                         "{\"username\":\"%s\",\"password\":\"%s\"}"
                                                 .formatted(username, PASSWORD)))
                 .andExpect(status().isCreated());
+    }
+
+    private String login(String username) throws Exception {
+        String body = "{\"username\":\"%s\",\"password\":\"%s\"}".formatted(username, PASSWORD);
+        String result =
+                mvc.perform(
+                                post("/api/v1/auth/login")
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(body))
+                        .andExpect(status().isOk())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString();
+        return JsonPath.read(result, "$.accessToken");
     }
 }

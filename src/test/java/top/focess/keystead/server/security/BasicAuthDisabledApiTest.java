@@ -13,7 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest(properties = "keystead.security.basic-auth-enabled=false")
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class BasicAuthDisabledApiTest {
@@ -21,7 +21,7 @@ class BasicAuthDisabledApiTest {
     @Autowired private MockMvc mvc;
 
     @Test
-    void basicAuthIsRejectedWhenDisabled() throws Exception {
+    void basicAuthIsRejected() throws Exception {
         mvc.perform(
                         post("/api/v1/users")
                                 .contentType(MediaType.APPLICATION_JSON)

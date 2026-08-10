@@ -11,7 +11,5 @@ spring:
       ddl-auto: none
 
 keystead:
-  security:
-    basic-auth-enabled: true
   audit:
     retention: P0D

@@ -1,8 +1,6 @@
 package top.focess.keystead.server.audit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -52,8 +50,12 @@ class AuditRetentionTest {
                 .contains("retention-old-event");
 
         mvc.perform(
-                        get("/api/v1/vault/records")
-                                .with(httpBasic("retention-alice", "wrong-password")))
+                        post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"username":"retention-alice","password":"wrong-password"}
+                                        """))
                 .andExpect(status().isUnauthorized());
 
         List<StoredAuditEvent> events = auditEvents.listForOwner("retention-alice");

@@ -11,20 +11,31 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import top.focess.keystead.server.audit.AuditService;
 
 @RestController
 @RequestMapping("/api/v1/auth")
 class AuthController {
 
     private final AuthService service;
+    private final AuditService audit;
 
-    AuthController(@NonNull AuthService service) {
+    AuthController(@NonNull AuthService service, @NonNull AuditService audit) {
         this.service = service;
+        this.audit = audit;
     }
 
     @PostMapping("/login")
     @NonNull AuthTokenResponse login(@Valid @RequestBody @NonNull LoginRequest request) {
-        return service.login(request);
+        try {
+            return service.login(request);
+        } catch (AuthFailedException e) {
+            // Audit after the login transaction has rolled back so the event persists; the
+            // real client authenticates here (JSON body, not a Basic header), so this is
+            // where wrong-password attempts are recorded.
+            audit.loginFailed(request.username());
+            throw e;
+        }
     }
 
     @PostMapping("/refresh")
