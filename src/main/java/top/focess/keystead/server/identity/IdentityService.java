@@ -17,20 +17,32 @@ class IdentityService {
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
     private final Validator validator;
+    private final RegistrationProperties registrationProperties;
 
     IdentityService(
             @NonNull UserRepository users,
             @NonNull PasswordEncoder passwordEncoder,
             @NonNull Clock clock,
-            @NonNull Validator validator) {
+            @NonNull Validator validator,
+            @NonNull RegistrationProperties registrationProperties) {
         this.users = users;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
         this.validator = validator;
+        this.registrationProperties = registrationProperties;
     }
 
     @Transactional
     void register(@NonNull UserRegistrationRequest request) {
+        if (!registrationProperties.enabled()) {
+            throw new RegistrationClosedException("Registration is disabled");
+        }
+        int maxUsers = registrationProperties.maxUsers();
+        // A concurrent registration can let the count briefly exceed the cap by one; acceptable
+        // for a self-hosted server - a strict cap would need a database lock.
+        if (maxUsers > 0 && users.count() >= maxUsers) {
+            throw new RegistrationClosedException("Registration user limit reached");
+        }
         if (users.exists(request.username())) {
             throw new UserAlreadyExistsException("User already exists");
         }

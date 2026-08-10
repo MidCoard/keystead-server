@@ -23,6 +23,9 @@ management:
 keystead:
   security:
     basic-auth-enabled: false
+  registration:
+    enabled: true
+    max-users: 0
   share:
     default-ttl: P7D
     max-ttl: P30D
