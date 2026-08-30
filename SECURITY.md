@@ -24,16 +24,6 @@ The project owner will acknowledge receipt and coordinate a fix and disclosure
 timeline. Vulnerabilities must be reported privately before any public
 disclosure.
 
-## Pre-release checklist
-
-Before tagging a release, the server must pass its full CI lane (H2 and
-PostgreSQL), the zero-knowledge contract must hold (only opaque ciphertext and
-wrapped key packages are stored; no vault key material touches the server), JPA
-must be the only database access path, Flyway migrations must be forward-only
-and run cleanly on both H2 and PostgreSQL, and no plaintext secret, raw token,
-or wrapped vault key may be stored, logged, audited, or returned by any code
-path.
-
 ## License
 
 This repository is licensed under the Apache License, Version 2.0. Security
