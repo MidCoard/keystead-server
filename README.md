@@ -42,6 +42,10 @@ refresh token. Refresh tokens are stored only as SHA-256 hashes.
 `POST /api/v1/auth/logout-all` revokes all refresh tokens and increments the
 account token version, invalidating already issued access tokens.
 
+Registration requires at least 12 password characters. Registration and login
+accept long credentials without a maximum length, including passwords registered
+by earlier server versions. Credentials are SHA-256 pre-hashed before bcrypt.
+
 Login requests and tokens are account-scoped. They contain no persistent
 device identifier.
 
@@ -58,6 +62,10 @@ device identifier.
   events. Explicit server-copy removal is a separate privacy operation: it
   removes ciphertext history without changing any local vault and records a
   redacted `RECORD_PURGED` audit event.
+
+Record appends and history purges hold a database lock on the permanent account
+row until commit. This preserves fingerprint binding and commit order across
+server instances, including when the stream is empty.
 
 The server sequence is only a transport cursor. Local record revisions remain
 inside the encrypted-record protocol and the client resolves which authentic
@@ -82,6 +90,11 @@ already open the same vault:
    the personal event stream, and installs only records that authenticate.
 6. The ephemeral private key is destroyed when the request completes, is
    cancelled, expires, or the client exits.
+
+Approval packages stop being returned when their request expires, including
+packages approved before expiry. Expired requests and their encrypted packages
+are deleted by a background sweep (by default every minute; configurable with
+`keystead.vault-access.expiry-sweep-millis`).
 
 The server relays one opaque wrapped package. It cannot unwrap or reuse the
 DEK, and it does not need to know anything about local biometrics.

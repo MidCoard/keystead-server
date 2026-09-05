@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import top.focess.keystead.server.identity.UserRepository;
 import top.focess.keystead.service.EncryptedSyncRecord;
 import top.focess.keystead.service.SyncRecordEventId;
 
@@ -23,6 +24,7 @@ import top.focess.keystead.service.SyncRecordEventId;
 class PersonalVaultRecordApiTest {
 
     @Autowired private MockMvc mvc;
+    @Autowired private UserRepository users;
 
     @Test
     void appendOnlyStreamKeepsMultipleCiphertextEventsForTheSameSecret() throws Exception {
@@ -264,6 +266,15 @@ class PersonalVaultRecordApiTest {
             String envelope,
             String contentKey)
             throws Exception {
+        if (!users.existsById(username)) {
+            mvc.perform(
+                            post("/api/v1/users")
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(
+                                            "{\"username\":\"%s\",\"password\":\"valid-test-password\"}"
+                                                    .formatted(username)))
+                    .andExpect(status().isCreated());
+        }
         return mvc.perform(
                 post("/api/v1/vault/records")
                         .with(user(username))

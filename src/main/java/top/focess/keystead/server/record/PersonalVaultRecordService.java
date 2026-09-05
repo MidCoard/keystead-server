@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.server.audit.AuditService;
+import top.focess.keystead.server.identity.UserRepository;
 import top.focess.keystead.service.EncryptedSyncRecord;
 import top.focess.keystead.service.SyncRecordEventId;
 
@@ -19,6 +20,7 @@ class PersonalVaultRecordService {
 
     private static final int MAX_PAGE_LIMIT = 500;
 
+    private final UserRepository users;
     private final PersonalVaultRepository vaults;
     private final VaultRecordEventRepository events;
     private final Validator validator;
@@ -26,11 +28,13 @@ class PersonalVaultRecordService {
     private final AuditService audit;
 
     PersonalVaultRecordService(
+            @NonNull UserRepository users,
             @NonNull PersonalVaultRepository vaults,
             @NonNull VaultRecordEventRepository events,
             @NonNull Validator validator,
             @NonNull Clock clock,
             @NonNull AuditService audit) {
+        this.users = users;
         this.vaults = vaults;
         this.events = events;
         this.validator = validator;
@@ -44,10 +48,11 @@ class PersonalVaultRecordService {
         validate(request);
         request.validateShape();
         validateEventId(request);
+        lockOwner(ownerId);
         Instant now = clock.instant();
         PersonalVaultEntity vault = vaults.findById(ownerId).orElse(null);
         if (vault == null) {
-            vaults.save(new PersonalVaultEntity(ownerId, request.fingerprint(), now, now));
+            vaults.insert(new PersonalVaultEntity(ownerId, request.fingerprint(), now, now));
         } else if (!vault.fingerprint.equals(request.fingerprint())) {
             throw new PersonalVaultFingerprintConflictException(
                     vault.fingerprint, request.fingerprint());
@@ -111,6 +116,7 @@ class PersonalVaultRecordService {
         if (secretId.isBlank() || secretId.length() > 256) {
             throw new InvalidPersonalVaultRecordException("Secret id is invalid");
         }
+        lockOwner(ownerId);
         VaultRecordEventEntity latest =
                 events.findFirstByOwnerIdAndSecretIdOrderByServerSequenceDesc(ownerId, secretId)
                         .orElse(null);
@@ -123,6 +129,15 @@ class PersonalVaultRecordService {
             vaults.deleteById(ownerId);
         }
         return new PersonalVaultRecordDeletionResponse(secretId, deletedEvents);
+    }
+
+    private void lockOwner(@NonNull String ownerId) {
+        // Lock the permanent account, not the removable fingerprint binding. The enclosing
+        // transaction keeps this database lock through commit, so another append cannot expose
+        // a higher sequence first, and purge cannot release a binding around a concurrent append.
+        users.lockByUsername(ownerId)
+                .orElseThrow(
+                        () -> new InvalidPersonalVaultRecordException("Account does not exist"));
     }
 
     private <T> void validate(@NonNull T request) {

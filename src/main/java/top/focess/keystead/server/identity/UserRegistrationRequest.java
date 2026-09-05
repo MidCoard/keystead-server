@@ -6,8 +6,5 @@ import org.jspecify.annotations.NonNull;
 
 public record UserRegistrationRequest(
         @NotBlank @Size(max = 255) @NonNull String username,
-        // Minimum length is a security policy; the previous upper bound of 72
-        // was a bcrypt artifact. The PreHashedPasswordEncoder wraps bcrypt and
-        // pre-hashes the raw credential with SHA-256, so any-length passphrase
-        // is accepted at this layer.
+        // Preserve support for long credentials; pre-hashing handles bcrypt's 72-byte ceiling.
         @NotBlank @Size(min = 12) @NonNull String password) {}

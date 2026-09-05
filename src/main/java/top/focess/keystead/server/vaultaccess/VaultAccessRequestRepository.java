@@ -8,7 +8,13 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface VaultAccessRequestRepository extends JpaRepository<VaultAccessRequestEntity, String> {
+interface VaultAccessRequestRepository
+        extends JpaRepository<VaultAccessRequestEntity, String>,
+                VaultAccessRequestRepositoryWrites {
+
+    @Modifying
+    @Query("delete from VaultAccessRequestEntity r where r.expiresAt <= :now")
+    int deleteExpired(@Param("now") @NonNull Instant now);
 
     @Query(
             """

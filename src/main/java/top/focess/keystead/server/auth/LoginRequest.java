@@ -5,5 +5,4 @@ import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.NonNull;
 
 public record LoginRequest(
-        @NotBlank @Size(max = 255) @NonNull String username,
-        @NotBlank @Size(max = 1024) @NonNull String password) {}
+        @NotBlank @Size(max = 255) @NonNull String username, @NotBlank @NonNull String password) {}

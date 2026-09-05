@@ -1,14 +1,21 @@
 package top.focess.keystead.server.identity;
 
+import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Optional;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface UserRepository extends JpaRepository<UserEntity, String>, UserRepositoryWrites {
+
+    /** Locks the permanent account row until transaction completion, including empty vaults. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.username = :username")
+    @NonNull Optional<UserEntity> lockByUsername(@Param("username") @NonNull String username);
 
     default @NonNull Optional<StoredUser> find(@NonNull String username) {
         return findById(username).map(UserEntity::toStored);

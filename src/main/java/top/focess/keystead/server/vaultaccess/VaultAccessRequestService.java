@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import org.jspecify.annotations.NonNull;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import top.focess.keystead.access.VaultAccessRequest;
@@ -58,7 +59,8 @@ class VaultAccessRequestService {
         entity.createdAt = now;
         entity.fingerprint = fingerprint(entity);
         try {
-            return response(requests.saveAndFlush(entity));
+            requests.insert(entity);
+            return response(entity);
         } catch (DataIntegrityViolationException error) {
             throw new InvalidVaultAccessRequestException("Vault access request id is already used");
         }
@@ -103,6 +105,12 @@ class VaultAccessRequestService {
         }
     }
 
+    @Transactional
+    @Scheduled(fixedDelayString = "${keystead.vault-access.expiry-sweep-millis:60000}")
+    void purgeExpiredRequests() {
+        requests.deleteExpired(clock.instant());
+    }
+
     private @NonNull VaultAccessRequestEntity request(
             @NonNull String username, @NonNull String requestId) {
         return requests.findById(requestId)
@@ -113,13 +121,11 @@ class VaultAccessRequestService {
     private @NonNull VaultAccessRequestResponse response(@NonNull VaultAccessRequestEntity entity) {
         byte[] canonical = canonical(entity);
         try {
+            boolean expired = !entity.expiresAt.isAfter(clock.instant());
             VaultAccessRequestState state =
-                    entity.state == VaultAccessRequestState.PENDING
-                                    && !entity.expiresAt.isAfter(clock.instant())
-                            ? VaultAccessRequestState.EXPIRED
-                            : entity.state;
+                    expired ? VaultAccessRequestState.EXPIRED : entity.state;
             VaultAccessApprovedPackageResponse approved =
-                    entity.encryptedVaultKey == null
+                    expired || entity.encryptedVaultKey == null
                             ? null
                             : new VaultAccessApprovedPackageResponse(
                                     entity.vaultFingerprint,

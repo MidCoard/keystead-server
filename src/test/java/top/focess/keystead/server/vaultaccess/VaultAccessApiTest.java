@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,7 +29,7 @@ import top.focess.keystead.crypto.DefaultCryptoService;
 class VaultAccessApiTest {
 
     private static final String PASSWORD = "correct horse battery staple";
-    private static final String REQUEST_ID = "550e8400-e29b-41d4-a716-446655440000";
+    private final String requestId = UUID.randomUUID().toString();
 
     @Autowired private MockMvc mvc;
 
@@ -55,11 +56,11 @@ class VaultAccessApiTest {
                         get("/api/v1/vault-access-requests")
                                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].requestId").value(REQUEST_ID))
+                .andExpect(jsonPath("$[0].requestId").value(requestId))
                 .andExpect(jsonPath("$[0].state").value("PENDING"));
 
         mvc.perform(
-                        post("/api/v1/vault-access-requests/{requestId}/approve", REQUEST_ID)
+                        post("/api/v1/vault-access-requests/{requestId}/approve", requestId)
                                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -74,7 +75,7 @@ class VaultAccessApiTest {
                 .andExpect(status().isNoContent());
 
         mvc.perform(
-                        get("/api/v1/vault-access-requests/{requestId}", REQUEST_ID)
+                        get("/api/v1/vault-access-requests/{requestId}", requestId)
                                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.state").value("APPROVED"))
@@ -104,7 +105,7 @@ class VaultAccessApiTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.requestId").value(REQUEST_ID));
+                .andExpect(jsonPath("$.requestId").value(requestId));
     }
 
     @Test
@@ -118,12 +119,12 @@ class VaultAccessApiTest {
         createRequest(ownerToken, "owner-public-key".getBytes(StandardCharsets.UTF_8));
 
         mvc.perform(
-                        get("/api/v1/vault-access-requests/{requestId}", REQUEST_ID)
+                        get("/api/v1/vault-access-requests/{requestId}", requestId)
                                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + outsiderToken))
                 .andExpect(status().isNotFound());
 
         mvc.perform(
-                        post("/api/v1/vault-access-requests/{requestId}/approve", REQUEST_ID)
+                        post("/api/v1/vault-access-requests/{requestId}/approve", requestId)
                                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + outsiderToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
@@ -146,7 +147,7 @@ class VaultAccessApiTest {
                 .getContentAsString();
     }
 
-    private static String requestBody(byte[] publicKey) {
+    private String requestBody(byte[] publicKey) {
         return """
                 {
                   "requestId":"%s",
@@ -156,7 +157,7 @@ class VaultAccessApiTest {
                 }
                 """
                 .formatted(
-                        REQUEST_ID,
+                        requestId,
                         DefaultCryptoService.DEVICE_KEY_ALGORITHM,
                         Base64.getEncoder().encodeToString(publicKey));
     }
